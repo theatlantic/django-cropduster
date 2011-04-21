@@ -1,0 +1,126 @@
+{% extends "admin/base.html" %}
+
+<!-- LOADING -->
+{% load i18n adminmedia fb_tags fb_pagination %}
+
+<!-- STYLESHEETS -->
+{% block stylesheets %}
+	{{ block.super }}
+	<link rel="stylesheet" href="{% admin_media_prefix %}cropduster/css/jquery.Jcrop.css" type="text/css" />
+	<style type="text/css">
+	
+	#progress-wrapper {
+		position: relative;
+		height: 20px;
+		width: inherit;
+		display: none;
+	}
+	
+	#progressbar-container {
+		position: absolute;
+		left: 0;
+		top: 0;
+		bottom: 0;
+		right: 35px;
+	}
+	#progress-percent-container {
+		position: absolute;
+		right: 0;
+		top: 0;
+		bottom: 0;
+		width: 30px;
+	}
+	#progress-percent {
+		line-height: 20px;
+	}
+	.ui-progressbar { height:2em; text-align: left; }
+	.ui-progressbar .ui-progressbar-value {margin: -1px; height:100%; }
+	.ui-progressbar-value { background-image: url({% admin_media_prefix %}cropduster/img/progressbar.gif); }
+	</style>
+{% endblock %}
+
+<!-- JAVASCRIPTS -->
+{% block javascripts %}
+	{{ block.super }}
+	<script language="javascript" type="text/javascript" src="{% admin_media_prefix %}cropduster/js/json2.js"></script>
+	<script language="javascript" type="text/javascript" src="{% admin_media_prefix %}cropduster/js/jquery.class.js"></script>
+	<script language="javascript" type="text/javascript" src="{% admin_media_prefix %}cropduster/js/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="{% admin_media_prefix %}cropduster/js/jquery.Jcrop.js?v=2"></script>
+	<script language="javascript" type="text/javascript" src="{% admin_media_prefix %}cropduster/js/jquery.progressbar.js"></script>
+	<script language="javascript" type="text/javascript" src="{% admin_media_prefix %}cropduster/js/upload.js"></script>
+	<script language="javascript" type="text/javascript" src="{% admin_media_prefix %}cropduster/js/CropDuster.js"></script>
+{% endblock %}
+
+<!-- Get rid of nav -->
+{% block nav-global %}{% endblock %}
+
+{% block content-class %}content-flexible{% endblock %}
+
+{% block breadcrumbs %}{% endblock %}
+
+
+<!-- CONTENT -->
+{% block content %}
+<h1 id="step-header">Upload, Crop, and Generate Thumbnails</h1>
+<div id="content-main">
+	<form id="upload" action="{{ request.path }}" method="POST">
+		<input type="hidden" id="image-element-id" name="image_element_id" value="{{ image_element_id }}" />
+		<input type="hidden" id="upload-sizes" name="sizes" value="[]" />
+		<input type="hidden" id="upload-auto-sizes" name="auto_sizes" value="[]" />
+		<fieldset class="module aligned">
+			<div class="row">
+				<input type="file" name="picture" id="picture" />
+			</div>
+		</fieldset>
+		<div id="progress-wrapper">
+			<div id="progressbar-container"></div>
+			<div id="progress-percent-container">
+				<span id="progress-percent"></div>
+			</div>
+		<input type="hidden" id="X-Progress-ID" name="X-Progress-ID" value=""/>
+		<input type="hidden" id="id" name="id" value=""/>
+		<div class="module footer" id="upload-footer"{% if image_id %} style="display: none"{% endif %}>
+			<ul class="submit-row">
+				<li class="submit-button-container">
+					<input id="upload-button" class="default" type="submit" name="_save" value='Upload' />
+				</li>
+			</ul>
+		</div>
+	</form>
+
+	<div id="error-container" style="display:none">
+		<p class="errornote"></p>
+	</div>
+
+	<form id="form-upload-progress" action="{% url cropduster.views.upload_progress %}" method="POST"></form>
+
+	<form action="{% url cropduster.views.crop %}" method="POST" id="crop-form">
+		<div id="image-container">
+			<img src="{{ image }}" id="cropbox" />
+		</div>
+		<input type="hidden" id="image-id" name="image_id" value="{% if image_id %}{{ image_id }}{% endif %}" />
+		<input type="hidden" id="crop-uploaded-image" name="uploaded_image" value="" />
+		<input type="hidden" id="crop-orig-image" name="orig_image" value="{{ orig_image }}" />
+		<input type="hidden" id="default-thumb" name="default_thumb" value="" />
+		<input type="hidden" id="x" name="x" value="{{ x }}" />
+		<input type="hidden" id="y" name="y" value="{{ y }}" />
+		<input type="hidden" id="w" name="w" value="{{ w }}" />
+		<input type="hidden" id="h" name="h" value="{{ h }}" />
+		<input type="hidden" id="orig-w" name="orig_w" value="{{ orig_w }}" />
+		<input type="hidden" id="orig-h" name="orig_h" value="{{ orig_h }}" />
+		<input type="hidden" id="crop-sizes" name="sizes" value="[]" />
+		<input type="hidden" id="crop-auto-sizes" name="auto_sizes" value="[]" />
+		<div class="module footer" id="crop-footer"{% if not image_id %} style="display:none"{% endif %}>
+			<ul class="submit-row">
+				<li class="submit-button-container">
+					<input id="crop-button" class="default" type="submit" name="crop" value="Crop and Generate Thumbs" />
+				</li>
+				<li class="submit-button-container">
+					<input id="reupload-button" type="submit" name="_save" value='Re-Upload' onclick="return uploadSubmit();" />
+				</li>
+			</ul>
+		</div>
+	</form>
+	
+</div>
+{% endblock %}
