@@ -167,7 +167,7 @@ class ImageInlineFormset(BaseGenericInlineFormSet):
 			self.form.base_fields['thumbs'].queryset = queryset
 			self.form.base_fields['thumbs'].widget.widget.choices.queryset = queryset
 		except Image.DoesNotExist:
-			if self.data is not None:
+			if self.data is not None and len(self.data) > 0:
 				thumb_ids = [int(id) for id in self.data.getlist(self.rel_name + '-0-thumbs')]
 				queryset = Thumb.objects.filter(pk__in=thumb_ids)
 				self.form.base_fields['thumbs'].queryset = queryset
