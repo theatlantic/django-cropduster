@@ -224,7 +224,7 @@ class ImageInlineFormset(BaseGenericInlineFormSet):
 		
 		# Load in initial data if we have it from a previously submitted
 		# (but apparently invalidated) form
-		if self.data is not None:
+		if self.data is not None and len(self.data) > 0:
 			thumb_ids = [int(id) for id in self.data.getlist(self.rel_name + '-0-thumbs')]
 			if len(thumb_ids) > 0:
 				for key in self.data.keys():
