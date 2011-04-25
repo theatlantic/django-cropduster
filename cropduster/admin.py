@@ -178,7 +178,7 @@ class ImageInlineFormset(BaseGenericInlineFormSet):
 				self.form.base_fields['thumbs'].queryset = queryset
 				self.form.base_fields['thumbs'].widget.widget.choices.queryset = queryset
 		
-		if self.data is not None:
+		if self.data is not None and len(self.data) > 0:
 			pk_key = "%s-%s" % (self.add_prefix(i), self.model._meta.pk.name)
 			pk = self.data[pk_key]
 			if pk == '' and image_id != 0:
