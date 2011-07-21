@@ -23,7 +23,7 @@
 	CropDuster.formsetPrefixes['{{ final_attrs.name }}'] = '{{ prefix|safe }}';
 	CropDuster.minSize['{{ final_attrs.name }}'] = {{ min_size|safe }};
 	CropDuster.staticUrl = {{ static_url|safe }};
-})(django.jQuery);
+})((typeof window.django != 'undefined') ? django.jQuery : jQuery);
 // ]]>
 </script>
 

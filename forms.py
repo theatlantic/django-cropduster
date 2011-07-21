@@ -142,6 +142,7 @@ class CropDusterThumbField(ModelMultipleChoiceField):
 		return ret
 
 class CropDusterForm(forms.ModelForm):
+	model = Image
 	formfield_overrides = {
 		Thumb: {
 			'form_class': CropDusterThumbField
@@ -266,14 +267,26 @@ def cropduster_formset_factory():
 	
 	exclude = [ct_field.name, ct_fk_field.name]
 	
-	form = CropDusterForm
+	form = type('CropDusterForm', (forms.ModelForm,), {
+		"model": Image,
+		"formfield_overrides": {
+			Thumb: {
+				'form_class': CropDusterThumbField,
+			},
+		},
+		"Meta": type('Meta', (object,), {
+			"fields": AbstractInlineFormSet.fields,
+			"exclude": exclude,
+			"model": Image,
+		})
+	})
 	
 	
 	return type('BaseInlineFormSet', (AbstractInlineFormSet, ), {
 		"ct_field": ct_field,
 		"ct_fk_field": ct_fk_field,
 		"exclude": exclude,
-		# "form": form,
+		"form": form,
 	})
 
 BaseInlineFormSet = cropduster_formset_factory()
