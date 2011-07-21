@@ -269,11 +269,11 @@ def cropduster_formset_factory():
 	form = CropDusterForm
 	
 	
-	return type('BaseInlineFormset', (AbstractInlineFormSet, ), {
+	return type('BaseInlineFormSet', (AbstractInlineFormSet, ), {
 		"ct_field": ct_field,
 		"ct_fk_field": ct_fk_field,
 		"exclude": exclude,
 		# "form": form,
 	})
 
-BaseInlineFormset = cropduster_formset_factory()
+BaseInlineFormSet = cropduster_formset_factory()

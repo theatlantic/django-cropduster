@@ -1,6 +1,6 @@
 from django.contrib.contenttypes.generic import GenericInlineModelAdmin
 from cropduster.models import Image, Thumb
-from cropduster.forms import BaseInlineFormset, CropDusterFormField, CropDusterThumbField
+from cropduster.forms import BaseInlineFormSet, CropDusterFormField, CropDusterThumbField
 
 
 class BaseImageInline(GenericInlineModelAdmin):
@@ -11,7 +11,7 @@ class BaseImageInline(GenericInlineModelAdmin):
 		
 	model = Image
 	template = "cropduster/inline.html"
-	formset = BaseInlineFormset
+	formset = BaseInlineFormSet
 	extra = 1
 	max_num = 1
 	readonly_fields = 'id'
@@ -56,16 +56,16 @@ class BaseImageInline(GenericInlineModelAdmin):
 
 # Retained for backwards compatibility, but imports of these classes from this module
 # are deprecated
-from cropduster.forms import BaseInlineFormset
+from cropduster.forms import BaseInlineFormSet
 from cropduster.forms import CropDusterFormField as _CropDusterFormField
 from cropduster.forms import CropDusterThumbField as _CropDusterThumbField
 
-class ImageInlineFormset(BaseInlineFormset):
+class ImageInlineFormset(BaseInlineFormSet):
 	def __init__(self, *args, **kwargs):
 		import warnings
 		warnings.warn(
 			'Calls to cropduster.admin.ImageInlineFormset are deprecated. Please use ' +\
-			'cropduster.forms.BaseInlineFormset',
+			'cropduster.forms.BaseInlineFormSet',
 			PendingDeprecationWarning
 		)
 		return super(ImageInlineFormset, self).__init__(*args, **kwargs)
