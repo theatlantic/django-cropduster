@@ -74,7 +74,6 @@ class CropDusterWidget(Input):
 		aspect_ratios = get_aspect_ratios(self.sizes)
 		aspect_ratio = json.dumps(aspect_ratios[0])
 		min_size = json.dumps(get_min_size(self.sizes, self.auto_sizes))
-		# id and name prefix for form fields
 		formset = self.formset
 		inline_admin_formset = self.formset
 		prefix = self.formset.get_default_prefix()
@@ -142,12 +141,28 @@ class CropDusterThumbField(ModelMultipleChoiceField):
 				raise e
 		return ret
 
+class CropDusterForm(forms.ModelForm):
+	formfield_overrides = {
+		Thumb: {
+			'form_class': CropDusterThumbField
+		}
+	}
 
-class BaseInlineFormset(BaseGenericInlineFormSet):
+class AbstractInlineFormSet(BaseGenericInlineFormSet):
+	model = Image
+	fields = ('id', 'crop_x', 'crop_y', 'crop_w', 'crop_h',
+	           'path', '_extension', 'default_thumb', 'thumbs',)
+	exclude = None
 	sizes = None
 	auto_sizes = None
 	default_thumb = None
-
+	exclude = ["content_type", "object_id"]
+	max_num = 1
+	can_order = False
+	can_delete = True
+	formfield_callback=lambda f: f.formfield()
+	extra = 1			
+	
 	def _construct_form(self, i, **kwargs):
 		"""
 		Override the id field of the form with our CropDusterFormField and
@@ -161,21 +176,29 @@ class BaseInlineFormset(BaseGenericInlineFormSet):
 			pass
 		
 		# Limit the queryset for performance reasons
+		queryset = None
 		try:
 			queryset = Image.objects.get(pk=image_id).thumbs.get_query_set()
 			self.form.base_fields['thumbs'].queryset = queryset
-			self.form.base_fields['thumbs'].widget.widget.choices.queryset = queryset
 		except Image.DoesNotExist:
 			if self.data is not None and len(self.data) > 0:
 				thumb_ids = [int(id) for id in self.data.getlist(self.rel_name + '-0-thumbs')]
 				queryset = Thumb.objects.filter(pk__in=thumb_ids)
-				self.form.base_fields['thumbs'].queryset = queryset
-				self.form.base_fields['thumbs'].widget.widget.choices.queryset = queryset
 			else:
 				# Return an empty queryset
 				queryset = Thumb.objects.filter(pk=0)
-				self.form.base_fields['thumbs'].queryset = queryset
-				self.form.base_fields['thumbs'].widget.widget.choices.queryset = queryset
+
+		if queryset is not None:
+			self.form.base_fields['thumbs'].queryset = queryset
+			widget = self.form.base_fields['thumbs'].widget
+			try:
+				if hasattr(self.form.base_fields['thumbs'].widget, 'widget'):
+					self.form.base_fields['thumbs'].widget.widget.choices.queryset = queryset
+				else:
+					self.form.base_fields['thumbs'].widget.choices.queryset = queryset
+			except AttributeError:
+				pass
+			
 		
 		if self.data is not None and len(self.data) > 0:
 			pk_key = "%s-%s" % (self.add_prefix(i), self.model._meta.pk.name)
@@ -209,7 +232,7 @@ class BaseInlineFormset(BaseGenericInlineFormSet):
 				except Exception, e:
 					pass
 
-		form = super(BaseInlineFormset, self)._construct_form(i, **kwargs)
+		form = super(AbstractInlineFormSet, self)._construct_form(i, **kwargs)
 		
 		# Override the id field to use our custom field and widget that displays the
 		# thumbnail and the button that pops up the cropduster window
@@ -237,3 +260,20 @@ class BaseInlineFormset(BaseGenericInlineFormSet):
 		return form
 
 
+def cropduster_formset_factory():
+	ct_field = Image._meta.get_field("content_type")
+	ct_fk_field = Image._meta.get_field("object_id")
+	
+	exclude = [ct_field.name, ct_fk_field.name]
+	
+	form = CropDusterForm
+	
+	
+	return type('BaseInlineFormset', (AbstractInlineFormSet, ), {
+		"ct_field": ct_field,
+		"ct_fk_field": ct_fk_field,
+		"exclude": exclude,
+		# "form": form,
+	})
+
+BaseInlineFormset = cropduster_formset_factory()
