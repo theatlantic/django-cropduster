@@ -238,22 +238,26 @@ def crop(request):
 	
 	thumb_ids = OrderedDict({})
 	
-	new_ids = _generate_and_save_thumbs(db_image, 
-			jsonutil.loads(request.POST['sizes']),
+	sizes = jsonutil.loads(request.POST['sizes'])
+	auto_sizes = jsonutil.loads(request.POST['auto_sizes'])
+	
+	new_ids = _generate_and_save_thumbs(db_image,
+			sizes,
 			img,
 			file_dir,
 			file_ext
 	)
 	thumb_ids.update(new_ids)
 	
-	new_ids = _generate_and_save_thumbs(db_image, 
-			jsonutil.loads(request.POST['auto_sizes']),
-			img,
-			file_dir,
-			file_ext,
-			is_auto=True
-	)
-	thumb_ids.update(new_ids)
+	if auto_sizes is not None:
+		new_ids = _generate_and_save_thumbs(db_image,
+				auto_sizes,
+				img,
+				file_dir,
+				file_ext,
+				is_auto=True
+		)
+		thumb_ids.update(new_ids)
 	
 	thumb_urls = OrderedDict({})
 	for size_name in thumb_ids:
