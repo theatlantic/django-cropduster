@@ -1,12 +1,12 @@
 {% extends "admin/base.html" %}
 
 <!-- LOADING -->
-{% load i18n adminmedia fb_tags fb_pagination %}
+{% load i18n adminmedia fb_tags fb_pagination cropdustermedia %}
 
 <!-- STYLESHEETS -->
 {% block stylesheets %}
 	{{ block.super }}
-	<link rel="stylesheet" href="{% admin_media_prefix %}cropduster/css/jquery.Jcrop.css" type="text/css" />
+	<link rel="stylesheet" href="{% cropduster_media_prefix %}css/jquery.Jcrop.css" type="text/css" />
 	<style type="text/css">
 	
 	#progress-wrapper {
@@ -35,20 +35,20 @@
 	}
 	.ui-progressbar { height:2em; text-align: left; }
 	.ui-progressbar .ui-progressbar-value {margin: -1px; height:100%; }
-	.ui-progressbar-value { background-image: url({% admin_media_prefix %}cropduster/img/progressbar.gif); }
+	.ui-progressbar-value { background-image: url({% cropduster_media_prefix %}img/progressbar.gif); }
 	</style>
 {% endblock %}
 
 <!-- JAVASCRIPTS -->
 {% block javascripts %}
 	{{ block.super }}
-	<script language="javascript" type="text/javascript" src="{% admin_media_prefix %}cropduster/js/json2.js"></script>
-	<script language="javascript" type="text/javascript" src="{% admin_media_prefix %}cropduster/js/jquery.class.js"></script>
-	<script language="javascript" type="text/javascript" src="{% admin_media_prefix %}cropduster/js/jquery.form.js"></script>
-	<script language="javascript" type="text/javascript" src="{% admin_media_prefix %}cropduster/js/jquery.Jcrop.js?v=2"></script>
-	<script language="javascript" type="text/javascript" src="{% admin_media_prefix %}cropduster/js/jquery.progressbar.js"></script>
-	<script language="javascript" type="text/javascript" src="{% admin_media_prefix %}cropduster/js/upload.js"></script>
-	<script language="javascript" type="text/javascript" src="{% admin_media_prefix %}cropduster/js/CropDuster.js"></script>
+	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/json2.js"></script>
+	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/jquery.class.js"></script>
+	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/jquery.Jcrop.js?v=2"></script>
+	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/jquery.progressbar.js"></script>
+	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/upload.js"></script>
+	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/CropDuster.js"></script>
 {% endblock %}
 
 <!-- Get rid of nav -->
