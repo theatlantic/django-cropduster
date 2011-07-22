@@ -1,8 +1,4 @@
-import os
+import os.path
 
-from django.conf import settings
-
-# Main Media Settings
-CROPDUSTER_MEDIA_ROOT = getattr(settings, "CROPDUSTER_MEDIA_ROOT", os.path.join(settings.MEDIA_ROOT, 'cropduster/'))
-CROPDUSTER_MEDIA_URL = getattr(settings, "CROPDUSTER_MEDIA_URL", os.path.join(settings.MEDIA_URL, 'cropduster/'))
-
+CROPDUSTER_ROOT = os.path.normpath(os.path.dirname(__file__))
+CROPDUSTER_MEDIA_ROOT = os.path.join(CROPDUSTER_ROOT, 'media')

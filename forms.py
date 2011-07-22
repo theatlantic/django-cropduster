@@ -2,17 +2,14 @@ import os
 import re
 
 from django.conf import settings
-from cropduster.settings import *
 
 from django import forms
 from django.forms.models import ModelMultipleChoiceField
-from django.core.exceptions import ValidationError
-
 from django.forms.widgets import Input
-
-from django.template.loader import render_to_string
-
 from django.contrib.contenttypes.generic import BaseGenericInlineFormSet, generic_inlineformset_factory
+from django.core.exceptions import ValidationError
+from django.core.urlresolvers import reverse
+from django.template.loader import render_to_string
 
 from cropduster.models import Image, Thumb
 from cropduster.utils import get_aspect_ratios, validate_sizes, OrderedDict, get_min_size
@@ -20,11 +17,6 @@ from cropduster.utils import get_aspect_ratios, validate_sizes, OrderedDict, get
 from jsonutil import jsonutil
 
 class CropDusterWidget(Input):
-	class Media:
-		css = {
-			'all': (os.path.join(CROPDUSTER_MEDIA_URL, 'css/CropDuster.css'), )
-		}
-		js = (os.path.join(CROPDUSTER_MEDIA_URL, 'js/CropDuster.js'), )
 	
 	def __init__(self, sizes=None, auto_sizes=None, default_thumb=None, attrs=None):
 		self.sizes = sizes
@@ -36,6 +28,24 @@ class CropDusterWidget(Input):
 			self.attrs = attrs.copy()
 		else:
 			self.attrs = {}
+	
+	def get_media(self):
+		"""
+		A method used to dynamically generate the media property,
+		since we may not have the urls ready at the time of import,
+		and then the reverse() call would fail.
+		"""
+		from django.forms.widgets import Media as _Media
+		media_url = reverse('cropduster-static', kwargs={'path':''})
+		media_cls = type('Media', (_Media,), {
+			'css': {
+				'all': (os.path.join(media_url, 'css/CropDuster.css'), )
+			},
+			'js': (os.path.join(media_url, 'js/CropDuster.js'), )
+		})
+		return _Media(media_cls)
+	
+	media = property(get_media)
 	
 	def render(self, name, value, attrs=None):
 		from jsonutil import jsonutil as json
@@ -58,9 +68,10 @@ class CropDusterWidget(Input):
 			for thumb in image.thumbs.order_by('-width').all():
 				size_name = thumb.name
 				thumbs[size_name] = image.get_image_url(size_name)
-
+		
+		media_url = reverse('cropduster-static', kwargs={'path':''})
 		final_attrs['upload_icon'] = os.path.join(
-			CROPDUSTER_MEDIA_URL,
+			media_url,
 			'img/cropduster_icon_upload_select.png'
 		)
 		final_attrs['sizes'] = simplejson.dumps(self.sizes)

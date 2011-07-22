@@ -1,8 +1,10 @@
 from django.conf.urls.defaults import patterns, url
 
-urlpatterns = patterns(
-    '',
-    url(r'^crop/', 'cropduster.views.crop'),
-	url(r'^upload/', 'cropduster.views.upload'),
-	url(r'^upload_progress/', 'cropduster.views.upload_progress'),
+from cropduster import views
+
+urlpatterns = patterns('',
+	url(r'^_static/(?P<path>.*)$', views.static_media, name='cropduster-static'),
+	url(r'^crop/', views.crop, name='cropduster-crop'),
+	url(r'^upload/', views.upload, name='cropduster-upload'),
+	url(r'^upload_progress/', views.upload_progress, name='cropduster-upload_progress'),
 )
