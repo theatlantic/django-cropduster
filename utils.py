@@ -62,7 +62,7 @@ def get_min_size(*args):
 	min_w = 0
 	min_h = 0
 	for sizes in args:
-		if sizes is None:
+		if sizes is None or sizes == u'null':
 			continue
 		# The min width and height for
 		# the image = the largest
