@@ -173,7 +173,8 @@ class AbstractInlineFormSet(BaseGenericInlineFormSet):
 	can_order = False
 	can_delete = True
 	formfield_callback=lambda f: f.formfield()
-	extra = 1			
+	extra = 1
+	label = "Upload"
 	
 	def _construct_form(self, i, **kwargs):
 		"""
@@ -249,7 +250,7 @@ class AbstractInlineFormSet(BaseGenericInlineFormSet):
 		# Override the id field to use our custom field and widget that displays the
 		# thumbnail and the button that pops up the cropduster window
 		form.fields['id'] = CropDusterFormField(
-			label="Upload",
+			label = self.label,
 			sizes = self.sizes,
 			auto_sizes = self.auto_sizes,
 			default_thumb=self.default_thumb,
