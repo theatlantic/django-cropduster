@@ -29,6 +29,12 @@
 .cropduster-form .help img.preview.first {
 	margin: 0 8px 8px 0;
 }
-.cd_show img{
+.cropduster-customfield img{
 	border: 0;
+}
+
+.cropduster-customfield .cropduster-upload-button {
+	background: transparent url('../img/cropduster_icon_upload_select.png') no-repeat top left;
+	width: 26px;
+	height: 22px;
 }

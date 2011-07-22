@@ -39,7 +39,7 @@ class CropDusterWidget(Input):
 		media_url = reverse('cropduster-static', kwargs={'path':''})
 		media_cls = type('Media', (_Media,), {
 			'css': {
-				'all': (os.path.join(media_url, 'css/CropDuster.css'), )
+				'all': (os.path.join(media_url, 'css/CropDuster.css?v=1'), )
 			},
 			'js': (os.path.join(media_url, 'js/CropDuster.js'), )
 		})
@@ -69,11 +69,6 @@ class CropDusterWidget(Input):
 				size_name = thumb.name
 				thumbs[size_name] = image.get_image_url(size_name)
 		
-		media_url = reverse('cropduster-static', kwargs={'path':''})
-		final_attrs['upload_icon'] = os.path.join(
-			media_url,
-			'img/cropduster_icon_upload_select.png'
-		)
 		final_attrs['sizes'] = simplejson.dumps(self.sizes)
 		final_attrs['auto_sizes'] = simplejson.dumps(self.auto_sizes)
 	
