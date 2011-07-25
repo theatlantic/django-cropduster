@@ -4,6 +4,7 @@ import re
 from django.conf import settings
 
 from django import forms
+from django.db.models.fields import related
 from django.forms.models import ModelMultipleChoiceField
 from django.forms.widgets import Input
 from django.contrib.contenttypes.generic import BaseGenericInlineFormSet, generic_inlineformset_factory
@@ -149,11 +150,13 @@ class CropDusterThumbField(ModelMultipleChoiceField):
 
 class CropDusterForm(forms.ModelForm):
 	model = Image
-	formfield_overrides = {
-		Thumb: {
-			'form_class': CropDusterThumbField
-		}
-	}
+	
+	@staticmethod
+	def formfield_for_dbfield(db_field, **kwargs):
+		if isinstance(db_field, related.ManyToManyField) and db_field.column == 'thumbs':
+			return db_field.formfield(form_class=CropDusterThumbField)
+		else:
+			return db_field.formfield()
 
 class AbstractInlineFormSet(BaseGenericInlineFormSet):
 	model = Image
@@ -167,7 +170,6 @@ class AbstractInlineFormSet(BaseGenericInlineFormSet):
 	max_num = 1
 	can_order = False
 	can_delete = True
-	formfield_callback=lambda f: f.formfield()
 	extra = 1
 	label = "Upload"
 	
@@ -274,14 +276,16 @@ def cropduster_formset_factory():
 	
 	exclude = [ct_field.name, ct_fk_field.name]
 	
-	form = type('CropDusterForm', (forms.ModelForm,), {
+	form = type('CropDusterForm', (CropDusterForm,), {
 		"model": Image,
 		"formfield_overrides": {
 			Thumb: {
 				'form_class': CropDusterThumbField,
 			},
 		},
+		"formfield_callback": CropDusterForm.formfield_for_dbfield,
 		"Meta": type('Meta', (object,), {
+			"formfield_callback": CropDusterForm.formfield_for_dbfield,
 			"fields": AbstractInlineFormSet.fields,
 			"exclude": exclude,
 			"model": Image,
@@ -290,6 +294,7 @@ def cropduster_formset_factory():
 	
 	
 	return type('BaseInlineFormSet', (AbstractInlineFormSet, ), {
+		"formfield_callback": CropDusterForm.formfield_for_dbfield,
 		"ct_field": ct_field,
 		"ct_fk_field": ct_fk_field,
 		"exclude": exclude,
