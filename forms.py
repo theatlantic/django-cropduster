@@ -82,7 +82,7 @@ class CropDusterWidget(Input):
 		min_size = json.dumps(get_min_size(self.sizes, self.auto_sizes))
 		formset = self.formset
 		inline_admin_formset = self.formset
-		prefix = self.formset.get_default_prefix()
+		prefix = getattr(self.formset, 'prefix', self.formset.get_default_prefix())
 		static_url = simplejson.dumps(settings.STATIC_URL)
 		return render_to_string("cropduster/custom_field.html", locals())
 
