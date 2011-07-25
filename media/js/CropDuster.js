@@ -44,7 +44,8 @@ window.CropDuster = {};
 		
 		getVal: function(id, name) {
 			prefix = CropDuster.formsetPrefixes[id];
-			return encodeURI($('#id_' + prefix + '-0-' + name).val());
+			var val = $('#id_' + prefix + '-0-' + name).val();
+			return (val) ? encodeURI(val) : val;
 		},
 		
 		setVal: function(id, name, val) {
@@ -154,7 +155,7 @@ window.CropDuster = {};
 			var idName = $(el).find('input').attr('name');
 			
 			var matches = /^(.+)-0-id$/.exec(idName);
-			if (matches.length != 2) {
+			if (!matches || matches.length != 2) {
 				return;
 			}
 			
