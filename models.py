@@ -61,7 +61,7 @@ class Image(models.Model):
 		
 	@extension.setter
 	def extension(self, val):
-		''' ensures that file extension is lower case and doesn't have a double dot (.) '''
+		""" ensures that file extension is lower case and doesn't have a double dot (.) """
 		self._extension = val.lower().replace('.', '')
 		
 	def default_thumb_url(self, use_temp=False):
@@ -76,7 +76,7 @@ class Image(models.Model):
 			size_name += '_tmp'
 
 		return os.path.join(settings.STATIC_ROOT, self.path, size_name + self.extension)
-	
+
 	def has_thumb(self, size_name):
 		try:
 			thumb = self.thumbs.get(name=size_name)
@@ -164,6 +164,26 @@ class Image(models.Model):
 			return (thumb.width, thumb.height)
 		except:
 			return (0, 0)
+
+	def get_image_filesize(self, size_name=None):
+		"""Returns the filesize of the thumbnail.  Defaults to the original image."""
+		if size_name is None:
+			return os.path.getsize(self.get_image_path())
+		else:
+			if self.has_thumb(size_name):
+				return os.path.getsize(self.get_image_path(size_name))
+			else:
+				return 0
+			
+	def get_image_filename(self, size_name=None):
+		"""Returns the filename of the thumbnail.  Defaults to the original image."""
+		if size_name is None:
+			return os.path.basename(self.get_image_path())
+		else:
+			if self.has_thumb(size_name):
+				return os.path.basename(self.get_image_path(size_name))
+			else:
+				return ''
 	
 	def save_thumb(self, name, width, height):
 		"""
