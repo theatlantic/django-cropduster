@@ -2,16 +2,16 @@
 from __future__ import division
 
 import os
+import sys
 
 from django import forms
 from django.conf import settings
-from django.core.urlresolvers import reverse
 from django.http import HttpResponse, HttpResponseServerError, Http404, HttpResponseNotModified
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.core.cache import cache
+from django.core.urlresolvers import reverse
 from django.views.decorators.csrf import csrf_exempt
-
 from jsonutil import jsonutil
 
 import Image
@@ -20,8 +20,16 @@ from cropduster.handlers import UploadProgressCachedHandler
 from cropduster.utils import *
 from cropduster.models import Image as CropDusterImage, Thumb as CropDusterThumb
 from cropduster.settings import *
+from cropduster.exceptions import *
 
 import simplejson
+import re
+
+import logging
+from sentry.client.handlers import SentryHandler
+
+logger = logging.getLogger('root')
+logger.addHandler(SentryHandler())
 
 # For validation
 class UploadForm(forms.Form):
@@ -82,7 +90,6 @@ def upload(request):
 				orig_image = os.path.join(path, 'original' + '.' + ext)
 				context_data['orig_image'] = orig_image
 				preview_url = settings.STATIC_URL + '/' + path + '/_preview' + '.' + ext
-				import re
 				# Remove double '/'s
 				preview_url = re.sub(r'(?<!:)/+', '/', preview_url)
 				context_data['image'] = preview_url
@@ -94,6 +101,18 @@ def upload(request):
 			pass
 		
 		context = RequestContext(request, context_data)
+		
+		try:
+			crop_path = reverse('cropduster.views.crop')
+			curr_path = request.META['PATH_INFO']
+			
+			if re.search(r"^/admin/", crop_path) and not re.search(r"^/admin/", curr_path):
+				raise CropDusterUrlException("django.core.urlresolvers.reverse() is incorrectly" \
+				                            + " prepending /admin/ to cropduster.views.crop")
+		except CropDusterException, e:
+			_log_error(request, 'upload', action="reversing cropduster.views.crop", errors=[e])
+	
+		
 		return render_to_response('cropduster/upload.html', context)
 	else:
 		if hasattr(settings, 'CACHE_BACKEND'):
@@ -102,7 +121,7 @@ def upload(request):
 		form = UploadForm(request.POST, request.FILES)
 
 		if not form.is_valid():
-			return _upload_error(form['picture'].errors)
+			return _json_error(request, 'upload', action="uploading file", errors=form['picture'].errors)
 		
 		else:
 			file = request.FILES['picture'];
@@ -134,14 +153,14 @@ def upload(request):
 					"orig_w": orig_w,
 					"orig_h": orig_h
 				}
-				return _upload_error([error_msg])
+				return _json_error(request, 'upload', action="uploading file", errors=[error_msg])
 			
 			# File is good, get rid of the tmp file
 			orig_file_path = os.path.join(folder_path, 'original' + extension)
 			os.rename(tmp_file_path, orig_file_path)
 			
 			orig_url = get_media_url(orig_file_path)
-
+			
 			# First pass resize if it's too large
 			# (height > 500 px or width > 800 px)
 			resize_ratio = min(800/w, 500/h)
@@ -164,7 +183,7 @@ def upload(request):
 				
 				preview_file_path = os.path.join(folder_path, '_preview' + extension)
 				img.save(preview_file_path)
-		
+			
 			data = {
 				'url': get_media_url(preview_file_path),
 				'orig_width': orig_w,
@@ -175,14 +194,114 @@ def upload(request):
 			}
 			return HttpResponse(simplejson.dumps(data))
 
-def _upload_error(errors):
+def _format_error(error):
+	error_type = type(error).__name__
+	if error_type == 'str' or error_type == 'unicode':
+		return error
+	elif error_type == 'IOError':
+		exception_msg = str(error)
+		matches = re.search(r"No such file or directory: u'(.+)'$", exception_msg)
+		if matches is not None:
+			file_name = matches.group(1)
+			try:
+				rel_file_name = get_relative_media_url(file_name)
+				file_name = rel_file_name
+			except:
+				pass
+			return "Could not find file " + file_name
+	try:
+		return ("[%s] %s" % (error_type, str(error)))
+	except:
+		return error
+
+def _log_error(request, view, action, errors):
+	# We only log the first error, send the rest as data; it's simpler this way
+	error_msg = "Error %s: %s" % (action, _format_error(errors[0]))
+	error_type = type(errors[0]).__name__
+	
+	log_kwargs = {}
+	
+	if error_type != 'str' and error_type != 'unicode':
+		log_kwargs["exc_info"] = sys.exc_info()
+	
+	extra_data = {
+		'errors': errors,
+		'process_id': os.getpid()
+	}	
+	
+	try:
+		import psutil, math, time, thread
+		p = psutil.Process(os.getpid())
+		proc_timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(p.create_time))
+		create_usec = ''
+		try:
+			create_usec = str(p.create_time - math.floor(p.create_time))[1:5]
+		except:
+			pass
+		proc_timestamp += create_usec
+		extra_data['process_create_date'] = proc_timestamp
+		extra_data['thread_id'] = thread.get_ident()
+	except ImportError:
+		pass
+	
+	if error_type == 'CropDusterUrlException':
+		from django.contrib import admin
+		from django.core.urlresolvers import get_urlconf,get_resolver
+		from django.utils.encoding import force_unicode
+		urlconf = get_urlconf()
+		resolver = get_resolver(urlconf)
+		extra_data['resolver_data'] = {
+			"regex": resolver.regex,
+			"urlconf_name": resolver.urlconf_name,
+			"default_kwargs": resolver.default_kwargs,
+			"namespace": resolver.namespace,
+			"urlconf_module": resolver.urlconf_module
+		}
+		resolver_reverse_dict = {}
+		try:
+			for key in resolver.reverse_dict.keys():
+				unicode_key = unicode(force_unicode(key))
+				resolver_reverse_dict[unicode_key] = resolver.reverse_dict[key]
+		except:
+			pass
+		
+		resolver_namespace_dict = {}
+		try:
+			for key in resolver.namespace_dict.keys():
+				unicode_key = unicode(force_unicode(key))
+				resolver_namespace_dict[unicode_key] = resolver.namespace_dict[key]
+		except:
+			pass
+	
+		
+		extra_data['resolver_reverse_dict'] = resolver_reverse_dict
+		extra_data['resolver_namespace_dict'] = resolver_namespace_dict
+		extra_data['resolver_app_dict'] = resolver.app_dict
+		extra_data['resolver_url_patterns'] = resolver.url_patterns
+		extra_data['urlconf'] = urlconf
+	
+	logger.error(
+		error_msg,
+		extra = {
+			'request': request,
+			'view': 'cropduster.views.%s' % view,
+			'url': request.path_info,
+			'data': extra_data
+		},
+		**log_kwargs
+	)
+
+def _json_error(request, view, action, errors, log_error=False):
+	if log_error:
+		_log_error(request, view, action, errors)
+			
 	if len(errors) == 1:
-		error_msg = "Error with uploaded file: " + errors[0]
+		error_msg = "Error %s: %s" % (action, _format_error(errors[0]))
 	else:
-		error_msg =  "Errors with file upload:"
+		error_msg =  "Errors %s: " % action
 		error_msg += "<ul>"
 		for error in errors:
-			error_msg += "<li>&nbsp;&nbsp;&nbsp;&bull;&nbsp;" + error + "</li>"
+			error_msg += "<li>&nbsp;&nbsp;&nbsp;&bull;&nbsp;%s</li>" % format_error(error)
 		error_msg += "</ul>"
 	data = {
 		'error': error_msg
@@ -207,7 +326,16 @@ def upload_progress(request):
 
 @csrf_exempt
 def crop(request):
-	path = get_media_path(request.POST['orig_image'])
+	try:
+		if request.method == "GET":
+			raise CropDusterViewException("Form submission invalid")
+		path = get_media_path(request.POST['orig_image'])
+	except CropDusterViewException, e:
+		return _json_error(request, 'crop',
+			action="cropping image", errors=[e], log_error=True)
+	except MultiValueDictKeyError, e:
+		return _json_error(request, 'crop',
+			action="cropping image", errors=["Form submission contained no data"])
 	
 	#@todo Check orig_image is in fact a path before passing it to create_cropped_image
 	file_root, file_ext = os.path.splitext(path)
@@ -220,8 +348,10 @@ def crop(request):
 	w = int(request.POST['w'])
 	h = int(request.POST['h'])
 	
-	
-	img = create_cropped_image(path, x=x, y=y, w=w, h=h)
+	try:
+		img = create_cropped_image(path, x=x, y=y, w=w, h=h)
+	except Exception, e:
+		return _json_error(request, 'crop', action="creating cropped image", errors=[e], log_error=True)
 	
 	default_thumb = request.POST['default_thumb']
 	rel_url_path = get_relative_media_url(request.POST['orig_image'])
@@ -237,39 +367,48 @@ def crop(request):
 		db_image.crop_h = h		
 		db_image.default_thumb = default_thumb
 	except:
-		db_image = CropDusterImage(
-			crop_x = x,
-			crop_y = y,
-			crop_w = w,
-			crop_h = h,
-			path = get_relative_media_url(request.POST['orig_image']),
-			default_thumb = default_thumb
-		)
-		db_image.path = file_path
-		file_name, db_image.extension = os.path.splitext(file_full_name)
+		try:
+			db_image = CropDusterImage(
+				crop_x = x,
+				crop_y = y,
+				crop_w = w,
+				crop_h = h,
+				path = get_relative_media_url(request.POST['orig_image']),
+				default_thumb = default_thumb
+			)
+			db_image.path = file_path
+			file_name, db_image.extension = os.path.splitext(file_full_name)
+		except Exception, e:
+			return _json_error(request, 'crop', action="saving cropped image", errors=[e])
 	
 	thumb_ids = OrderedDict({})
 	
-	sizes = jsonutil.loads(request.POST['sizes'])
-	auto_sizes = jsonutil.loads(request.POST['auto_sizes'])
+	try:
+		sizes = jsonutil.loads(request.POST['sizes'])
+		auto_sizes = jsonutil.loads(request.POST['auto_sizes'])
+	except Exception, e:
+		return _json_error(request, 'crop', action="reading POST data", errors=[e])
 	
-	new_ids = _generate_and_save_thumbs(db_image,
-			sizes,
-			img,
-			file_dir,
-			file_ext
-	)
-	thumb_ids.update(new_ids)
-	
-	if auto_sizes is not None:
+	try:
 		new_ids = _generate_and_save_thumbs(db_image,
-				auto_sizes,
+				sizes,
 				img,
 				file_dir,
-				file_ext,
-				is_auto=True
+				file_ext
 		)
 		thumb_ids.update(new_ids)
+	
+		if auto_sizes is not None:
+			new_ids = _generate_and_save_thumbs(db_image,
+					auto_sizes,
+					img,
+					file_dir,
+					file_ext,
+					is_auto=True
+			)
+			thumb_ids.update(new_ids)
+	except Exception, e:
+		return _json_error(request, 'crop', action="generating cropped thumbnails", errors=[e])
 	
 	thumb_urls = OrderedDict({})
 	for size_name in thumb_ids:
@@ -296,6 +435,7 @@ def crop(request):
 		except:
 			# blank id will force generate a new one on the parent page
 			data['id'] = ''
+	
 	return HttpResponse(jsonutil.dumps(data))
 
 def static_media(request, path):
