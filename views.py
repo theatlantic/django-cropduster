@@ -151,7 +151,19 @@ def upload(request):
 				img.thumbnail((w, h), Image.ANTIALIAS)
 		
 			preview_file_path = os.path.join(folder_path, '_preview' + extension)
-			img.save(preview_file_path)
+			try:
+				img.save(preview_file_path)
+			except KeyError, e:
+				# The user uploaded an image with an invalid file extension, we need
+				# to rename it with the proper one.
+				extension = get_image_extension(img)
+				
+				new_orig_file_path = os.path.join(folder_path, 'original' + extension)
+				os.rename(orig_file_path, new_orig_file_path)
+				orig_url = get_media_url(new_orig_file_path)
+				
+				preview_file_path = os.path.join(folder_path, '_preview' + extension)
+				img.save(preview_file_path)
 		
 			data = {
 				'url': get_media_url(preview_file_path),

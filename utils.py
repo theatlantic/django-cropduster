@@ -13,6 +13,34 @@ import Image
 from django.template.defaultfilters import slugify 
 import simplejson
 
+IMAGE_EXTENSIONS = {
+	"ARG":  ".arg",   "BMP":  ".bmp",   "BUFR": ".bufr",  "CUR":  ".cur",   "DCX":  ".dcx",
+	"EPS":  ".ps",    "FITS": ".fit",   "FLI":  ".fli",   "FPX":  ".fpx",   "GBR":  ".gbr",
+	"GIF":  ".gif",   "GRIB": ".grib",  "HDF5": ".hdf",   "ICNS": ".icns",  "ICO":  ".ico",
+	"IM":   ".im",    "IPTC": ".iim",   "JPEG": ".jpg",   "MIC":  ".mic",   "MPEG": ".mpg",
+	"MSP":  ".msp",   "Palm": ".palm",  "PCD":  ".pcd",   "PCX":  ".pcx",   "PDF":  ".pdf",
+	"PNG":  ".png",   "PPM":  ".ppm",   "PSD":  ".psd",   "SGI":  ".rgb",   "SUN":  ".ras",
+	"TGA":  ".tga",   "TIFF": ".tiff",  "WMF":  ".wmf",   "XBM":  ".xbm",   "XPM":  ".xpm",
+}
+
+def get_image_extension(img):
+	if img.format in IMAGE_EXTENSIONS:
+		return IMAGE_EXTENSIONS[img.format]
+	else:
+		# Our fallback is the PIL format name in lowercase,
+		# which is probably the file extension
+		fallback_ext = "." + img.format.lower()
+		if fallback_ext in Image.EXTENSION:
+			return fallback_ext
+		exts = []
+		for ext in Image.EXTENSION:
+			if Image.EXTENSION[ext] == image.format:
+				exts.append(ext)
+		if len(exts) > 0:
+			return exts[0]
+		else:
+			return fallback
+
 def get_aspect_ratios(dims):
 	ratios = []
 	for name in dims.keys():
