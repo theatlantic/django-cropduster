@@ -107,7 +107,8 @@ def get_media_path(url):
 	Determine media URL's system file.
 	"""
 	url = url.replace(settings.STATIC_URL, '')
-	path = os.path.abspath(settings.STATIC_ROOT) + '/' + url
+	relative_path = relpath(settings.STATIC_ROOT, settings.CROPDUSTER_UPLOAD_PATH)
+	path = os.path.abspath(settings.STATIC_ROOT) + '/' + relative_path + '/' + url
 	path = re.sub(r'(?<!:)/+', '/', path)
 	return path
 
