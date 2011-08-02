@@ -334,6 +334,7 @@ def crop(request):
 		if request.method == "GET":
 			raise CropDusterViewException("Form submission invalid")
 		path = get_media_path(request.POST['orig_image'])
+		print path
 	except CropDusterViewException, e:
 		return _json_error(request, 'crop',
 			action="cropping image", errors=[e], log_error=True)
