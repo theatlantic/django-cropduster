@@ -1,4 +1,5 @@
 import os
+import re
 
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
@@ -8,6 +9,7 @@ from django.conf import settings
 
 import Image as pil
 
+from cropduster.utils import relpath
 
 class Thumb(models.Model):
 	name = models.CharField(max_length=255, db_index=True)
@@ -75,7 +77,7 @@ class Image(models.Model):
 		if use_temp:
 			size_name += '_tmp'
 
-		return os.path.join(settings.STATIC_ROOT, self.path, size_name + self.extension)
+		return os.path.join(settings.CROPDUSTER_UPLOAD_PATH, self.path, size_name + self.extension)
 
 	def has_thumb(self, size_name):
 		try:
@@ -132,8 +134,11 @@ class Image(models.Model):
 		if use_temp:
 			size_name += '_tmp'
 		
-		import re
-		url = settings.STATIC_URL + '/' + self.path + '/' + size_name + self.extension
+		relative_path = relpath(settings.STATIC_ROOT, settings.CROPDUSTER_UPLOAD_PATH)
+		if re.match(r'\.\.', relative_path):
+			raise Exception("Upload path is outside of static root")
+		url_root = settings.STATIC_URL + '/' + relative_path + '/'
+		url = url_root + self.path + '/' + size_name + self.extension
 		url = re.sub(r'(?<!:)/+', '/', url)
 		return url
 	

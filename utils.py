@@ -1,6 +1,7 @@
 from __future__ import division
 
 import os
+import re
 
 from datetime import datetime
 from django.conf import settings
@@ -107,7 +108,6 @@ def get_media_path(url):
 	"""
 	url = url.replace(settings.STATIC_URL, '')
 	path = os.path.abspath(settings.STATIC_ROOT) + '/' + url
-	import re
 	path = re.sub(r'(?<!:)/+', '/', path)
 	return path
 
@@ -115,8 +115,11 @@ def get_relative_media_url(path):
 	"""
 	Determine system file's media URL without STATIC_URL prepended.
 	"""
-	import re
 	url = path.replace(settings.STATIC_URL, '')
+	relative_path = relpath(settings.STATIC_ROOT, settings.CROPDUSTER_UPLOAD_PATH)
+	if re.match(r'\.\.', relative_path):
+		raise Exception("Upload path is outside of static root")
+	url = path.replace(relative_path, '')
 	url = re.sub(r'(?<!:)/+', '/', url)
 	url = re.sub(r'^/', '', url)
 	return url
@@ -125,7 +128,6 @@ def get_media_url(path):
 	"""
 	Determine system file's media URL.
 	"""
-	import re
 	url = settings.STATIC_URL + os.path.abspath(path).replace(os.path.abspath(settings.STATIC_ROOT), '')
 	url = re.sub(r'(?<!:)/+', '/', url)
 	return url
@@ -170,7 +172,7 @@ def get_upload_foldername(file_name):
 	# Get available name and return.	
 	return get_available_name(upload_path, file_name)
 
-def rescale(img, w=0, h=0):
+def rescale(img, w=0, h=0, crop=True):
 	"""Rescale the given image, optionally cropping it to make sure the result image has the specified width and height."""
 
 	if w <= 0 or h <= 0:
@@ -184,22 +186,23 @@ def rescale(img, w=0, h=0):
 	dst_width, dst_height = max_width, max_height
 	dst_ratio = float(dst_width) / float(dst_height)
 
-	if dst_ratio < src_ratio:
-		crop_height = src_height
-		crop_width = crop_height * dst_ratio
-		x_offset = float(src_width - crop_width) / 2
-		y_offset = 0
-	else:
-		crop_width = src_width
-		crop_height = crop_width / dst_ratio
-		x_offset = 0
-		y_offset = float(src_height - crop_height) / 3
-	img = img.crop((
-		int(x_offset), 
-		int(y_offset), 
-		int(x_offset+crop_width), 
-		int(y_offset+crop_height)
-	))
+	if crop:
+		if dst_ratio < src_ratio:
+			crop_height = src_height
+			crop_width = crop_height * dst_ratio
+			x_offset = float(src_width - crop_width) / 2
+			y_offset = 0
+		else:
+			crop_width = src_width
+			crop_height = crop_width / dst_ratio
+			x_offset = 0
+			y_offset = float(src_height - crop_height) / 3
+		img = img.crop((
+			int(x_offset), 
+			int(y_offset), 
+			int(x_offset+crop_width), 
+			int(y_offset+crop_height)
+		))
 	img = img.resize((int(dst_width), int(dst_height)), Image.ANTIALIAS)
 
 	return img
@@ -216,6 +219,29 @@ def create_cropped_image(path=None, x=0, y=0, w=0, h=0):
 	img = img.crop((x, y, x + w, y + h))
 	img.load()
 	return img
+
+def pathsplit(p, rest=[]):
+	(h,t) = os.path.split(p)
+	if len(h) < 1: return [t]+rest
+	if len(t) < 1: return [h]+rest
+	return pathsplit(h,[t]+rest)
+
+def commonpath(l1, l2, common=[]):
+	if len(l1) < 1: return (common, l1, l2)
+	if len(l2) < 1: return (common, l1, l2)
+	if l1[0] != l2[0]: return (common, l1, l2)
+	return commonpath(l1[1:], l2[1:], common+[l1[0]])
+
+def relpath(p1, p2):
+	"""
+	Compute the relative path of one directory to another
+	"""
+	(common,l1,l2) = commonpath(pathsplit(p1), pathsplit(p2))
+	p = []
+	if len(l1) > 0:
+		p = [ '../' * len(l1) ]
+	p = p + l2
+	return os.path.join( *p )
 
 # From http://code.activestate.com/recipes/576693/
 

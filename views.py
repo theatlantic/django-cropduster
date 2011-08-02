@@ -167,11 +167,14 @@ def upload(request):
 			if resize_ratio < 1:
 				w = int(round(w * resize_ratio))
 				h = int(round(h * resize_ratio))
-				img.thumbnail((w, h), Image.ANTIALIAS)
+				img = rescale(img, w, h, crop=False)
 		
 			preview_file_path = os.path.join(folder_path, '_preview' + extension)
+			img_save_params = {}
+			if img.format == 'JPEG':
+				img_save_params['quality'] = 95
 			try:
-				img.save(preview_file_path)
+				img.save(preview_file_path, **img_save_params)
 			except KeyError, e:
 				# The user uploaded an image with an invalid file extension, we need
 				# to rename it with the proper one.
@@ -182,7 +185,7 @@ def upload(request):
 				orig_url = get_media_url(new_orig_file_path)
 				
 				preview_file_path = os.path.join(folder_path, '_preview' + extension)
-				img.save(preview_file_path)
+				img.save(preview_file_path, **img_save_params)
 			
 			data = {
 				'url': get_media_url(preview_file_path),
@@ -490,34 +493,37 @@ def _generate_and_save_thumbs(db_image, sizes, img, file_dir, file_ext, is_auto=
 	a dict of key value pairs with size_name, thumbnail_id
 	'''
 	thumb_ids = {}
-	
+
+	img_save_params = {}
+	if img.format == 'JPEG':
+		img_save_params['quality'] = 95
+
 	for size_name in sizes:
 		size = sizes[size_name]
 		thumb_w = int(size[0])
 		thumb_h = int(size[1])
-		
+
+		thumb = img.copy()
 		if is_auto is False:
-			thumb = img.copy()	
+			thumb = rescale(thumb, thumb_w, thumb_h, crop=False)
 		else:
 			thumb = rescale(img, thumb_w, thumb_h)
-		
-		thumb.thumbnail((thumb_w, thumb_h), Image.ANTIALIAS)
-		
+
 		# Save to the real thumb_path if the image is new
-		
+
 		thumb_path = file_dir + '/' + size_name + file_ext
 		if not os.path.exists(thumb_path):
-			thumb.save(thumb_path)
-		
+			thumb.save(thumb_path, **img_save_params)
+
 		thumb_tmp_path = file_dir + '/' + size_name + '_tmp' + file_ext
-		
-		thumb.save(thumb_tmp_path)
-		
+
+		thumb.save(thumb_tmp_path, **img_save_params)
+
 		db_thumb = db_image.save_thumb(
 			width = thumb_w,
 			height = thumb_h,
 			name = size_name
 		)
 		thumb_ids[size_name] = db_thumb.id
-	
+
 	return thumb_ids
