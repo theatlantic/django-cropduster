@@ -160,7 +160,7 @@ def upload(request):
 			orig_file_path = os.path.join(folder_path, 'original' + extension)
 			os.rename(tmp_file_path, orig_file_path)
 			
-			orig_url = get_media_url(orig_file_path)
+			orig_url = get_relative_media_url(orig_file_path)
 			
 			# First pass resize if it's too large
 			# (height > 500 px or width > 800 px)
