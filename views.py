@@ -183,7 +183,7 @@ def upload(request):
 				
 				new_orig_file_path = os.path.join(folder_path, 'original' + extension)
 				os.rename(orig_file_path, new_orig_file_path)
-				orig_url = get_media_url(new_orig_file_path)
+				orig_url = get_relative_media_url(new_orig_file_path)
 				
 				preview_file_path = os.path.join(folder_path, '_preview' + extension)
 				img.save(preview_file_path, **img_save_params)
