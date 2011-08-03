@@ -107,7 +107,10 @@ def get_media_path(url):
 	Determine media URL's system file.
 	"""
 	url = url.replace(settings.STATIC_URL, '')
-	path = os.path.abspath(settings.STATIC_ROOT) + '/' + url
+	relative_path = relpath(settings.STATIC_ROOT, settings.CROPDUSTER_UPLOAD_PATH)
+	if re.match(r'\.\.', relative_path):
+		raise Exception("Upload path is outside of static root")
+	path = os.path.abspath(settings.STATIC_ROOT) + '/' + relative_path + '/' + url
 	path = re.sub(r'(?<!:)/+', '/', path)
 	return path
 
@@ -115,7 +118,7 @@ def get_relative_media_url(path):
 	"""
 	Determine system file's media URL without STATIC_URL prepended.
 	"""
-	url = path.replace(settings.STATIC_URL, '')
+	url = path.replace(settings.STATIC_ROOT, '')
 	relative_path = relpath(settings.STATIC_ROOT, settings.CROPDUSTER_UPLOAD_PATH)
 	if re.match(r'\.\.', relative_path):
 		raise Exception("Upload path is outside of static root")
