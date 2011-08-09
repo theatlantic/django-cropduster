@@ -13,7 +13,7 @@ from django.core.urlresolvers import reverse
 from django.template.loader import render_to_string
 
 from cropduster.models import Image, Thumb
-from cropduster.utils import get_aspect_ratios, validate_sizes, OrderedDict, get_min_size
+from cropduster.utils import get_aspect_ratios, validate_sizes, OrderedDict, get_min_size, relpath
 
 from jsonutil import jsonutil
 
@@ -84,7 +84,12 @@ class CropDusterWidget(Input):
 		formset = self.formset
 		inline_admin_formset = self.formset
 		prefix = getattr(self.formset, 'prefix', self.formset.get_default_prefix())
-		static_url = simplejson.dumps(settings.STATIC_URL)
+		relative_path = relpath(settings.STATIC_ROOT, settings.CROPDUSTER_UPLOAD_PATH)
+		if re.match(r'\.\.', relative_path):
+			raise Exception("Upload path is outside of static root")
+		url_root = settings.STATIC_URL + '/' + relative_path + '/'
+		
+		static_url = simplejson.dumps(settings.STATIC_URL + '/' + relative_path + '/')
 		return render_to_string("cropduster/custom_field.html", locals())
 
 
