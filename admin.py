@@ -1,5 +1,5 @@
 from django.contrib.contenttypes.generic import GenericInlineModelAdmin
-from cropduster.models import Image, Thumb
+from cropduster.models import Image
 from cropduster.forms import BaseInlineFormSet, CropDusterFormField, CropDusterThumbField
 
 

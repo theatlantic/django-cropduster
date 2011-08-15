@@ -19,7 +19,7 @@ import Image
 
 from cropduster.handlers import UploadProgressCachedHandler
 from cropduster.utils import *
-from cropduster.models import Image as CropDusterImage, Thumb as CropDusterThumb
+from cropduster.models import Image as CropDusterImage
 from cropduster.settings import *
 from cropduster.exceptions import *
 
