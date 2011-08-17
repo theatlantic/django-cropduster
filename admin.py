@@ -23,9 +23,6 @@ class BaseImageInline(GenericInlineModelAdmin):
 		}),
 	)
 
-	# This can be overridden in the calling admin.py to hide non-essential fields
-	extra_fields = ('attribution', )
-
 	def __init__(self, *args, **kwargs):
 		try:
 			fields = list(self.fieldsets[0][1]['fields'])
