@@ -14,7 +14,6 @@ class BaseImageInline(GenericInlineModelAdmin):
 	formset = BaseInlineFormSet
 	extra = 1
 	max_num = 1
-	readonly_fields = 'id'
 	
 	fieldsets = (
 		('Image', {
