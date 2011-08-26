@@ -32,7 +32,7 @@
 
 	<input type="hidden" id="{{ final_attrs.id }}" name="{{ final_attrs.name }}" value="{{ final_attrs.value }}" />
 	
-	<a href="javascript:CropDuster.show('{{ final_attrs.name }}', '{% url cropduster.views.upload %}?pop=1');" class="cropduster-customfield">
+	<a href="javascript:cropwin=CropDuster.show('{{ final_attrs.name }}', '{% url cropduster.views.upload %}?pop=1');" class="cropduster-customfield">
 		<div class="cropduster-upload-button"></div>
 
 		<p class="help" id="preview_{{ final_attrs.id }}">

@@ -19,11 +19,16 @@ from jsonutil import jsonutil
 
 class CropDusterWidget(Input):
 	
-	def __init__(self, sizes=None, auto_sizes=None, default_thumb=None, attrs=None):
+	def __init__(self, sizes=None, auto_sizes=None, default_thumb=None, attrs=None, prefix=None):
 		self.sizes = sizes
 		self.auto_sizes = auto_sizes
 		self.default_thumb = default_thumb
 		self.formset = generic_inlineformset_factory(Image)
+		if prefix:
+		
+			self.prefix = prefix
+		else:
+			self.prefix = getattr(self.formset, 'prefix', self.formset.get_default_prefix())
 
 		if attrs is not None:
 			self.attrs = attrs.copy()
@@ -69,7 +74,8 @@ class CropDusterWidget(Input):
 			for thumb in image.thumbs.order_by('-width').all():
 				size_name = thumb.name
 				thumbs[size_name] = image.get_image_url(size_name)
-		
+				
+				
 		final_attrs['sizes'] = simplejson.dumps(self.sizes)
 		final_attrs['auto_sizes'] = simplejson.dumps(self.auto_sizes)
 	
@@ -83,19 +89,16 @@ class CropDusterWidget(Input):
 		min_size = json.dumps(get_min_size(self.sizes, self.auto_sizes))
 		formset = self.formset
 		inline_admin_formset = self.formset
-		prefix = getattr(self.formset, 'prefix', self.formset.get_default_prefix())
-		relative_path = relpath(settings.STATIC_ROOT, settings.CROPDUSTER_UPLOAD_PATH)
-		if re.match(r'\.\.', relative_path):
-			raise Exception("Upload path is outside of static root")
-		url_root = settings.STATIC_URL + '/' + relative_path + '/'
-		
-		static_url = simplejson.dumps(settings.STATIC_URL + '/' + relative_path + '/')
+		relative_path = settings.STATIC_URL + settings.CROPDUSTER_UPLOAD_PATH
+		prefix = self.prefix
+		url_root = relative_path
+		static_url = simplejson.dumps(relative_path)
 		return render_to_string("cropduster/custom_field.html", locals())
 
 
 class CropDusterFormField(forms.IntegerField):
 	
-	def __init__(self, sizes=None, auto_sizes=None, default_thumb=None, *args, **kwargs):
+	def __init__(self, sizes=None, auto_sizes=None, default_thumb=None, prefix=None, *args, **kwargs):
 		if default_thumb is None:
 			raise ValueError("default_thumb attribute must be defined.")
 		
@@ -125,8 +128,13 @@ class CropDusterFormField(forms.IntegerField):
 		self.sizes = sizes
 		self.auto_sizes = auto_sizes
 		self.default_thumb = default_thumb
-		
-		widget = CropDusterWidget(sizes=sizes, auto_sizes=auto_sizes, default_thumb=default_thumb)
+		#barf
+		widget = CropDusterWidget(
+			sizes=sizes, 
+			auto_sizes=auto_sizes, 
+			default_thumb=default_thumb, 
+			prefix=prefix
+		)
 		kwargs['widget'] = widget
 		super(CropDusterFormField, self).__init__(*args, **kwargs)
 	
@@ -202,8 +210,10 @@ class AbstractInlineFormSet(BaseGenericInlineFormSet):
 		if hasattr(self.extra_fields, 'iter'):
 			for field in self.extra_fields:
 				self.fields.append(field)
-		
 		super(AbstractInlineFormSet, self).__init__(*args, **kwargs)
+		
+		
+		
 	
 	def _construct_form(self, i, **kwargs):
 		"""
@@ -278,12 +288,14 @@ class AbstractInlineFormSet(BaseGenericInlineFormSet):
 		
 		# Override the id field to use our custom field and widget that displays the
 		# thumbnail and the button that pops up the cropduster window
+		
 		form.fields['id'] = CropDusterFormField(
 			label = self.label,
 			sizes = self.sizes,
 			auto_sizes = self.auto_sizes,
 			default_thumb=self.default_thumb,
-			required=False
+			required=False,
+			prefix=self.prefix
 		)
 		
 		# Load in initial data if we have it from a previously submitted

@@ -24,6 +24,52 @@ IMAGE_EXTENSIONS = {
 	"TGA":  ".tga",   "TIFF": ".tiff",  "WMF":  ".wmf",   "XBM":  ".xbm",   "XPM":  ".xpm",
 }
 
+class ImagePath():
+	def __init__(self, path, url_path=None, extension='jpg'):
+	
+		if url_path:
+			path, file_name = os.path.split(os.path.relpath(url_path, settings.STATIC_URL + settings.CROPDUSTER_UPLOAD_PATH))
+
+	
+		self.system_path = settings.STATIC_ROOT + settings.CROPDUSTER_UPLOAD_PATH + path
+		self.url_path = settings.STATIC_URL + settings.CROPDUSTER_UPLOAD_PATH + path
+		self.relative_path = path
+		self.extension = extension
+	
+	def file_name(self, file):
+		return file + '.' + self.extension
+
+	def file_path(self, file):
+		return os.path.join(self.system_path, self.file_name(file))
+		
+	def file_url(self, file):
+		return os.path.join(self.url_path, self.file_name(file))
+		
+	def file_exists(self, filename, file_extension):
+		if os.path.exists(os.path.join(self.system_path + filename + '.' + file_extension)):
+			return True
+		else:
+			return False
+	
+	
+	@property
+	def original_system_path(self):
+		return self.file_path('original')
+	@property
+	def original_url_path(self):
+		return self.file_url('original')
+	@property
+	def preview_system_path(self):
+		return self.file_path('_preview')
+	@property
+	def preview_url_path(self):
+		return self.file_url('_preview')
+	@property
+	def tmp_system_path(self):
+		return self.file_path('__tmp')
+		
+		
+
 def get_image_extension(img):
 	if img.format in IMAGE_EXTENSIONS:
 		return IMAGE_EXTENSIONS[img.format]
@@ -106,75 +152,45 @@ def get_media_path(url):
 	"""
 	Determine media URL's system file.
 	"""
-	url = url.replace(settings.STATIC_URL, '')
-	relative_path = relpath(settings.STATIC_ROOT, settings.CROPDUSTER_UPLOAD_PATH)
-	if re.match(r'\.\.', relative_path):
-		raise Exception("Upload path is outside of static root")
-	path = os.path.abspath(settings.STATIC_ROOT) + '/' + relative_path + '/' + url
-	path = re.sub(r'(?<!:)/+', '/', path)
-	return path
+	return settings.CROPDUSTER_UPLOAD_PATH
+
 
 def get_relative_media_url(path):
 	"""
 	Determine system file's media URL without STATIC_URL prepended.
 	"""
-	url = path.replace(settings.STATIC_ROOT, '')
-	url = url.replace(settings.STATIC_URL, '')
-	relative_path = relpath(settings.STATIC_ROOT, settings.CROPDUSTER_UPLOAD_PATH)
-	if re.match(r'\.\.', relative_path):
-		raise Exception("Upload path is outside of static root")
-	url = url.replace(relative_path, '')
-	url = re.sub(r'(?<!:)/+', '/', url)
-	url = re.sub(r'^/', '', url)
-	return url
+	return path
 
 def get_media_url(path):
 	"""
 	Determine system file's media URL.
 	"""
-	url = settings.STATIC_URL + os.path.abspath(path).replace(os.path.abspath(settings.STATIC_ROOT), '')
-	url = re.sub(r'(?<!:)/+', '/', url)
+	url = path
 	return url
 
-def get_available_name(dir_name, file_name):
-	"""
-	Create a folder based on file_name and return it.
-	
-	If a folder with file_name already exists in the given path,
-	create a folder with a unique sequential number at the end.
-	"""
-
-	file_root, extension = os.path.splitext(file_name)
-
-	file_root = slugify(file_root)
-
-	name = os.path.join(dir_name, file_root)
-
-	# If the filename already exists, keep adding a higher number 
-	# to the folder name until the generated folder doesn't exist.
-	i = 2
-	while os.path.exists(name):
-		# file_ext includes the dot.
-		name = os.path.join(dir_name, file_root + '-' + str(i))
-		i += 1
-	
-	os.makedirs(name)
-		
-	return name
 
 def get_upload_foldername(file_name):
 	# Generate date based path to put uploaded file.
 	date_path = datetime.now().strftime('%Y/%m')
 
-	# Complete upload path (upload_path + date_path).
-	upload_path = os.path.join(settings.CROPDUSTER_UPLOAD_PATH, date_path)
+	file_root, extension = os.path.splitext(file_name)
 
-	# Make sure upload_path exists.
-	if not os.path.exists(upload_path):
-		os.makedirs(upload_path)
+	file_root = slugify(file_root)
+	
+	image_path = ImagePath(os.path.join(date_path, file_root))
 
-	# Get available name and return.	
-	return get_available_name(upload_path, file_name)
+	# If the filename already exists, keep adding a higher number 
+	# to the folder name until the generated folder doesn't exist.
+	i = 2
+	while os.path.exists(image_path.system_path):
+		# file_ext includes the dot.
+		image_path = ImagePath(os.path.join(date_path, file_root + '-' + str(i)))
+		i += 1
+	
+	os.makedirs(image_path.system_path)
+		
+	return image_path
+	
 
 def rescale(img, w=0, h=0, crop=True):
 	"""Rescale the given image, optionally cropping it to make sure the result image has the specified width and height."""

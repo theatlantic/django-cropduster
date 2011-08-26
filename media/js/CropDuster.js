@@ -72,6 +72,7 @@ window.CropDuster = {};
 			href += '&el_id=' + encodeURI(id);
 			var win = window.open(href, id2, 'height=650,width=960,resizable=yes,scrollbars=yes');
 			win.focus();
+			return win;
 		},
 		
 		setThumbnails: function(id, thumbs) {

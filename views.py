@@ -6,7 +6,7 @@ import sys
 
 from django import forms
 from django.conf import settings
-from django.http import HttpResponse, HttpResponseServerError, Http404, HttpResponseNotModified
+from django.http import HttpResponse, HttpResponseServerError, Http404
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.core.cache import cache
@@ -18,10 +18,10 @@ from jsonutil import jsonutil
 import Image
 
 from cropduster.handlers import UploadProgressCachedHandler
-from cropduster.utils import *
+from cropduster.utils import get_image_extension, get_min_size, get_relative_media_url, get_upload_foldername, rescale, create_cropped_image, OrderedDict, ImagePath
 from cropduster.models import Image as CropDusterImage
-from cropduster.settings import *
-from cropduster.exceptions import *
+from cropduster.settings import CROPDUSTER_MEDIA_ROOT
+from cropduster.exceptions import CropDusterException, CropDusterUrlException, CropDusterViewException
 
 import simplejson
 import re
@@ -36,167 +36,195 @@ logger.addHandler(SentryHandler())
 class UploadForm(forms.Form):
 	picture = forms.ImageField(required=True)
 	
-
 @csrf_exempt
 def upload(request):
+
 	if request.method == "GET":
-		try:	
-			image_element_id = request.GET['el_id']
-		except:
-			image_element_id = ""
-		
-		media_url = reverse('cropduster-static', kwargs={'path':''})
-		
-		context_data = 	{
-			'is_popup': True,
-			'image_element_id': image_element_id,
-			'image': os.path.join(media_url, 'img/blank.gif'),
-			'orig_image': '',
-			'x': 0,
-			'y': 0,
-			'w': 0,
-			'h': 0
-		}
-		
-		try:
-			context_data['x'] = request.GET['x']
-			context_data['y'] = request.GET['y']
-			context_data['w'] = request.GET['w']
-			context_data['h'] = request.GET['h']
-		except:
-			pass
-		
-		try:
-			image_id = request.GET['id']
-			image = CropDusterImage.objects.get(pk=image_id)
-			context_data['image_id'] = image.pk
-			context_data['orig_image'] = os.path.join(image.path, 'original' + image.extension)
-			# @todo Check that orig_image exists, as cropping won't work
-			# in the next step if it doesn't
+		return render_upload_form(request)
+	else:
+		return render_upload(request)
 
-			context_data['image'] = image.get_image_url('_preview')
 
-			(orig_w, orig_h) = image.get_image_size()
+def render_upload_form(request):
+	try:	
+		image_element_id = request.GET['el_id']
+	except:
+		image_element_id = ""
+	
+	media_url = reverse('cropduster-static', kwargs={'path':''})
+	
+	context_data = 	{
+		'is_popup': True,
+		'image_element_id': image_element_id,
+		'image': os.path.join(media_url, 'img/blank.gif'),
+		'orig_image': '',
+		'image_id':'',
+		'x': 0,
+		'y': 0,
+		'w': 0,
+		'h': 0
+	}
+
+	try:
+		context_data['x'] = request.GET['x']
+		context_data['y'] = request.GET['y']
+		context_data['w'] = request.GET['w']
+		context_data['h'] = request.GET['h']
+	except:
+		pass
+	
+	try:
+		image_id = request.GET['id']
+		image = CropDusterImage.objects.get(pk=image_id)
+		image_path = ImagePath(image.path)
+		
+		context_data['image_id'] = image.pk
+		context_data['orig_image'] = image_path.original_url_path
+		
+		# @todo Check that orig_image exists, as cropping won't work
+		# in the next step if it doesn't
+
+		context_data['image'] = image_path.preview_url_path
+
+		(orig_w, orig_h) = image.get_image_size()
+		context_data['orig_w'] = orig_w
+		context_data['orig_h'] = orig_h
+	except:
+		pass
+	
+
+	# if getting to the page not from an upload
+	if 'image_path' in request.GET:
+		image_path = ImagePath('', url_path=request.GET['image_path'])
+		
+		context_data['image'] = image_path.original_url_path
+		context_data['image_id'] = request.GET['image_id']
+		context_data['orig_w'] = request.GET['w']
+		context_data['orig_h'] = request.GET['h']
+		context_data['orig_image'] = image_path.original_url_path
+
+	# If we have a new image that hasn't been saved yet
+	try:
+		ext = request.GET['ext']
+		
+		path = ImagePath(request.GET['path'], extension=ext)
+		
+		
+		if path.file_exists('_preview', ext):
+			
+			img = Image.open(path.original_system_path)
+			
+			(orig_w, orig_h) = img.size
 			context_data['orig_w'] = orig_w
 			context_data['orig_h'] = orig_h
-		except:
-			pass
-		
-		# If we have a new image that hasn't been saved yet
-		try:
-			path = request.GET['path']
-			root_path = os.path.join(settings.STATIC_ROOT, path)
-			ext = request.GET['ext']
-			if os.path.exists(os.path.join(root_path, '_preview' + '.' + ext)):
-				orig_image = os.path.join(path, 'original' + '.' + ext)
-				context_data['orig_image'] = orig_image
-				preview_url = settings.STATIC_URL + '/' + path + '/_preview' + '.' + ext
-				# Remove double '/'s
-				preview_url = re.sub(r'(?<!:)/+', '/', preview_url)
-				context_data['image'] = preview_url
-				img = Image.open(os.path.join(settings.STATIC_ROOT, orig_image))
-				(orig_w, orig_h) = img.size
-				context_data['orig_w'] = orig_w
-				context_data['orig_h'] = orig_h
-		except:
-			pass
-		
-		context = RequestContext(request, context_data)
-		
-		try:
-			crop_path = reverse('cropduster.views.crop')
-			curr_path = request.META['PATH_INFO']
-			
-			if re.search(r"^/admin/", crop_path) and not re.search(r"^/admin/", curr_path):
-				raise CropDusterUrlException("django.core.urlresolvers.reverse() is incorrectly" \
-				                            + " prepending /admin/ to cropduster.views.crop")
-		except CropDusterException, e:
-			_log_error(request, 'upload', action="reversing cropduster.views.crop", errors=[e])
+			context_data['orig_image'] = path.original_url_path
+			context_data['image'] =  path.preview_url_path
+	except:
+		pass
 	
+	context = RequestContext(request, context_data)
+	
+	try:
+		crop_path = reverse('cropduster.views.crop')
+		curr_path = request.META['PATH_INFO']
 		
-		return render_to_response('cropduster/upload.html', context)
+		if re.search(r"^/admin/", crop_path) and not re.search(r"^/admin/", curr_path):
+		
+			raise CropDusterUrlException("django.core.urlresolvers.reverse() is incorrectly" \
+			+ " prepending /admin/ to cropduster.views.crop")
+			
+	except CropDusterException, e:
+		_log_error(request, 'upload', action="reversing cropduster.views.crop", errors=[e])
+		
+	
+	return render_to_response('cropduster/upload.html', context)
+
+def render_upload(request):
+
+	if hasattr(settings, 'CACHE_BACKEND'):
+		request.upload_handlers.insert(0, UploadProgressCachedHandler(request))
+
+	form = UploadForm(request.POST, request.FILES)
+
+	if not form.is_valid():
+		
+		return _json_error(request, 'upload', action="uploading file", errors=form['picture'].errors)
+		
 	else:
-		if hasattr(settings, 'CACHE_BACKEND'):
-			request.upload_handlers.insert(0, UploadProgressCachedHandler(request))
-	
-		form = UploadForm(request.POST, request.FILES)
-
-		if not form.is_valid():
-			return _json_error(request, 'upload', action="uploading file", errors=form['picture'].errors)
+		file = request.FILES['picture']
 		
-		else:
-			file = request.FILES['picture'];
-			file_name, extension = os.path.splitext(file.name)
-			extension = extension.lower()
-			folder_path = get_upload_foldername(file.name)
-			
-			tmp_file_path = os.path.join(folder_path, '__tmp' + extension)
-			
-			
-			destination = open(tmp_file_path, 'wb+')
-
-			for chunk in file.chunks():
-				destination.write(chunk)
-			destination.close()
-			
-			img = Image.open(tmp_file_path)
-			
-			(w, h) = img.size
-			(orig_w, orig_h) = img.size
-			(min_w, min_h) = get_min_size(request.POST['sizes'], request.POST['auto_sizes'])
-			if (orig_w < min_w or orig_h < min_h):
-				error_msg = """
-					Image must be at least %(min_w)sx%(min_h)s (%(min_w)s pixels wide and
-					%(min_h)s pixels high). The image you uploaded was %(orig_w)sx%(orig_h)s pixels.
-				""" % {
-					"min_w": str(min_w),
-					"min_h": str(min_h),
-					"orig_w": orig_w,
-					"orig_h": orig_h
-				}
-				return _json_error(request, 'upload', action="uploading file", errors=[error_msg])
-			
-			# File is good, get rid of the tmp file
-			orig_file_path = os.path.join(folder_path, 'original' + extension)
-			os.rename(tmp_file_path, orig_file_path)
-			
-			orig_url = get_relative_media_url(orig_file_path)
-			
-			# First pass resize if it's too large
-			# (height > 500 px or width > 800 px)
-			resize_ratio = min(800/w, 500/h)
-			if resize_ratio < 1:
-				w = int(round(w * resize_ratio))
-				h = int(round(h * resize_ratio))
-				img = rescale(img, w, h, crop=False)
+		file_name, extension = os.path.splitext(file.name)
 		
-			preview_file_path = os.path.join(folder_path, '_preview' + extension)
-			img_save_params = {}
-			if img.format == 'JPEG':
-				img_save_params['quality'] = 95
-			try:
-				img.save(preview_file_path, **img_save_params)
-			except KeyError, e:
-				# The user uploaded an image with an invalid file extension, we need
-				# to rename it with the proper one.
-				extension = get_image_extension(img)
-				
-				new_orig_file_path = os.path.join(folder_path, 'original' + extension)
-				os.rename(orig_file_path, new_orig_file_path)
-				orig_url = get_relative_media_url(new_orig_file_path)
-				
-				preview_file_path = os.path.join(folder_path, '_preview' + extension)
-				img.save(preview_file_path, **img_save_params)
-			
-			data = {
-				'url': get_media_url(preview_file_path),
-				'orig_width': orig_w,
-				'orig_height': orig_h,
-				'width': w,
-				'height': h,
-				'orig_url': orig_url,
+		extension = extension.lower()
+		
+		image_path = get_upload_foldername(file.name)
+		
+		destination = open(image_path.tmp_system_path, 'wb+')
+
+		for chunk in file.chunks():
+			destination.write(chunk)
+		destination.close()
+		
+		img = Image.open(image_path.tmp_system_path)
+		
+		(w, h) = img.size
+		(orig_w, orig_h) = img.size
+		(min_w, min_h) = get_min_size(request.POST['sizes'], request.POST['auto_sizes'])
+		if (orig_w < min_w or orig_h < min_h):
+			error_msg = """
+				Image must be at least %(min_w)sx%(min_h)s (%(min_w)s pixels wide and
+				%(min_h)s pixels high). The image you uploaded was %(orig_w)sx%(orig_h)s pixels.
+			""" % {
+				"min_w": str(min_w),
+				"min_h": str(min_h),
+				"orig_w": orig_w,
+				"orig_h": orig_h
 			}
-			return HttpResponse(simplejson.dumps(data))
+			return _json_error(request, 'upload', action="uploading file", errors=[error_msg])
+			
+		
+		
+		# File is good, get rid of the tmp file
+		os.rename(image_path.tmp_system_path, image_path.original_system_path)
+		
+		# First pass resize if it's too large
+		# (height > 500 px or width > 800 px)
+		resize_ratio = min(800/w, 500/h)
+		if resize_ratio < 1:
+			w = int(round(w * resize_ratio))
+			h = int(round(h * resize_ratio))
+			img = rescale(img, w, h, crop=False)
+	
+		img_save_params = {}
+		if img.format == 'JPEG':
+			img_save_params['quality'] = 95
+		
+		try:
+			img.save(image_path.preview_system_path, **img_save_params)
+		except KeyError, e:
+			# The user uploaded an image with an invalid file extension, we need
+			# to rename it with the proper one.
+			
+			original_image = image_path.original_system_path
+			
+			image_path.extension = get_image_extension(img)
+			
+			os.rename(original_image, image_path.original_system_path)
+		
+			img.save(image_path.preview_system_path, **img_save_params)
+	
+		
+		data = {
+			'url': image_path.preview_url_path,
+			'orig_width': orig_w,
+			'orig_height': orig_h,
+			'width': w,
+			'height': h,
+			'orig_url': image_path.original_url_path,
+		}
+		return HttpResponse(simplejson.dumps(data))
+
+
 
 def _format_error(error):
 	error_type = type(error).__name__
@@ -333,7 +361,9 @@ def crop(request):
 	try:
 		if request.method == "GET":
 			raise CropDusterViewException("Form submission invalid")
-		path = get_media_path(request.POST['orig_image'])
+		
+		path = settings.PROJECT_ROOT + request.POST['orig_image']
+		
 	except CropDusterViewException, e:
 		return _json_error(request, 'crop',
 			action="cropping image", errors=[e], log_error=True)
@@ -352,13 +382,15 @@ def crop(request):
 	w = int(request.POST['w'])
 	h = int(request.POST['h'])
 	
+	
+	
 	try:
 		img = create_cropped_image(path, x=x, y=y, w=w, h=h)
 	except Exception, e:
 		return _json_error(request, 'crop', action="creating cropped image", errors=[e], log_error=True)
 	
 	default_thumb = request.POST['default_thumb']
-	rel_url_path = get_relative_media_url(request.POST['orig_image'])
+	rel_url_path = request.POST['orig_image']
 
 	file_path, file_full_name = os.path.split(rel_url_path)
 	
@@ -377,7 +409,7 @@ def crop(request):
 				crop_y = y,
 				crop_w = w,
 				crop_h = h,
-				path = get_relative_media_url(request.POST['orig_image']),
+				path = request.POST['orig_image'],
 				default_thumb = default_thumb
 			)
 			db_image.path = file_path
@@ -394,12 +426,14 @@ def crop(request):
 		return _json_error(request, 'crop', action="reading POST data", errors=[e])
 	
 	try:
-		new_ids = _generate_and_save_thumbs(db_image,
-				sizes,
-				img,
-				file_dir,
-				file_ext
+		new_ids = _generate_and_save_thumbs(
+			db_image,
+			sizes,
+			img,
+			file_dir,
+			file_ext
 		)
+
 		thumb_ids.update(new_ids)
 	
 		if auto_sizes is not None:
@@ -422,6 +456,7 @@ def crop(request):
 		'id': db_image.id,
 		'sizes': request.POST['sizes'],
 		'image': request.POST['orig_image'],
+		'image_id': db_image.id,
 		'thumb_urls': jsonutil.dumps(thumb_urls),
 		'default_thumb': db_image.default_thumb,
 		'filename': db_image.get_base_dir_name() + db_image.extension,
@@ -479,9 +514,9 @@ def static_media(request, path):
 	# Respect the If-Modified-Since header.
 	statobj = os.stat(fullpath)
 	mimetype = mimetypes.guess_type(fullpath)[0] or 'application/octet-stream'
-	if not was_modified_since(request.META.get('HTTP_IF_MODIFIED_SINCE'),
-							  statobj[stat.ST_MTIME], statobj[stat.ST_SIZE]):
-		return HttpResponseNotModified(mimetype=mimetype)
+	#if not was_modified_since(request.META.get('HTTP_IF_MODIFIED_SINCE'),
+	#						  statobj[stat.ST_MTIME], statobj[stat.ST_SIZE]):
+	#	return HttpResponseNotModified(mimetype=mimetype)
 	contents = open(fullpath, 'rb').read()
 	response = HttpResponse(contents, mimetype=mimetype)
 	response["Last-Modified"] = http_date(statobj[stat.ST_MTIME])
@@ -498,7 +533,7 @@ def _generate_and_save_thumbs(db_image, sizes, img, file_dir, file_ext, is_auto=
 	img_save_params = {}
 	if img.format == 'JPEG':
 		img_save_params['quality'] = 95
-
+	
 	for size_name in sizes:
 		size = sizes[size_name]
 		thumb_w = int(size[0])

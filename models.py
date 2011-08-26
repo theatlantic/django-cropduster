@@ -133,12 +133,9 @@ class Image(models.Model):
 		if use_temp:
 			size_name += '_tmp'
 		
-		relative_path = relpath(settings.STATIC_ROOT, settings.CROPDUSTER_UPLOAD_PATH)
-		if re.match(r'\.\.', relative_path):
-			raise Exception("Upload path is outside of static root")
-		url_root = settings.STATIC_URL + '/' + relative_path + '/'
-		url = url_root + self.path + '/' + size_name + self.extension
-		url = re.sub(r'(?<!:)/+', '/', url)
+	
+		url = self.path + '/' + size_name + self.extension
+
 		return url
 	
 	def get_base_dir_name(self):

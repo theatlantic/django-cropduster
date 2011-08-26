@@ -91,15 +91,17 @@
 			}
 		},
 		onImageLoad: function() {
-
+			
 			if (window.opener.CropDuster.aspectRatios) {
 				this.aspectRatio = window.opener.CropDuster.aspectRatios[imageElementId];
 			}
 
+
 			try {
 				this.jcrop.destroy();
 			} catch (e) { }
-
+			
+			
 			this.jcrop = $.Jcrop('#cropbox', {
 				setSelect: this.getCropSelect(),
 				aspectRatio: this.aspectRatio,
@@ -193,6 +195,7 @@
 		_setHiddenInputs: function() {
 			$('#crop-uploaded-image').val(this.data.url);
 			$('#crop-orig-image').val(this.data.orig_url);
+			
 			$('#cropbox').attr('src', this.data.url);
 		}
 		
@@ -264,10 +267,13 @@
 					if (data.error) {
 						$('#error-container').find('.errornote').html(data.error);
 						$('#error-container').show();
+					}else if (typeof(window.opener.CropdusterPostSave) != undefined){
+						window.opener.CropDuster.complete(imageElementId, data);
+						window.opener.CropdusterPostSave(data, imageElementId);
 					} else {
 						$('#error-container').hide();
 						window.opener.CropDuster.complete(imageElementId, data);
-						window.close();
+						//window.close();
 					}
 				}
 			}
