@@ -181,25 +181,11 @@ class AbstractInlineFormSet(GenericInlineFormSet):
 	label = "Upload"
 	
 	def __init__(self, *args, **kwargs):
-		label = kwargs.pop('label', None)
-		if label is not None:
-			self.label = label
-		sizes = kwargs.pop('sizes', None)
-		if sizes is not None:
-			self.sizes = sizes
-		default_sizes = kwargs.pop('default_sizes', None)
-		if default_sizes is not None:
-			self.default_sizes = default_sizes
-		default_thumb = kwargs.pop('default_thumb', None)
-		if default_thumb is not None:
-			self.default_thumb = default_thumb
-		extra = kwargs.pop('extra', None)
-		if extra is not None:
-			self.extra = extra
-		
-		extra_fields = kwargs.pop('extra_fields', None)
-		if extra_fields is not None:
-			self.extra_fields = extra_fields
+		self.label = kwargs.pop('label', None) or self.label
+		self.sizes = kwargs.pop('sizes', None) or self.sizes
+		self.default_thumb = kwargs.pop('default_thumb', None) or self.default_thumb
+		self.extra = kwargs.pop('extra', None) or self.extra		
+		self.extra_fields = kwargs.pop('extra_fields', None) or self.extra_fields
 		if hasattr(self.extra_fields, 'iter'):
 			for field in self.extra_fields:
 				self.fields.append(field)
