@@ -1,40 +1,10 @@
-.cropduster-form .path,
-.cropduster-form .crop_x,
-.cropduster-form .crop_y,
-.cropduster-form .crop_w,
-.cropduster-form .crop_h,
-.cropduster-form ._extension,
-.cropduster-form .default_thumb,
-.cropduster-form .thumbs,
-.cropduster-form .DELETE {
-	display: none;
+#crop_formset, #row_id_sizes {
+	visibility:hidden;
+	position:absolute;
+	bottom:0px
 }
 
-.cropduster-form .inline-related .delete {
-	padding-top: 7px;
-	position: absolute;
-	right: 10px;
-}
 
-.cropduster-form.pre-delete fieldset div {
-	background: #F2E6E6 !important;
-}
-
-.cropduster-form .help img.preview {
-	margin-right: 8px;
-	margin-bottom: 8px;
-	float: left;
-}
-
-.cropduster-form .help img.preview.first {
-	margin: 0 8px 8px 0;
-}
-.cropduster-customfield img{
-	border: 0;
-}
-
-.cropduster-customfield .cropduster-upload-button {
-	background: transparent url('../img/cropduster_icon_upload_select.png') no-repeat top left;
-	width: 26px;
-	height: 22px;
+p {
+	margin:10px 0 10px 0;
 }

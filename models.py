@@ -1,237 +1,155 @@
-import os
-import re
-
-from django.contrib.contenttypes.models import ContentType
-from django.contrib.contenttypes import generic
 from django.db import models
 from django.conf import settings
+import os
+from django.contrib.contenttypes.generic import GenericRelation
+from decimal import Decimal
+from cropduster import utils
 
-import Image as pil
 
-from cropduster.utils import relpath
+IMAGE_SAVE_PARAMS =  {'quality' :95}
 
-class Thumb(models.Model):
+class SizeSet(models.Model):
 	name = models.CharField(max_length=255, db_index=True)
-	height = models.PositiveIntegerField(default=0, blank=True, null=True)
-	width = models.PositiveIntegerField(default=0, blank=True, null=True)
-
+	
+	slug = models.SlugField(max_length=50, null=False,)
+	
 	def __unicode__(self):
-		return self.name
+		return u"%s" % self.name
+
+class SizeManager(models.Manager):
+	def get_size_by_id(self, size_set, aspect_ratio_id):
+		size_query = Size.objects.all().filter(size_set=size_set).exclude(auto_size=1).order_by("-aspect_ratio")
+		size_query.query.group_by = ["aspect_ratio"]
+
+		try:
+			return size_query[aspect_ratio_id]
+		except:
+			return None
+
+class Size(models.Model):
+	
+	name = models.CharField(max_length=255, db_index=True)
+	
+	slug = models.SlugField(max_length=50, null=False,)
+	
+	height = models.PositiveIntegerField(default=0, blank=True, null=True)
+	
+	width = models.PositiveIntegerField(default=0, blank=True, null=True)
+	
+	auto_size = models.BooleanField(default=False)
+	
+	size_set = models.ForeignKey(SizeSet)
+	
+	aspect_ratio = models.FloatField(default=1)
+	
+	objects = SizeManager()
+	
+	def save(self, *args, **kwargs):
+		self.aspect_ratio = Decimal(str(round(float(self.width)/float(self.height), 2)))
+		super(Size, self).save(*args, **kwargs)
 	
 	class Meta:
-		db_table = 'cropduster_thumb'
+		db_table = 'cropduster_size'
+	
+	def __unicode__(self):
+		return u"%s: %sx%s" % (self.name, self.width, self.height)
 
-
-class Image(models.Model):
-
-	content_type = models.ForeignKey(ContentType)
-	object_id = models.PositiveIntegerField()
-	content_object = generic.GenericForeignKey('content_type', 'object_id')
-
+class Crop(models.Model):
+	class Meta:
+		db_table = 'cropduster_crop'
+		
 	crop_x = models.PositiveIntegerField(default=0, blank=True, null=True)
 	crop_y = models.PositiveIntegerField(default=0, blank=True, null=True)
 	crop_w = models.PositiveIntegerField(default=0, blank=True, null=True)
 	crop_h = models.PositiveIntegerField(default=0, blank=True, null=True)
-
-	path = models.CharField(max_length=255, db_index=True)
-	_extension = models.CharField(max_length=4, db_column='extension')
-
-	default_thumb = models.CharField(max_length=255)
-
-	thumbs = models.ManyToManyField(
-		'cropduster.Thumb',
-		related_name = 'thumbs',
-		verbose_name = 'thumbs',
+	
+	size = models.ForeignKey(
+		'cropduster.Size', 
+		related_name = 'size',
+		verbose_name = 'sizes',
+		null = True,
+		blank = True
+	)
+	image = models.ForeignKey(
+		'cropduster.Image', 
+		related_name = 'images',
+		verbose_name = 'images',
 		null = True,
 		blank = True
 	)
 
+
+	def save(self, *args, **kwargs):
+		super(Crop, self).save(*args, **kwargs)
+
+		if self.size:
+			sizes = Size.objects.all().filter(aspect_ratio=self.size.aspect_ratio).order_by("-width")
+			if sizes:
+				cropped_image = utils.create_cropped_image(self.image.image.path, self.crop_x, self.crop_y, self.crop_w, self.crop_h)
+					
+				for size in sizes:
+					
+					thumbnail = utils.rescale(cropped_image, size.width, size.height, crop=size.auto_size)
+	
+					if not os.path.exists(self.image.folder_path):
+						os.makedirs(self.image.folder_path)
+					
+					thumbnail.save(self.image.thumbnail_path(size), **IMAGE_SAVE_PARAMS)
+
+
+class Image(models.Model):
+	
+	image = models.ImageField(
+		upload_to=settings.CROPDUSTER_UPLOAD_PATH + '%Y/%m/%d', 
+		max_length=255, 
+		db_index=True
+		)
+	sizes = models.ManyToManyField(
+		'cropduster.Size',
+		related_name = 'sizes',
+		verbose_name = 'sizes',
+		null = True,
+		blank = True,
+	)
 	attribution = models.CharField(max_length=255, blank=True, null=True)
 
 	class Meta:
 		db_table = 'cropduster_image'
-		unique_together = ("content_type", "object_id")
+		verbose_name = 'Image'
 
-	def __unicode__(self):
-		return self.get_image_url()
-	
 	@property
 	def extension(self):
-		''' returns the file extension with a dot (.) prepended to it '''
-		return '.' + self._extension
+		file_root, extension = os.path.splitext(self.image.path)
+		return extension
+	@property
+	def folder_path(self):
+		file_path, file = os.path.split(self.image.path)
+		file_root, extension = os.path.splitext(file)
+		return u"%s" % os.path.join(file_path, file_root)
 		
-	@extension.setter
-	def extension(self, val):
-		""" ensures that file extension is lower case and doesn't have a double dot (.) """
-		self._extension = val.lower().replace('.', '')
+	def thumbnail_path(self, size):
+		file_path, file = os.path.split(self.image.path)
+		file_root, extension = os.path.splitext(file)
+		return u"%s" % os.path.join(file_path, file_root, size.slug) + extension
+	@property
+	def folder_url(self):
+		file_path, file = os.path.split(self.image.url)
+		file_root, extension = os.path.splitext(file)
+		return u"%s" % os.path.join(file_path, file_root)
 		
-	def default_thumb_url(self, use_temp=False):
-		return self.get_image_url(self.default_thumb, use_temp)
+	def thumbnail_url(self, size):
+		file_path, file = os.path.split(self.image.url)
+		file_root, extension = os.path.splitext(file)
+		return u"%s" % os.path.join(file_path, file_root, size.slug) + extension
 
-	def get_image_path(self, size_name=None, use_temp=False):
+	def __unicode__(self):
+		return u'%s' % self.image.url
 
-		if size_name is None:
-			size_name = 'original'
-		
-		if use_temp:
-			size_name += '_tmp'
-
-		return os.path.join(settings.CROPDUSTER_UPLOAD_PATH, self.path, size_name + self.extension)
-
-	def has_thumb(self, size_name):
-		try:
-			thumb = self.thumbs.get(name=size_name)
-			return True
-		except Thumb.DoesNotExist:
-			return False
+	def get_absolute_url(self):
+		return settings.STATIC_URL + self.image
 	
-	def save(self, **kwargs):
 
-		has_changed = False
-		try:
-			img = self.objects.get(pk=self.id)
-
-			if self.crop_x != img.crop_x:
-				has_changed = True
-			elif self.crop_y != img.crop_y:
-				has_changed = True
-			elif self.crop_w != img.crop_w:
-				has_changed = True
-			elif self.crop_h != img.crop_h:
-				has_changed = True
-			elif self.path != img.path:
-				has_changed = True
-			elif self.ext != img.ext:
-				has_changed = True
-		except:
-			has_changed = True
-
-		if has_changed:
-			try:
-				for thumb in self.thumbs.all():
-					try:
-						os.rename(
-							self.get_image_path(thumb.name, use_temp=True),
-							self.get_image_path(thumb.name)
-						)
-					except:
-						pass
-			except:
-				pass
-
-		return super(Image, self).save(**kwargs)
-		
-	
-	def get_image_url(self, size_name=None, use_temp=False):
-		
-		if self.path is None:
-			return ''
-		
-		if size_name is None:
-			size_name = 'original'
-		
-		if use_temp:
-			size_name += '_tmp'
-		
-	
-		url = self.path + '/' + size_name + self.extension
-
-		return url
-	
-	def get_base_dir_name(self):
-		''' 
-		returns the directory that contain the various sizes of images, based off of the 
-		original file name
-		'''
-		
-		path, dir_name = os.path.split(self.path)
-		return dir_name
-	
-	def get_image_size(self, size_name=None):
-		"""
-		Returns tuple of a thumbnail's size (width, height).
-		When first parameter unspecified returns a tuple of the size of
-		the original image.
-		"""
-		if size_name is None:
-			# Get the original size
-			try:
-				img = pil.open(self.get_image_path())
-				return img.size
-			except:
-				pass
-		try:
-			thumb = self.thumbs.get(name=size_name)
-			return (thumb.width, thumb.height)
-		except:
-			return (0, 0)
-
-	def get_image_filesize(self, size_name=None):
-		"""Returns the filesize of the thumbnail.  Defaults to the original image."""
-		if size_name is None:
-			return os.path.getsize(self.get_image_path())
-		else:
-			if self.has_thumb(size_name):
-				return os.path.getsize(self.get_image_path(size_name))
-			else:
-				return 0
-			
-	def get_image_filename(self, size_name=None):
-		"""Returns the filename of the thumbnail.  Defaults to the original image."""
-		if size_name is None:
-			return os.path.basename(self.get_image_path())
-		else:
-			if self.has_thumb(size_name):
-				return os.path.basename(self.get_image_path(size_name))
-			else:
-				return ''
-	
-	def save_thumb(self, name, width, height):
-		"""
-		Check if a thumbnail already exists for the current image,
-		otherwise 
-		"""
-		thumb = None
-		try:
-			thumb = self.thumbs.get(name=name)
-			thumb.width = width
-			thumb.height = height
-			thumb.name = name
-			thumb.save()
-		except:
-			thumb = Thumb(
-				width = width,
-				height = height,
-				name = name
-			)
-			thumb.save()
-		return thumb
+class CropDusterField(models.ForeignKey):
+	pass	
 
 
-from django.contrib.contenttypes.generic import GenericRelation
-
-class CropDusterField(GenericRelation):
-	def db_type(self, connection):
-		return ''
-		
-	def __init__(self, *args, **kwargs):
-		kwargs['to'] = Image
-		super(CropDusterField, self).__init__(*args, **kwargs)
-
-	def save_form_data(self, instance, data):
-		"""
-		Override Field.save_form_data to ensure that the
-		correct type is saved to the object
-		"""
-		if data is None or data == '':
-			setattr(instance, self.name, data)
-		else:
-			mgr = getattr(instance, self.name)
-			image = Image.objects.get(pk=data)
-			mgr.add(image)
-
-try:
-	from south.modelsinspector import add_introspection_rules
-	add_introspection_rules([], ["^cropduster\.models\.CropDusterField"])
-except:
-	pass

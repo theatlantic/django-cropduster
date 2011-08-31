@@ -67,9 +67,8 @@ window.CropDuster = {};
 				href += '&w=' + CropDuster.getVal(id, 'crop_w');
 				href += '&h=' + CropDuster.getVal(id, 'crop_h');
 				href += '&path=' + CropDuster.getVal(id, 'path');
-				href += '&ext='  + CropDuster.getVal(id, '_extension');
 			}
-			href += '&el_id=' + encodeURI(id);
+			href += '&image_element_id=' + encodeURI(id);
 			var win = window.open(href, id2, 'height=650,width=960,resizable=yes,scrollbars=yes');
 			win.focus();
 			return win;
@@ -98,7 +97,6 @@ window.CropDuster = {};
 			CropDuster.setVal(id, 'crop_w', data.w);
 			CropDuster.setVal(id, 'crop_h', data.h);
 			CropDuster.setVal(id, 'path', data.path);
-			CropDuster.setVal(id, 'default_thumb', data.default_thumb);
 			CropDuster.setVal(id, '_extension', data.extension);
 			prefix = CropDuster.formsetPrefixes[id];
 			$('#id_' + prefix + '-TOTAL_FORMS').val('1');

@@ -6,48 +6,6 @@
 	                      '<a href="mailto:ATMOProgrammers@theatlantic.com">' +
 	                      'ATMOProgrammers@theatlantic.com' +
 	                      '</a>';
-
-	var ProgressBarClass = Class.extend({
-		init: function() {
-			this.id = CropDuster.generateRandomId();
-			$('#X-Progress-ID').val(this.id);
-		},
-		show: function() {
-			$('#progressbar-container').html('<div id="uploadprogressbar"></div>');
-			$('#progressbar-container').find('#uploadprogressbar').progressbar();
-			this.startUpdate();
-		},
-		startUpdate: function() {
-			$("#uploadprogressbar").fadeIn();
-			if(typeof progressInterval !== 'undefined') {
-				try {
-					$("#uploadprogressbar").progressbar("destroy");
-				} catch (e) { }
-				clearInterval(progressInterval);
-				$("#progress-wrapper").hide();
-			}
-
-			$("#progress-wrapper").show();
-
-			var uploadId = this.id;
-
-			progressInterval = setInterval(function() {
-				var url = $('#form-upload-progress').attr('action');
-				$.getJSON(url + '?X-Progress-ID=' + uploadId, function(data) {
-					if (data == null) {
-						$("#uploadprogressbar").progressbar("destroy");
-						clearInterval(progressInterval);
-						$("#progress-wrapper").hide();
-						progressInterval = undefined;
-						return;
-					}
-					var percentage = Math.floor(100 * parseInt(data.uploaded) / parseInt(data.length));
-					$("#uploadprogressbar").progressbar({ value: percentage });
-					$('#progress-percent').html(percentage + '%');
-				});
-			}, 100);
-		}
-	});
 	
 	function updateCoords(c) {
 		$('#x').val(c.x);
@@ -102,7 +60,7 @@
 			} catch (e) { }
 			
 			
-			this.jcrop = $.Jcrop('#cropbox', {
+			this.jcrop = $.Jcrop('#cropbox img', {
 				setSelect: this.getCropSelect(),
 				aspectRatio: this.aspectRatio,
 				onSelect: updateCoords,
@@ -117,8 +75,8 @@
 			var x, y, w, h;
 
 			var imgDim = {
-				width: $('#cropbox').width(),
-				height: $('#cropbox').height()
+				width: $('#cropbox img').width(),
+				height: $('#cropbox img').height()
 			};
 
 			var imgAspect = (imgDim.width / imgDim.height);
@@ -182,7 +140,7 @@
 					clearInterval(interval);
 				}
 
-				var width = $('#cropbox').width();
+				var width = $('#cropbox img').width();
 				if (width > 1) {
 					self.onImageLoad();
 					clearInterval(interval);
@@ -196,101 +154,11 @@
 			$('#crop-uploaded-image').val(this.data.url);
 			$('#crop-orig-image').val(this.data.orig_url);
 			
-			$('#cropbox').attr('src', this.data.url);
+			$('#cropbox img').attr('src', this.data.url);
 		}
 		
 	});
 
 	window.cropBox = new CropBoxClass();
-
-	$(document).ready(function(){
-
-		if (window.opener && window.opener.CropDuster.sizes) {
-			imageElementId = $('#image-element-id').val();
-			var sizes = window.opener.CropDuster.sizes[imageElementId];
-			$('#crop-sizes').val(sizes);
-			$('#upload-sizes').val(sizes);
-
-			if (window.opener.CropDuster.autoSizes) {
-				var autoSizes = window.opener.CropDuster.autoSizes[imageElementId];
-				$('#crop-auto-sizes').val(autoSizes);
-				$('#upload-auto-sizes').val(autoSizes);
-			}
-			
-			if (window.opener.CropDuster.defaultThumbs) {
-				var defaultThumb = window.opener.CropDuster.defaultThumbs[imageElementId];
-				$('#default-thumb').val(defaultThumb);
-			}
-
-			if (window.opener.CropDuster.minSize) {
-				cropBox.minSize = window.opener.CropDuster.minSize[imageElementId];
-			}
-		}
-		
-		var progressBar = new ProgressBarClass();
-		
-		var actionUrl = $('#upload').attr('action');
-		
-		var imageId = $('#image-id').val();
-		var origImage = $('#crop-orig-image').val();
-		// We already have an image, initiate a jcrop instance
-		if (imageId || origImage) {
-			// Mimic the data returned from a POST to the upload action
-			data = {
-				initial: true,
-				image_id:    parseInt(imageId, 10),
-				orig_width:  parseInt($('#orig-w').val(), 10),
-				orig_height: parseInt($('#orig-h').val(), 10),
-				width:       parseInt($('#w').val(), 10),
-				height:      parseInt($('#h').val(), 10),
-				x:           parseInt($('#x').val(), 10),
-				y:           parseInt($('#y').val(), 10),
-				url: $('#cropbox').attr('src')
-			};
-			cropBox.onSuccess(data, 'success');
-			// cropBox.init(data, 'success');
-		}
-		
-		$('#upload').ajaxForm({
-		  dataType: 'json',
-		  url: actionUrl +'?X-Progress-ID='+$('#X-Progress-ID').val(),
-		  beforeSubmit: function() { progressBar.show(); },
-		  success: function(data, responseType) {
-			cropBox.onSuccess(data, responseType);
-		  }
-		});
-
-		$('#crop-form').ajaxForm({
-			dataType: 'json',
-			success: function(data, responseType) {
-				if (responseType == 'success') {
-					if (data.error) {
-						$('#error-container').find('.errornote').html(data.error);
-						$('#error-container').show();
-					}else if (typeof(window.opener.CropdusterPostSave) != undefined){
-						window.opener.CropDuster.complete(imageElementId, data);
-						window.opener.CropdusterPostSave(data, imageElementId);
-					} else {
-						$('#error-container').hide();
-						window.opener.CropDuster.complete(imageElementId, data);
-						//window.close();
-					}
-				}
-			}
-		});
-		
-		window.uploadSubmit = function() {
-			$('#upload').ajaxSubmit({
-			  dataType: 'json',
-			  url: actionUrl +'?X-Progress-ID='+$('#X-Progress-ID').val(),
-			  beforeSubmit: function() { progressBar.show(); },
-			  success: function(data, responseType) {
-				cropBox.onSuccess(data, responseType);
-			  }
-			});
-			return false;
-		};
-    });
-
 
 }(django.jQuery));
