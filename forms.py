@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.template.loader import render_to_string
 
+from cropduster.generic import GenericInlineFormSet
 from cropduster.models import Image, Thumb
 from cropduster.utils import get_aspect_ratios, validate_sizes, OrderedDict, get_min_size, relpath
 
@@ -163,7 +164,7 @@ class CropDusterForm(forms.ModelForm):
 		else:
 			return db_field.formfield()
 
-class AbstractInlineFormSet(BaseGenericInlineFormSet):
+class AbstractInlineFormSet(GenericInlineFormSet):
 	model = Image
 	fields = ('id', 'crop_x', 'crop_y', 'crop_w', 'crop_h',
 	           'path', '_extension', 'default_thumb', 'thumbs',)
@@ -180,37 +181,22 @@ class AbstractInlineFormSet(BaseGenericInlineFormSet):
 	label = "Upload"
 	
 	def __init__(self, *args, **kwargs):
-		label = kwargs.pop('label', None)
-		if label is not None:
-			self.label = label
-		sizes = kwargs.pop('sizes', None)
-		if sizes is not None:
-			self.sizes = sizes
-		default_sizes = kwargs.pop('default_sizes', None)
-		if default_sizes is not None:
-			self.default_sizes = default_sizes
-		default_thumb = kwargs.pop('default_thumb', None)
-		if default_thumb is not None:
-			self.default_thumb = default_thumb
-		extra = kwargs.pop('extra', None)
-		if extra is not None:
-			self.extra = extra
-		
-		extra_fields = kwargs.pop('extra_fields', None)
-		if extra_fields is not None:
-			self.extra_fields = extra_fields
+		self.label = kwargs.pop('label', None) or self.label
+		self.sizes = kwargs.pop('sizes', None) or self.sizes
+		self.default_thumb = kwargs.pop('default_thumb', None) or self.default_thumb
+		self.extra = kwargs.pop('extra', None) or self.extra		
+		self.extra_fields = kwargs.pop('extra_fields', None) or self.extra_fields
 		if hasattr(self.extra_fields, 'iter'):
 			for field in self.extra_fields:
 				self.fields.append(field)
 		
 		super(AbstractInlineFormSet, self).__init__(*args, **kwargs)
 	
-	def _construct_form(self, i, **kwargs):
+	def _pre_construct_form(self, i, **kwargs):
 		"""
-		Override the id field of the form with our CropDusterFormField and
-		override the thumbs queryset for performance.
+		Limit the queryset of the thumbs for performance reasons (so that it doesn't
+		pull in every available thumbnail into the selectbox)
 		"""
-		
 		image_id = 0
 		try:
 			image_id = self.queryset[0].id
@@ -240,42 +226,13 @@ class AbstractInlineFormSet(BaseGenericInlineFormSet):
 					self.form.base_fields['thumbs'].widget.choices.queryset = queryset
 			except AttributeError:
 				pass
-			
 		
-		if self.data is not None and len(self.data) > 0:
-			pk_key = "%s-%s" % (self.add_prefix(i), self.model._meta.pk.name)
-			pk = self.data[pk_key]
-			if pk == '' and image_id != 0:
-				self.data[pk_key] = image_id
-
-			if self.data.get(self.rel_name + '-0-id') == '':
-				img_kwargs = {}
-				for field_name in self.form.base_fields:
-					if field_name not in ('DELETE', 'id', 'thumbs'):
-						img_kwargs[field_name] = self.data.get('%s-%s' % (self.add_prefix(i), field_name))
-						if field_name in ('crop_x', 'crop_y', 'crop_w', 'crop_h'):
-							img_kwargs[field_name] = int(img_kwargs[field_name])
-				try:
-					if image_id != 0:
-						img = Image.objects.get(pk=image_id)
-						# If cache machine exists, invalidate
-					else:
-						img = Image(**img_kwargs)
-					self.form.instance = img
-					try:
-						Image.objects.invalidate(img)
-					except:
-						pass
-					try:
-						# Invalidate parent instance
-						self.instance.__class__.objects.invalidate(self.instance)
-					except:
-						pass
-				except Exception, e:
-					pass
-
-		form = super(AbstractInlineFormSet, self)._construct_form(i, **kwargs)
-		
+	
+	def _post_construct_form(self, form, i, **kwargs):
+		"""
+		Override the id field of the form with our CropDusterFormField and
+		override the thumbs queryset for performance.
+		"""
 		# Override the id field to use our custom field and widget that displays the
 		# thumbnail and the button that pops up the cropduster window
 		form.fields['id'] = CropDusterFormField(
@@ -285,20 +242,6 @@ class AbstractInlineFormSet(BaseGenericInlineFormSet):
 			default_thumb=self.default_thumb,
 			required=False
 		)
-		
-		# Load in initial data if we have it from a previously submitted
-		# (but apparently invalidated) form
-		if self.data is not None and len(self.data) > 0:
-			thumb_ids = [int(id) for id in self.data.getlist(self.rel_name + '-0-thumbs')]
-			if len(thumb_ids) > 0:
-				for key in self.data.keys():
-					if key.find(self.rel_name) == 0:
-						match = re.match(self.rel_name + '-(.+)$', key)
-						if match:
-							field_name = match.group(1)
-							if field_name in form.fields:
-								field = form.fields[field_name]
-								field.initial = self.data.get(key)
 		return form
 
 
