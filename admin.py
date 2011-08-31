@@ -15,6 +15,7 @@ class BaseImageInline(GenericInlineModelAdmin):
 	extra = 1
 	max_num = 1
 	readonly_fields = 'id'
+	extra_fields = []
 	
 	fieldsets = (
 		('Image', {
