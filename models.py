@@ -154,10 +154,10 @@ class Image(models.Model):
 		file_root, extension = os.path.splitext(file)
 		return u"%s" % os.path.join(file_path, file_root)
 		
-	def thumbnail_url(self, size):
+	def thumbnail_url(self, size_slug):
 		file_path, file = os.path.split(self.image.url)
 		file_root, extension = os.path.splitext(file)
-		return u"%s" % os.path.join(file_path, file_root, size.slug) + extension
+		return u"%s" % os.path.join(file_path, file_root, size_slug) + extension
 
 	def __unicode__(self):
 		return u'%s' % self.image.url
