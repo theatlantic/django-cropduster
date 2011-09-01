@@ -67,10 +67,12 @@
 	$(document).ready(function(){
 		
 		$("#cropbox img").Jcrop({
-			"setSelect":   [ {{ crop_x }}, {{ crop_y }}, {{ crop_w }}, {{ crop_h }}],
+			"setSelect":   [ {{ crop_x }}, {{ crop_y }}, {{ crop_x }} + {{ crop_w }}, {{ crop_y }} + {{ crop_h }}],
 			"aspectRatio": {{ aspect_ratio }},
 			"onChange": updateCrop
 		});
+		
+		
     });
 }(django.jQuery));
 </script>

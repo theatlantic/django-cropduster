@@ -15,9 +15,17 @@ class SizeSet(models.Model):
 	
 	def __unicode__(self):
 		return u"%s" % self.name
+		
+	def get_size_by_ratio(self):
+		size_query = self.size_set.all()
+		size_query.query.group_by = ["aspect_ratio"]
+		try:
+			return size_query
+		except ValueError:
+			return None
 
 class SizeManager(models.Manager):
-	def get_size_by_id(self, size_set, aspect_ratio_id):
+	def get_size_by_ratio(self, size_set, aspect_ratio_id):
 		size_query = Size.objects.all().filter(size_set=size_set).exclude(auto_size=1).order_by("-aspect_ratio")
 		size_query.query.group_by = ["aspect_ratio"]
 

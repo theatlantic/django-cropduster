@@ -60,7 +60,7 @@ def upload(request):
 	
 
 	
-	size = Size.objects.get_size_by_id(size_set.id, aspect_ratio_id)
+	size = Size.objects.get_size_by_ratio(size_set.id, aspect_ratio_id)
 	
 	
 	#get the current crop
@@ -94,8 +94,8 @@ def upload(request):
 			
 			crop = crop_formset.save()
 		
-			aspect_ratio_id = aspect_ratio_id +1
-			size = Size.objects.get_size_by_id(size_set, aspect_ratio_id)
+			aspect_ratio_id = aspect_ratio_id + 1
+			size = Size.objects.get_size_by_ratio(size_set, aspect_ratio_id)
 			if size:
 				try:
 					crop = Crop.objects.get(image=image.id, size=size.id)
