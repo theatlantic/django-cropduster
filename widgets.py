@@ -5,7 +5,10 @@ from cropduster.models import SizeSet, Image as CropDusterImage
 
 class AdminCropdusterWidget(HiddenInput):
 	def __init__(self, size_set_slug, *args, **kwargs):
-		self.size_set = SizeSet.objects.get(slug=size_set_slug)
+		try:
+			self.size_set = SizeSet.objects.get(slug=size_set_slug)
+		except:
+			self.size_set = None
 		super(AdminCropdusterWidget, self).__init__(*args, **kwargs)
 	
 	def render(self, name, value, attrs=None):
