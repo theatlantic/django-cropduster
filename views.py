@@ -131,7 +131,7 @@ def upload(request):
 		return render_to_response("cropduster/upload.html", context)
 		
 	else:
-		image_thumbs = [image.thumbnail_url(size) for size in image.size_set.size_set.all()] 
+		image_thumbs = [image.thumbnail_url(size) for size in image.size_set.get_size_by_ratio()] 
 
 		context = {
 			"image": image,

@@ -4,6 +4,7 @@ import os
 from django.contrib.contenttypes.generic import GenericRelation
 from decimal import Decimal
 from cropduster import utils
+import Image as pil
 
 
 IMAGE_SAVE_PARAMS =  {'quality' :95}
@@ -40,9 +41,9 @@ class Size(models.Model):
 	
 	slug = models.SlugField(max_length=50, null=False,)
 	
-	height = models.PositiveIntegerField(default=0, blank=True, null=True)
+	height = models.PositiveIntegerField(blank=True, null=True)
 	
-	width = models.PositiveIntegerField(default=0, blank=True, null=True)
+	width = models.PositiveIntegerField(blank=True, null=True)
 	
 	auto_size = models.BooleanField(default=False)
 	
@@ -53,7 +54,10 @@ class Size(models.Model):
 	objects = SizeManager()
 	
 	def save(self, *args, **kwargs):
-		self.aspect_ratio = Decimal(str(round(float(self.width)/float(self.height), 2)))
+		if self.height == 0:
+			self.aspect_ratio = 1
+		else:
+			self.aspect_ratio = Decimal(str(round(float(self.width)/float(self.height), 2)))
 		super(Size, self).save(*args, **kwargs)
 	
 	class Meta:
@@ -90,7 +94,7 @@ class Crop(models.Model):
 		super(Crop, self).save(*args, **kwargs)
 
 		if self.size:
-			sizes = Size.objects.all().filter(aspect_ratio=self.size.aspect_ratio).order_by("-width")
+			sizes = Size.objects.all().filter(aspect_ratio=self.size.aspect_ratio).exclude(auto_size=1).order_by("-width")
 			if sizes:
 				cropped_image = utils.create_cropped_image(self.image.image.path, self.crop_x, self.crop_y, self.crop_w, self.crop_h)
 					
@@ -115,6 +119,16 @@ class Image(models.Model):
 		SizeSet,
 	)
 	attribution = models.CharField(max_length=255, blank=True, null=True)
+	
+	def save(self, *args, **kwargs):
+		super(Image, self).save(*args, **kwargs)
+
+		for size in self.size_set.size_set.all().filter(auto_size=1):
+			thumbnail = utils.rescale(pil.open(self.image.path), size.width, size.height, crop=True)
+			if not os.path.exists(self.folder_path):
+				os.makedirs(self.folder_path)
+					
+			thumbnail.save(self.thumbnail_path(size), **IMAGE_SAVE_PARAMS)
 
 	class Meta:
 		db_table = 'cropduster_image'
