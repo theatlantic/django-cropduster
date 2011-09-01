@@ -30,7 +30,7 @@ class ImageForm(ModelForm):
 		pil_image = pil.open(image)
 
 		for size in size_set.size_set.all():
-			if size.width > pil_image.size[0] or size.height > pil_image.size[1]:
+			if not size.auto_size and (size.width > pil_image.size[0] or size.height > pil_image.size[1]):
 				raise ValidationError("Uploaded image is smaller than a required thumbnail size: %s" % size)
 		return self.cleaned_data
 		
@@ -38,6 +38,20 @@ class ImageForm(ModelForm):
 class CropForm(ModelForm):
 	class Meta:
 		model = Crop
+		
+
+def error(request):
+
+	context = {
+			"errors": formset.errors,
+			"formset": formset,
+			"image_element_id" : request.GET["image_element_id"]
+		}
+		
+	context = RequestContext(request, context)
+	
+	return render_to_response("cropduster/upload.html", context)
+		
 	
 @csrf_exempt
 def upload(request):
@@ -82,6 +96,9 @@ def upload(request):
 			if formset.is_valid():
 				image = formset.save()
 				crop.image = image
+			else:
+				error(request)
+				
 				
 			crop_formset = CropForm(instance=crop)
 		else:

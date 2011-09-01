@@ -4,8 +4,13 @@ import Image
 def rescale(img, w=0, h=0, crop=True):
 	"""Rescale the given image, optionally cropping it to make sure the result image has the specified width and height."""
 
-	if w <= 0 or h <= 0:
+	if w <= 0 and h <= 0:
 		raise ValueError("Width and height must be greater than zero")
+		
+	if w <= 0:
+		w = float(img.size[0] * h) /float(img.size[1])
+	if h <= 0:
+		h = float(img.size[1] * w) /float(img.size[0])
 
 	max_width = w
 	max_height = h
