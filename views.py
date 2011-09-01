@@ -3,8 +3,10 @@ from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.views.decorators.csrf import csrf_exempt
 
-from cropduster.models import Image as CropDusterImage, Crop, Size
+from cropduster.models import Image as CropDusterImage, Crop, Size, SizeSet
 from cropduster.settings import CROPDUSTER_MEDIA_ROOT
+
+import Image as pil
 
 import logging
 from sentry.client.handlers import SentryHandler
@@ -12,7 +14,7 @@ from sentry.client.handlers import SentryHandler
 logger = logging.getLogger("root")
 logger.addHandler(SentryHandler())
 
-from django.forms import ModelForm
+from django.forms import ModelForm, ValidationError
 
 
 # Create the form class.
@@ -20,7 +22,19 @@ class ImageForm(ModelForm):
 	class Meta:
 		model = CropDusterImage
 	
+	def clean(self):
+		size_set = self.cleaned_data.get("size_set")
+		image = self.cleaned_data.get("image")
+		large_enough = True
+		
+		pil_image = pil.open(image)
 
+		for size in size_set.size_set.all():
+			if size.width > pil_image.size[0] or size.height > pil_image.size[1]:
+				raise ValidationError("Uploaded image is smaller than a required thumbnail size: %s" % size)
+		return self.cleaned_data
+		
+		
 class CropForm(ModelForm):
 	class Meta:
 		model = Crop
@@ -28,7 +42,7 @@ class CropForm(ModelForm):
 @csrf_exempt
 def upload(request):
 	
-	size_set = request.GET["size_set"]
+	size_set = SizeSet.objects.get(id=request.GET["size_set"])
 	
 	# get the current aspect ratio
 	if "aspect_ratio_id" in request.POST:
@@ -36,13 +50,17 @@ def upload(request):
 	else:
 		aspect_ratio_id = 0
 	
-	image = None
+	
 	if "image_id" in request.GET:
 		image = CropDusterImage.objects.get(id=request.GET["image_id"])
 	elif "image_id" in request.POST:
 		image = CropDusterImage.objects.get(id=request.POST["image_id"])
+	else:
+		image = CropDusterImage(size_set=size_set)
 	
-	size = Size.objects.get_size_by_id(size_set, aspect_ratio_id)
+
+	
+	size = Size.objects.get_size_by_id(size_set.id, aspect_ratio_id)
 	
 	
 	#get the current crop
@@ -60,15 +78,13 @@ def upload(request):
 
 	if request.method == "POST":
 		if request.FILES:
-			
 			formset = ImageForm(request.POST, request.FILES, instance=image)
-			if formset.is_valid():	
+			if formset.is_valid():
 				image = formset.save()
 				crop.image = image
 				
 			crop_formset = CropForm(instance=crop)
 		else:
-			image.sizes.add(size)
 			formset = ImageForm(instance=image)
 			
 			request.POST['size'] = size.id
@@ -94,15 +110,16 @@ def upload(request):
 	
 
 	if size:
-
+		crop_w = crop.crop_w or size.width
+		crop_h = crop.crop_h or size.height
+		
 		context = {
 			"aspect_ratio_id": aspect_ratio_id,
-			"size_set": request.GET["size_set"],
 			"image": image,
 			"formset": formset,
 			"crop_formset": crop_formset,
-			"crop_w" : size.width,
-			"crop_h" : size.height,
+			"crop_w" : crop_w,
+			"crop_h" : crop_h,
 			"crop_x" : crop.crop_x,
 			"crop_y" : crop.crop_y,
 			"aspect_ratio": size.aspect_ratio,
@@ -114,10 +131,9 @@ def upload(request):
 		return render_to_response("cropduster/upload.html", context)
 		
 	else:
-		image_thumbs = [image.thumbnail_url(size) for size in image.sizes.all()] 
+		image_thumbs = [image.thumbnail_url(size) for size in image.size_set.size_set.all()] 
 
 		context = {
-			"size_set": request.GET["size_set"],
 			"image": image,
 			"image_thumbs": image_thumbs,
 			"image_element_id" : request.GET["image_element_id"]

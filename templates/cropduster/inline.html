@@ -30,7 +30,7 @@ function cropduster_pop(id, image_id){
 
 	<div class="cropduster_thumbs">
 	{% if image %}
-		{% for size in image.sizes.all() %}
+		{% for size in image.size_set.size_set.all() %}
 		<img src="{{ image.thumbnail_url(size) }}" />
 		{% endfor %}
 	{% endif %}

@@ -67,16 +67,15 @@ class Crop(models.Model):
 		'cropduster.Size', 
 		related_name = 'size',
 		verbose_name = 'sizes',
-		null = True,
-		blank = True
 	)
 	image = models.ForeignKey(
 		'cropduster.Image', 
 		related_name = 'images',
 		verbose_name = 'images',
-		null = True,
-		blank = True
 	)
+	
+	def __unicode__(self):
+		return u"%s: %sx%s" % (self.image.image, self.size.width, self.size.height)
 
 
 	def save(self, *args, **kwargs):
@@ -104,12 +103,8 @@ class Image(models.Model):
 		max_length=255, 
 		db_index=True
 		)
-	sizes = models.ManyToManyField(
-		'cropduster.Size',
-		related_name = 'sizes',
-		verbose_name = 'sizes',
-		null = True,
-		blank = True,
+	size_set = models.ForeignKey(
+		SizeSet,
 	)
 	attribution = models.CharField(max_length=255, blank=True, null=True)
 

@@ -27,8 +27,8 @@
 <h1 id="step-header">Upload, Crop, and Generate Thumbnails</h1>
 <div id="content-main">
 
+
 	<form method="post" action="" enctype="multipart/form-data">
-		<input type="hidden" name="size_set" value="{{ size_set }}" />
 		<input type="hidden" name="aspect_ratio_id" value="{{ aspect_ratio_id }}" />
 		
 	
@@ -43,7 +43,7 @@
 	{% endif %}
 	
 	
-	{% if image %}
+	{% if image.image %}
 	<input type="hidden" name="image_id" value="{{ image.id }}" />
 	<div id="cropbox">
 	<img src="{{ image|safe }}" alt="" />
@@ -51,6 +51,8 @@
 	{% endif %}
 	
 	{% if crop_w %}
+	
+	
 <script type="text/javascript">	
 (function($){
 	
@@ -65,7 +67,7 @@
 	$(document).ready(function(){
 		
 		$("#cropbox img").Jcrop({
-			"setSelect":   [ {{ crop_x }}, {{ crop_y }}, {{ crop_w }}, {{ crop_h }} ],
+			"setSelect":   [ {{ crop_x }}, {{ crop_y }}, {{ crop_w }}, {{ crop_h }}],
 			"aspectRatio": {{ aspect_ratio }},
 			"onChange": updateCrop
 		});
