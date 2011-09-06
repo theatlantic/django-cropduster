@@ -1,7 +1,9 @@
 from django.contrib import admin
 from cropduster.models import Size, SizeSet
+from django.conf import settings
 
-class SizeAdmin(admin.ModelAdmin):
+class SizeInline(admin.TabularInline):
+	model = Size
 	prepopulated_fields = {"slug" : ('name',)}
 	
 	fieldsets = (
@@ -19,8 +21,12 @@ class SizeAdmin(admin.ModelAdmin):
 	)
 	readonly_fields = ('aspect_ratio',)
 
+
 class SizeSetAdmin(admin.ModelAdmin):
 	prepopulated_fields = {"slug" : ('name',)}
 
-admin.site.register(Size, SizeAdmin)
+	inlines = [
+		SizeInline,
+	]
+
 admin.site.register(SizeSet, SizeSetAdmin)
