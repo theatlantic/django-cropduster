@@ -7,13 +7,15 @@
 (function($) {
 
 $(document).ready(function(){
+
+	var obj = $(window.opener.document.getElementById("id_image"));
 	
-	window.opener.{{ image_element_id }}.value = {{ image.id }};
+	$(obj).val({{ image.id }});
 	
-	$(window.opener.{{ image_element_id }}).parent().parent().find(".cropduster_thumbs").html(" ");
+	$(obj).parent().parent().find(".cropduster_thumbs").html(" ");
 	{% for thumb in image_thumbs %}
 	
-	$(window.opener.{{ image_element_id }}).parent().parent().find(".cropduster_thumbs").append('<img src="{{ thumb }}" />');
+	$(obj).parent().parent().find(".cropduster_thumbs").append('<img src="{{ thumb }}" />');
 	{% endfor %}
 	
 	window.close();
