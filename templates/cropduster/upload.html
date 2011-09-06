@@ -91,7 +91,13 @@
      
      
 	<div id="error-container" style="display:none">
-		<p class="errornote"></p>
+		<p class="errornote">
+		{% if errors %}
+		{% for error in errors %}
+		{{ error }}
+		{% endfor %}
+		{% endif %}
+		</p>
 	</div>
 	<div class="module footer" id="upload-footer">
 			<ul class="submit-row">

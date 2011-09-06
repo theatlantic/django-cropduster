@@ -10,7 +10,6 @@ import Image as pil
 
 import logging
 from sentry.client.handlers import SentryHandler
-
 logger = logging.getLogger("root")
 logger.addHandler(SentryHandler())
 
@@ -23,8 +22,16 @@ class ImageForm(ModelForm):
 		model = CropDusterImage
 	
 	def clean(self):
+
 		size_set = self.cleaned_data.get("size_set")
+		if any(self.errors):
+			# Don't bother validating the formset unless each form is valid on its own
+			logger.error(self.errors)
 		image = self.cleaned_data.get("image")
+		if not image:
+			raise ValidationError("Invalid image: %s" % self.errors)
+		
+		
 		large_enough = True
 		
 		pil_image = pil.open(image)
@@ -40,7 +47,7 @@ class CropForm(ModelForm):
 		model = Crop
 		
 
-def error(request):
+def error(request, formset):
 
 	context = {
 			"errors": formset.errors,
@@ -97,7 +104,7 @@ def upload(request):
 				image = formset.save()
 				crop.image = image
 			else:
-				error(request)
+				error(request, formset)
 				
 				
 			crop_formset = CropForm(instance=crop)
