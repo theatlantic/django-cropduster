@@ -27,6 +27,12 @@
 <h1 id="step-header">Upload, Crop, and Generate Thumbnails</h1>
 <div id="content-main">
 
+	<div id="error-container">
+		{% for error in formset.errors.values %}
+		{{ error }}
+		{% endfor %}
+	</div>
+
 
 	<form method="post" action="" enctype="multipart/form-data">
 		<input type="hidden" name="aspect_ratio_id" value="{{ aspect_ratio_id }}" />
@@ -43,7 +49,7 @@
 	{% endif %}
 	
 	
-	{% if image.image %}
+	{% if image.image and not formset.errors.values %}
 	<input type="hidden" name="image_id" value="{{ image.id }}" />
 	<div id="cropbox">
 	<img src="{{ image|safe }}" alt="" />
@@ -90,15 +96,7 @@
 	</div>
      
      
-	<div id="error-container" style="display:none">
-		<p class="errornote">
-		{% if errors %}
-		{% for error in errors %}
-		{{ error }}
-		{% endfor %}
-		{% endif %}
-		</p>
-	</div>
+
 	<div class="module footer" id="upload-footer">
 			<ul class="submit-row">
 				<li class="submit-button-container">

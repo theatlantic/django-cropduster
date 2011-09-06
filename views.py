@@ -23,6 +23,7 @@ class ImageForm(ModelForm):
 	
 	def clean(self):
 
+
 		size_set = self.cleaned_data.get("size_set")
 		if any(self.errors):
 			# Don't bother validating the formset unless each form is valid on its own
@@ -48,17 +49,18 @@ class CropForm(ModelForm):
 		
 
 def error(request, formset):
-
+	errors = formset.errors.values()[0]
 	context = {
-			"errors": formset.errors,
+			"barf": "barf",
+			"errors": errors,
 			"formset": formset,
 			"image_element_id" : request.GET["image_element_id"]
 		}
-		
+
 	context = RequestContext(request, context)
 	
 	return render_to_response("cropduster/upload.html", context)
-		
+	
 	
 @csrf_exempt
 def upload(request):
@@ -105,7 +107,6 @@ def upload(request):
 				crop.image = image
 			else:
 				error(request, formset)
-				
 				
 			crop_formset = CropForm(instance=crop)
 		else:
