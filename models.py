@@ -119,7 +119,8 @@ class Image(models.Model):
 		SizeSet,
 	)
 	attribution = models.CharField(max_length=255, blank=True, null=True)
-	
+	caption = models.CharField(max_length=255, blank=True, null=True)
+
 	def save(self, *args, **kwargs):
 		super(Image, self).save(*args, **kwargs)
 
