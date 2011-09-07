@@ -85,7 +85,7 @@ def upload(request):
 	
 	size = Size.objects.get_size_by_ratio(size_set.id, aspect_ratio_id)
 	
-	
+
 	#get the current crop
 	try:
 		crop = Crop.objects.get(image=image.id, size=size.id)

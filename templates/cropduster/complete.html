@@ -8,7 +8,7 @@
 
 $(document).ready(function(){
 
-	var obj = $(window.opener.document.getElementById("id_image"));
+	var obj = $(window.opener.document.getElementById("{{ image_element_id }}"));
 	
 	$(obj).val({{ image.id }});
 	
