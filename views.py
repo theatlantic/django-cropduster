@@ -20,11 +20,8 @@ from django.forms import ModelForm, ValidationError
 class ImageForm(ModelForm):
 	class Meta:
 		model = CropDusterImage
-	
 	def clean(self):
-
-
-		size_set = self.cleaned_data.get("size_set")
+		size_set = self.cleaned_data.get("size_set") or self.instance.size_set
 		if any(self.errors):
 			# Don't bother validating the formset unless each form is valid on its own
 			logger.error(self.errors)
@@ -36,7 +33,7 @@ class ImageForm(ModelForm):
 		large_enough = True
 		
 		pil_image = pil.open(image)
-
+		
 		for size in size_set.size_set.all():
 			if not size.auto_size and (size.width > pil_image.size[0] or size.height > pil_image.size[1]):
 				raise ValidationError("Uploaded image is smaller than a required thumbnail size: %s" % size)
@@ -110,15 +107,23 @@ def upload(request):
 				
 			crop_formset = CropForm(instance=crop)
 		else:
-			formset = ImageForm(instance=image)
-			
+					
+			#If its the first frame, get the image formset and save it (for attribution)
+			if aspect_ratio_id ==0:
+				formset = ImageForm(request.POST, instance=image)
+				if formset.is_valid():
+					formset.save()
+			else:
+				formset = ImageForm(instance=image)
+				
+			#Not uploading an image, save the crop info
 			request.POST['size'] = size.id
 			request.POST['image'] = image.id
-			
 			crop_formset = CropForm(request.POST, instance=crop)
-			
 			crop = crop_formset.save()
-		
+			
+			
+			#Now get the next crop if it exists
 			aspect_ratio_id = aspect_ratio_id + 1
 			size = Size.objects.get_size_by_ratio(size_set, aspect_ratio_id)
 			if size:
@@ -127,6 +132,8 @@ def upload(request):
 					crop_formset = CropForm(instance=crop)
 				except:
 					crop_formset = CropForm()
+			
+
 			
 	else:
 		formset = ImageForm(instance=image)
