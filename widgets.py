@@ -27,7 +27,7 @@ class AdminCropdusterWidget(HiddenInput):
 		
 		
 		
-		t = loader.get_template("cropduster/inline.html")
+		t = loader.get_template("admin/inline.html")
 		c = Context({
 			"image": image,
 			"size_set": self.size_set,

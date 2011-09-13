@@ -56,7 +56,7 @@ def error(request, formset):
 
 	context = RequestContext(request, context)
 	
-	return render_to_response("cropduster/upload.html", context)
+	return render_to_response("admin/upload.html", context)
 	
 	
 @csrf_exempt
@@ -160,7 +160,7 @@ def upload(request):
 		
 		context = RequestContext(request, context)
 		
-		return render_to_response("cropduster/upload.html", context)
+		return render_to_response("admin/upload.html", context)
 		
 	else:
 		image_thumbs = [image.thumbnail_url(size.slug) for size in image.size_set.get_size_by_ratio()] 
@@ -172,7 +172,7 @@ def upload(request):
 		}
 		
 		context = RequestContext(request, context)
-		return render_to_response("cropduster/complete.html", context)
+		return render_to_response("admin/complete.html", context)
 
 def static_media(request, path):
 	"""
