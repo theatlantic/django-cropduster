@@ -12,7 +12,7 @@ for size in image_sizes:
 
 
 @register.object
-def get_image(post, size_name = "large", template_name="image.html", **kwargs):
+def get_image(post, size_name = "large", template_name="image.html", width=None, height=None, **kwargs):
 	if post.image:
 		image_url = post.image.thumbnail_url(size_name)
 		if image_url is None or image_url == "":
@@ -21,8 +21,8 @@ def get_image(post, size_name = "large", template_name="image.html", **kwargs):
 			image_size = image_size_map[size_name]
 
 			kwargs["image_url"] = image_url			
-			kwargs["width"] = image_size.width or ""
-			kwargs["height"] = image_size.height  or ""
+			kwargs["width"] = width or image_size.width or ""
+			kwargs["height"] = height or image_size.height  or ""
 			
 
 			if hasattr(settings, "CROPDUSTER_KITTY_MODE") and settings.CROPDUSTER_KITTY_MODE:
