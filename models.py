@@ -18,6 +18,10 @@ class SizeSet(models.Model):
 		return u"%s" % self.name
 		
 	def get_size_by_ratio(self):
+		""" Shorthand to get all the unique ratios for display in the admin, 
+		rather than show every possible thumbnail
+		"""
+		
 		size_query = self.size_set.all()
 		size_query.query.group_by = ["aspect_ratio"]
 		try:
@@ -27,11 +31,14 @@ class SizeSet(models.Model):
 
 class SizeManager(models.Manager):
 	def get_size_by_ratio(self, size_set, aspect_ratio_id):
-		size_query = Size.objects.all().filter(size_set=size_set).exclude(auto_size=1).order_by("-aspect_ratio")
+		size_query = Size.objects.all().only("aspect_ratio").filter(size_set=size_set).exclude(auto_size=1).order_by("-aspect_ratio")
 		size_query.query.group_by = ["aspect_ratio"]
 
 		try:
-			return size_query[aspect_ratio_id]
+			size = size_query[aspect_ratio_id]
+			
+			# get the largest size with this aspect ratio
+			return Size.objects.all().filter(aspect_ratio=size.aspect_ratio).order_by("-width")[0]
 		except:
 			return None
 
