@@ -38,7 +38,7 @@ class SizeManager(models.Manager):
 			size = size_query[aspect_ratio_id]
 			
 			# get the largest size with this aspect ratio
-			return Size.objects.all().filter(aspect_ratio=size.aspect_ratio).order_by("-width")[0]
+			return Size.objects.all().filter(aspect_ratio=size.aspect_ratio, auto_size=False).order_by("-width")[0]
 		except:
 			return None
 

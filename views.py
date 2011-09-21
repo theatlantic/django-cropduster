@@ -120,17 +120,24 @@ def upload(request):
 			request.POST['size'] = size.id
 			request.POST['image'] = image.id
 			crop_formset = CropForm(request.POST, instance=crop)
+			
 			crop = crop_formset.save()
 			
 			
 			#Now get the next crop if it exists
 			aspect_ratio_id = aspect_ratio_id + 1
 			size = Size.objects.get_size_by_ratio(size_set, aspect_ratio_id)
-			if size:
+			if size:	
 				try:
 					crop = Crop.objects.get(image=image.id, size=size.id)
 					crop_formset = CropForm(instance=crop)
 				except:
+					crop = Crop()
+					crop.crop_w = size.width
+					crop.crop_h = size.height
+					crop.crop_x = 0
+					crop.crop_y = 0
+					crop.size = size
 					crop_formset = CropForm()
 			
 
