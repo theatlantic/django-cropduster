@@ -161,6 +161,8 @@ def upload(request):
 			"crop_h" : crop_h,
 			"crop_x" : crop.crop_x,
 			"crop_y" : crop.crop_y,
+			"min_w"  : size.width,
+			"min_h"  : size.height,
 			"aspect_ratio": size.aspect_ratio,
 			"image_element_id" : request.GET["image_element_id"]
 		}
