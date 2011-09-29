@@ -168,8 +168,11 @@ class Image(models.Model):
 		return u"%s" % os.path.join(file_path, file_root, size_slug) + extension
 
 	def __unicode__(self):
-		return u'%s' % self.image.url
-
+		if self.image:
+			return u'%s' % self.image.url
+		else:
+			return ""
+			
 	def get_absolute_url(self):
 		return settings.STATIC_URL + self.image
 	
