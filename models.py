@@ -9,6 +9,10 @@ import Image as pil
 
 IMAGE_SAVE_PARAMS =  {'quality' :95}
 
+from south.modelsinspector import add_introspection_rules
+add_introspection_rules([], ["^cropduster\.models\.CropDusterField"])
+
+
 class SizeSet(models.Model):
 	name = models.CharField(max_length=255, db_index=True)
 	
