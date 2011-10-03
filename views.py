@@ -48,7 +48,6 @@ class CropForm(ModelForm):
 def error(request, formset):
 	errors = formset.errors.values()[0]
 	context = {
-			"barf": "barf",
 			"errors": errors,
 			"formset": formset,
 			"image_element_id" : request.GET["image_element_id"]
