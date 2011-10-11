@@ -151,7 +151,7 @@ def upload(request):
 		
 	# if theres more cropping to be done or its the first frame,
 	# show the upload/crop form
-	if size.id or request.method != "POST":		
+	if (size and size.id) or request.method != "POST":		
 		
 		crop_w = crop.crop_w or size.width
 		crop_h = crop.crop_h or size.height
