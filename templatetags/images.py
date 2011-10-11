@@ -12,8 +12,10 @@ for size in image_sizes:
 
 
 @register.object
-def get_image(post, size_name = "large", template_name="image.html", width=None, height=None, **kwargs):
+def get_image(post, size_name="large", template_name="image.html", width=None, height=None, **kwargs):
+
 	if post.image:
+		
 		image_url = post.image.thumbnail_url(size_name)
 		if image_url is None or image_url == "":
 			return ""

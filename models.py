@@ -182,9 +182,10 @@ class Image(models.Model):
 		return u"%s" % os.path.join(file_path, file_root, size_slug) + extension
 		
 	def has_size(self, size_slug):
-		if self.size_set.size_set.get(slug=size_slug):
+		try:
+			size = self.size_set.size_set.get(slug=size_slug)
 			return True
-		else:
+		except Size.DoesNotExist:
 			return False
 
 	def __unicode__(self):
