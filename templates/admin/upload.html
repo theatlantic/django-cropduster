@@ -37,7 +37,7 @@
 	<form method="post" action="" enctype="multipart/form-data">
 		<input type="hidden" name="aspect_ratio_id" value="{{ aspect_ratio_id }}" />
 		
-		<h4>Minimum upload size: {{ min_w }} x </h4>
+		<h4>Minimum upload size: {{ min_w }} {% if min_w and min_h %} x {% endif %} {{ min_h }}</h4>
 		
 	
 	{% if aspect_ratio_id == 0 %}
