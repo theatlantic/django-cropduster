@@ -79,13 +79,13 @@ def upload(request):
 	
 
 	
-	size = Size.objects.get_size_by_ratio(size_set.id, aspect_ratio_id)
+	size = Size.objects.get_size_by_ratio(size_set.id, aspect_ratio_id) or Size()
 	
 
 	#get the current crop
 	try:
 		crop = Crop.objects.get(image=image.id, size=size.id)
-	except:
+	except Crop.DoesNotExist:
 		crop = Crop()
 		crop.crop_w = size.width
 		crop.crop_h = size.height
@@ -93,6 +93,7 @@ def upload(request):
 		crop.crop_y = 0
 		crop.image = image
 		crop.size = size
+	
 	
 
 	if request.method == "POST":
@@ -115,39 +116,43 @@ def upload(request):
 			else:
 				formset = ImageForm(instance=image)
 				
-			#Not uploading an image, save the crop info
-			request.POST['size'] = size.id
-			request.POST['image'] = image.id
-			crop_formset = CropForm(request.POST, instance=crop)
+			#if there's no cropping to be done, then just complete the process
+			if size.id:
+				
+				#Lets save the crop
+				request.POST['size'] = size.id
+				request.POST['image'] = image.id
+				crop_formset = CropForm(request.POST, instance=crop)
+				
+				crop = crop_formset.save()
+				
+				#Now get the next crop if it exists
+				aspect_ratio_id = aspect_ratio_id + 1
+				size = Size.objects.get_size_by_ratio(size_set, aspect_ratio_id)
+				
+				# if there's another crop
+				if size:
+					try:
+						crop = Crop.objects.get(image=image.id, size=size.id)
+						crop_formset = CropForm(instance=crop)
+					except Crop.DoesNotExist:
+						crop = Crop()
+						crop.crop_w = size.width
+						crop.crop_h = size.height
+						crop.crop_x = 0
+						crop.crop_y = 0
+						crop.size = size
+						crop_formset = CropForm()
 			
-			crop = crop_formset.save()
-			
-			
-			#Now get the next crop if it exists
-			aspect_ratio_id = aspect_ratio_id + 1
-			size = Size.objects.get_size_by_ratio(size_set, aspect_ratio_id)
-			if size:	
-				try:
-					crop = Crop.objects.get(image=image.id, size=size.id)
-					crop_formset = CropForm(instance=crop)
-				except:
-					crop = Crop()
-					crop.crop_w = size.width
-					crop.crop_h = size.height
-					crop.crop_x = 0
-					crop.crop_y = 0
-					crop.size = size
-					crop_formset = CropForm()
-			
-
-			
+	#nothing being posted, get the image and form if they exist
 	else:
 		formset = ImageForm(instance=image)
 		crop_formset = CropForm(instance=crop)
 		
-	
-
-	if size:
+	# if theres more cropping to be done or its the first frame,
+	# show the upload/crop form
+	if size.id or request.method != "POST":		
+		
 		crop_w = crop.crop_w or size.width
 		crop_h = crop.crop_h or size.height
 		
@@ -169,10 +174,11 @@ def upload(request):
 		context = RequestContext(request, context)
 		
 		return render_to_response("admin/upload.html", context)
-		
-	else:
-		image_thumbs = [image.thumbnail_url(size.slug) for size in image.size_set.get_size_by_ratio()] 
 
+	# no more cropping to be done, close out
+	else :
+		image_thumbs = [image.thumbnail_url(size.slug) for size in image.size_set.get_size_by_ratio()] 
+	
 		context = {
 			"image": image,
 			"image_thumbs": image_thumbs,
@@ -181,6 +187,8 @@ def upload(request):
 		
 		context = RequestContext(request, context)
 		return render_to_response("admin/complete.html", context)
+		
+
 
 def static_media(request, path):
 	"""

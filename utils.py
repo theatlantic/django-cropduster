@@ -1,7 +1,7 @@
 import Image
 
 
-def rescale(img, w=0, h=0, crop=True):
+def rescale(img, w=0, h=0, crop=True, **kwargs):
 	"""Rescale the given image, optionally cropping it to make sure the result image has the specified width and height."""
 
 	if w <= 0 and h <= 0:
@@ -53,3 +53,32 @@ def create_cropped_image(path=None, x=0, y=0, w=0, h=0):
 	img = img.crop((x, y, x + w, y + h))
 	img.load()
 	return img
+
+
+def rescale_signal(sender, instance, created, max_height=None, max_width=None, **kwargs):
+	""" Simplified image resizer meant to work with post-save/pre-save tasks """
+
+	max_width = max_width
+	max_height = max_height
+	
+	if not max_width and not max_height:
+		raise ValueError("Either max width or max height must be defined")
+		
+	if max_width and max_height:
+		raise ValueError("To avoid improper scaling, only define a width or a height, not both")
+
+	if instance.image:
+
+		im = Image.open(instance.image.path)
+		
+		if max_width:
+			height = instance.image.height * max_width/instance.image.width
+			size = max_width, height
+			
+		if max_height:
+			width = instance.image.width * max_height/instance.image.height
+			size = width, max_height
+		
+		im.thumbnail(size, Image.ANTIALIAS)
+		
+		im.save(instance.image.path)

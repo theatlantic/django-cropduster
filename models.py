@@ -32,6 +32,13 @@ class SizeSet(models.Model):
 			return size_query
 		except ValueError:
 			return None
+			
+#	def get_max_size(self):
+#		max_width = 0
+#		max_height = 0
+#		for size in self.size_set.all():
+			#
+			
 
 class SizeManager(models.Manager):
 	def get_size_by_ratio(self, size_set, aspect_ratio_id):
@@ -143,13 +150,15 @@ class Image(models.Model):
 			thumbnail.save(self.thumbnail_path(size), **IMAGE_SAVE_PARAMS)
 
 	class Meta:
-		db_table = 'cropduster_image'
-		verbose_name = 'Image'
+		db_table = "cropduster_image"
+		verbose_name = "Image"
+		verbose_name_plural = "Image"
 
 	@property
 	def extension(self):
 		file_root, extension = os.path.splitext(self.image.path)
 		return extension
+		
 	@property
 	def folder_path(self):
 		file_path, file = os.path.split(self.image.path)
@@ -160,6 +169,7 @@ class Image(models.Model):
 		file_path, file = os.path.split(self.image.path)
 		file_root, extension = os.path.splitext(file)
 		return u"%s" % os.path.join(file_path, file_root, size.slug) + extension
+		
 	@property
 	def folder_url(self):
 		file_path, file = os.path.split(self.image.url)
@@ -170,6 +180,12 @@ class Image(models.Model):
 		file_path, file = os.path.split(self.image.url)
 		file_root, extension = os.path.splitext(file)
 		return u"%s" % os.path.join(file_path, file_root, size_slug) + extension
+		
+	def has_size(self, size_slug):
+		if self.size_set.size_set.get(slug=size_slug):
+			return True
+		else:
+			return False
 
 	def __unicode__(self):
 		if self.image:
@@ -180,6 +196,9 @@ class Image(models.Model):
 	def get_absolute_url(self):
 		return settings.STATIC_URL + self.image
 	
+	
+
+		
 
 class CropDusterField(models.ForeignKey):
 	pass	

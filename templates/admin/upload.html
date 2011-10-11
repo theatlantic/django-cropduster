@@ -37,6 +37,8 @@
 	<form method="post" action="" enctype="multipart/form-data">
 		<input type="hidden" name="aspect_ratio_id" value="{{ aspect_ratio_id }}" />
 		
+		<h4>Minimum upload size: {{ min_w }} x </h4>
+		
 	
 	{% if aspect_ratio_id == 0 %}
 		{{ formset.management_form }}
