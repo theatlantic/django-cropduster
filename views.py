@@ -15,7 +15,6 @@ logger.addHandler(SentryHandler())
 
 from django.forms import ModelForm, ValidationError
 
-
 # Create the form class.
 class ImageForm(ModelForm):
 	class Meta:
@@ -168,7 +167,7 @@ def upload(request):
 			"min_w"  : size.width,
 			"min_h"  : size.height,
 			"aspect_ratio": size.aspect_ratio,
-			"image_element_id" : request.GET["image_element_id"]
+			"image_element_id" : request.GET["image_element_id"],
 		}
 		
 		context = RequestContext(request, context)

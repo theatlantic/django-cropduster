@@ -54,7 +54,7 @@
 	{% if image.image and not formset.errors.values %}
 	<input type="hidden" name="image_id" value="{{ image.id }}" />
 	<div id="cropbox">
-	<img src="{{ image|safe }}" alt="" />
+		<img src="{{ image|safe }}" style="max-width:800px" alt="" />
 	</div>
 	{% endif %}
 	
@@ -63,6 +63,7 @@
 	
 <script type="text/javascript">	
 (function($){
+	
 	
 	
 	function updateCrop(c){
