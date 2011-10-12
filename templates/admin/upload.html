@@ -24,7 +24,7 @@
 
 <!-- CONTENT -->
 {% block content %}
-<h1 id="step-header">Upload, Crop, and Generate Thumbnails</h1>
+<h1 id="step-header">Upload, Crop, and Generate Thumbnails {% if min_w or min_h %}({{ min_w }} x {{ min_h }}){% endif %}</h1>
 <div id="content-main">
 
 	<div id="error-container">
@@ -37,9 +37,6 @@
 	<form method="post" action="" enctype="multipart/form-data">
 		<input type="hidden" name="aspect_ratio_id" value="{{ aspect_ratio_id }}" />
 		
-		{% if min_w or min_h %}<h4>Minimum upload size: {{ min_w }} {% if min_w and min_h %} x {% endif %} {{ min_h }}</h4>{% endif %}
-		
-	
 	{% if aspect_ratio_id == 0 %}
 		{{ formset.management_form }}
 		{% for form in formset %}
@@ -54,7 +51,7 @@
 	{% if image.image and not formset.errors.values %}
 	<input type="hidden" name="image_id" value="{{ image.id }}" />
 	<div id="cropbox">
-		<img src="{{ image|safe }}" style="max-width:800px" alt="" />
+		<img src="{{ image|safe }}" style="max-width:{{ browser_width }}px" alt="" />
 	</div>
 	{% endif %}
 	
@@ -63,26 +60,48 @@
 	
 <script type="text/javascript">	
 (function($){
-	
+
+	{% if image_exists %}
+	image_width = {{ image.image.width }};
+	{% else %}
+	image_width = 0;
+	{% endif %}
+	max_width = {{ browser_width }};
+
+	function scale(val, ratio){
+		if (image_width > max_width){
+			return Math.round(val * ratio);
+		}else{
+			return val;
+		}
+	}
+
+
+	function scale_up(val){
+		return scale(val, image_width/max_width);
+	}
+	function scale_down(val){
+		return scale(val, max_width/image_width);
+	}
 	
 	
 	function updateCrop(c){
-		$("#id_crop_x").val(c.x);
-		$("#id_crop_y").val(c.y);
-		$("#id_crop_w").val(c.w);
-		$("#id_crop_h").val(c.h);
+		$("#id_crop_x").val(scale_up(c.x));
+		$("#id_crop_y").val(scale_up(c.y));
+		$("#id_crop_w").val(scale_up(c.w));
+		$("#id_crop_h").val(scale_up(c.h));
 	}
 
 	$(document).ready(function(){
 		
 		$("#cropbox img").Jcrop({
 			"setSelect":   [ 
-				{{ crop_x }}, 
-				{{ crop_y }}, 
-				{{ crop_x }} + {{ crop_w }}, 
-				{{ crop_y }} + {{ crop_h }}
+				scale_down({{ crop_x }}), 
+				scale_down({{ crop_y }}), 
+				scale_down({{ crop_x }} + {{ crop_w }}), 
+				scale_down({{ crop_y }} + {{ crop_h }})
 			],
-			"minSize":[{{ min_w }}, {{ min_h }}],
+			"minSize":[scale_down({{ min_w }}), scale_down({{ min_h }})],
 			"aspectRatio": {{ aspect_ratio }},
 			"onChange": updateCrop
 		});

@@ -1,3 +1,4 @@
+import os
 from django.http import HttpResponse, Http404
 from django.shortcuts import render_to_response
 from django.template import RequestContext
@@ -14,6 +15,9 @@ logger = logging.getLogger("root")
 logger.addHandler(SentryHandler())
 
 from django.forms import ModelForm, ValidationError
+
+BROWSER_WIDTH = 800
+
 
 # Create the form class.
 class ImageForm(ModelForm):
@@ -168,6 +172,8 @@ def upload(request):
 			"min_h"  : size.height,
 			"aspect_ratio": size.aspect_ratio,
 			"image_element_id" : request.GET["image_element_id"],
+			"browser_width": BROWSER_WIDTH,
+			"image_exists": os.path.exists(image.image.path)
 		}
 		
 		context = RequestContext(request, context)
