@@ -19,21 +19,23 @@ def get_image(post, size_name="large", template_name="image.html", width=None, h
 		image_url = post.image.thumbnail_url(size_name)
 		if image_url is None or image_url == "":
 			return ""
-		else:
+		try:
 			image_size = image_size_map[size_name]
+		except KeyError:
+			return ""
+	
+		kwargs["image_url"] = image_url			
+		kwargs["width"] = width or image_size.width or ""
+		kwargs["height"] = height or image_size.height  or ""
+		
 
-			kwargs["image_url"] = image_url			
-			kwargs["width"] = width or image_size.width or ""
-			kwargs["height"] = height or image_size.height  or ""
-			
+		if hasattr(settings, "CROPDUSTER_KITTY_MODE") and settings.CROPDUSTER_KITTY_MODE:
+			kwargs["image_url"] = "http://placekitten.com/{0}/{1}".format(kwargs["width"], kwargs["height"])
 
-			if hasattr(settings, "CROPDUSTER_KITTY_MODE") and settings.CROPDUSTER_KITTY_MODE:
-				kwargs["image_url"] = "http://placekitten.com/{0}/{1}".format(kwargs["width"], kwargs["height"])
-
-			kwargs["size_name"] = size_name
-			kwargs["attribution"] = post.image.attribution
-			kwargs["alt"] = kwargs["alt"] if "alt" in kwargs else post.image.caption
-			kwargs["title"] = kwargs["title"] if "title" in kwargs else kwargs["alt"]
+		kwargs["size_name"] = size_name
+		kwargs["attribution"] = post.image.attribution
+		kwargs["alt"] = kwargs["alt"] if "alt" in kwargs else post.image.caption
+		kwargs["title"] = kwargs["title"] if "title" in kwargs else kwargs["alt"]
 			
 
 
