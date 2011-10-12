@@ -173,7 +173,7 @@ def upload(request):
 			"aspect_ratio": size.aspect_ratio,
 			"image_element_id" : request.GET["image_element_id"],
 			"browser_width": BROWSER_WIDTH,
-			"image_exists": os.path.exists(image.image.path)
+			"image_exists": image.image and os.path.exists(image.image.path)
 		}
 		
 		context = RequestContext(request, context)
