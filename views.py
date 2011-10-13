@@ -2,6 +2,8 @@ import os
 from django.http import HttpResponse, Http404
 from django.shortcuts import render_to_response
 from django.template import RequestContext
+from django.forms import TextInput
+from django.forms.widgets import Select
 from django.views.decorators.csrf import csrf_exempt
 
 from cropduster.models import Image as CropDusterImage, Crop, Size, SizeSet
@@ -45,8 +47,15 @@ class ImageForm(ModelForm):
 		
 class CropForm(ModelForm):
 	class Meta:
-		model = Crop
-		
+		model = Crop		
+		widgets = {
+			"image": TextInput(),
+		}
+	def clean(self):	
+		if int(self.data["crop_x"]) < 0 or int(self.data["crop_y"]) < 0:
+			import ipdb; ipdb.set_trace()
+			raise ValidationError("Crop positions must be non-negative")
+		return self.cleaned_data
 
 def error(request, formset):
 	errors = formset.errors.values()[0]
