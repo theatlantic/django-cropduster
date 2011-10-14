@@ -80,9 +80,9 @@ function toggle_delete(obj){
 </script>
 
 <div class="tools cropduster-tools">
-	{% if image %}
-	<a href="javascript://" onclick="toggle_delete(this);" class="icon delete-handler" title="Remove"></a>
-	{% endif %}
+	
+	<a href="javascript://" onclick="toggle_delete(this);" class="icon delete-handler" title="Remove" {% if not image %} style="display:none;"{% endif %}></a>
+	
 
 	<a href="#" onclick="cropduster_pop('{{ attrs["id"] }}', {{ size_set.id }}{% if image %}, {{ image.id }}{% endif %});return false" class="find-handler cd_show"><img src="{{ media_url }}img/cropduster_icon_upload_select_small.png" alt=""></a>
 </div>

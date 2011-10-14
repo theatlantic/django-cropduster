@@ -16,6 +16,8 @@ $(document).ready(function(){
 	{% for thumb in image_thumbs %}
 	
 	$(obj).parent().parent().find(".cropduster_thumbs").append('<img src="{{ thumb }}" />');
+	
+	$(obj).parent().parent().find(".cropduster-tools .delete-handler").show();
 	{% endfor %}
 	
 	window.close();
