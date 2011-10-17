@@ -54,6 +54,8 @@ class CropForm(ModelForm):
 	def clean(self):	
 		if int(self.data["crop_x"]) < 0 or int(self.data["crop_y"]) < 0:
 			raise ValidationError("Crop positions must be non-negative")
+			self.data["crop_x"] = 0
+			self.data["crop_y"] = 0
 		return self.cleaned_data
 
 def error(request, formset):
