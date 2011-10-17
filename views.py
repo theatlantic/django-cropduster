@@ -53,7 +53,6 @@ class CropForm(ModelForm):
 		}
 	def clean(self):	
 		if int(self.data["crop_x"]) < 0 or int(self.data["crop_y"]) < 0:
-			import ipdb; ipdb.set_trace()
 			raise ValidationError("Crop positions must be non-negative")
 		return self.cleaned_data
 
