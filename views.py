@@ -51,13 +51,13 @@ class CropForm(ModelForm):
 		widgets = {
 			"image": TextInput(),
 		}
-	def clean(self):	
+	def clean(self):
 		if int(self.data["crop_x"]) < 0 or int(self.data["crop_y"]) < 0:
+			self._errors.clear()
 			raise ValidationError("Crop positions must be non-negative")
-			self.data["crop_x"] = 0
-			self.data["crop_y"] = 0
+		
 		return self.cleaned_data
-
+			
 def error(request, formset):
 	errors = formset.errors.values()[0]
 	context = {
@@ -137,25 +137,26 @@ def upload(request):
 				request.POST['image'] = image.id
 				crop_formset = CropForm(request.POST, instance=crop)
 				
-				crop = crop_formset.save()
-				
-				#Now get the next crop if it exists
-				aspect_ratio_id = aspect_ratio_id + 1
-				size = Size.objects.get_size_by_ratio(size_set, aspect_ratio_id)
-				
-				# if there's another crop
-				if size:
-					try:
-						crop = Crop.objects.get(image=image.id, size=size.id)
-						crop_formset = CropForm(instance=crop)
-					except Crop.DoesNotExist:
-						crop = Crop()
-						crop.crop_w = size.width
-						crop.crop_h = size.height
-						crop.crop_x = 0
-						crop.crop_y = 0
-						crop.size = size
-						crop_formset = CropForm()
+				if crop_formset.is_valid():
+					crop = crop_formset.save()
+					
+					#Now get the next crop if it exists
+					aspect_ratio_id = aspect_ratio_id + 1
+					size = Size.objects.get_size_by_ratio(size_set, aspect_ratio_id)
+					
+					# if there's another crop
+					if size:
+						try:
+							crop = Crop.objects.get(image=image.id, size=size.id)
+							crop_formset = CropForm(instance=crop)
+						except Crop.DoesNotExist:
+							crop = Crop()
+							crop.crop_w = size.width
+							crop.crop_h = size.height
+							crop.crop_x = 0
+							crop.crop_y = 0
+							crop.size = size
+							crop_formset = CropForm()
 			
 	#nothing being posted, get the image and form if they exist
 	else:
