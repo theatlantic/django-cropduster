@@ -6,9 +6,7 @@ from django.forms import TextInput
 from django.forms.widgets import Select
 from django.views.decorators.csrf import csrf_exempt
 
-from django.template.defaultfilters import slugify
-
-from cropduster.models import Image as CropDusterImage, Crop, Size, SizeSet, EXTENSION_WHITELIST
+from cropduster.models import Image as CropDusterImage, Crop, Size, SizeSet
 from cropduster.settings import CROPDUSTER_MEDIA_ROOT
 
 import Image as pil
@@ -33,29 +31,17 @@ class ImageForm(ModelForm):
 			# Don't bother validating the formset unless each form is valid on its own
 			logger.error(self.errors)
 		image = self.cleaned_data.get("image")
-		if image:
-			
-			
-			file_root, extension = os.path.splitext(image.name)
-			
-			extension = extension.lower()
-			
-			if len(extension) == 0:
-				raise ValidationError("Invalid image name: Missing file extension")
-				
-			if extension not in EXTENSION_WHITELIST:
-				raise ValidationError("Invalid filetype. Allowed filetypes are: %s" % [ext for ext in EXTENSION_WHITELIST])
-			
-			file_path, file_name = os.path.split(file_root)
-			self.cleaned_data['image'].name = os.path.join(file_path, slugify(file_name)) + extension
-			
-			large_enough = True
-			
-			pil_image = pil.open(image)
-			
-			for size in size_set.size_set.all():
-				if not size.auto_size and (size.width > pil_image.size[0] or size.height > pil_image.size[1]):
-					raise ValidationError("Uploaded image (%s x %s) is smaller than a required thumbnail size: %s" % (pil_image.size[0], pil_image.size[1], size))
+		if not image:
+			raise ValidationError("Invalid image: %s" % self.errors)
+		
+		
+		large_enough = True
+		
+		pil_image = pil.open(image)
+		
+		for size in size_set.size_set.all():
+			if not size.auto_size and (size.width > pil_image.size[0] or size.height > pil_image.size[1]):
+				raise ValidationError("Uploaded image (%s x %s) is smaller than a required thumbnail size: %s" % (pil_image.size[0], pil_image.size[1], size))
 		return self.cleaned_data
 		
 		
