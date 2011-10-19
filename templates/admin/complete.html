@@ -1,0 +1,30 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+
+<script type="text/javascript">
+
+(function($) {
+
+$(document).ready(function(){
+
+	var obj = $(window.opener.document.getElementById("{{ image_element_id }}"));
+	
+	$(obj).val({{ image.id }});
+	
+	$(obj).parent().parent().find(".cropduster_thumbs").html(" ");
+	{% for thumb in image_thumbs %}
+	
+	$(obj).parent().parent().find(".cropduster_thumbs").append('<img src="{{ thumb }}" />');
+	
+	$(obj).parent().parent().find(".cropduster-tools .delete-handler").show();
+	{% endfor %}
+	
+	window.close();
+});
+
+})((typeof window.django != 'undefined') ? django.jQuery : jQuery);
+</script>
+{% endblock %}
+
+

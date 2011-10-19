@@ -1,0 +1,103 @@
+<style type="text/css">
+.cropduster_thumbs {
+	clear:both;
+	text-align: center;
+	margin: 0 auto;
+}
+.cropduster_thumbs img {
+	display: block;
+	text-align: center;
+	margin: 0 auto;
+	display: block;
+	float: none;
+	height:30px;
+}
+
+.module.table .cropduster-tools {
+	float:left;
+	right: 0;
+	margin: 0;
+	padding: 2px 10px 0 5px;
+	height:35px;
+	width:50px;
+}
+
+
+.module.table .cropduster-tools a{
+	display:block;
+	width: 20px;
+}
+.module.table .cropduster-tools .delete-handler {
+	
+	float: right;
+	border-left: 1px solid #CCC;
+	margin: 5px !important;
+	padding: 0 !important;
+}
+
+.module.table .cropduster-tools .find-handler  {
+	float:left;
+	width:12px;
+	padding: 8px 3px 0 0 !important;
+	margin:0 !important ;
+}
+</style>
+
+<script type="text/javascript">
+function cropduster_pop(id, size_set_id, image_id){
+
+
+	href = '{{ cropduster_url }}?pop=1&size_set=' + size_set_id + '&image_element_id=' + id;
+	if (django.jQuery("#cropduster_input_" + id + " input").val() != ''){
+		image_id = django.jQuery("#cropduster_input_" + id + " input").val();
+	}
+	
+	if (image_id){
+		href += '&image_id=' + image_id;
+	}
+
+	var win=window.open(href, id, 'height=650, width=960, resizable=yes, scrollbars=yes');
+
+	return false;
+}
+
+function toggle_delete(obj){
+	var container = $(obj).parent().parent();
+	
+	
+	$(container).toggleClass("predelete");
+	
+	// Swap the title and the value fields, that way the values can be swapped back if deletion is canceled
+	var tempValue = $(container).find("input.cropduster").val();
+	var tempTitle = $(container).find("input.cropduster").attr("title");
+
+	$(container).find("input.cropduster").val(tempTitle);
+	$(container).find("input.cropduster").attr("title", tempValue);
+
+	return false;
+}
+
+</script>
+
+<div class="tools cropduster-tools">
+	
+	<a href="javascript://" onclick="toggle_delete(this);" class="icon delete-handler" title="Remove" {% if not image %} style="display:none;"{% endif %}></a>
+	
+
+	<a href="#" onclick="cropduster_pop('{{ attrs["id"] }}', {{ size_set.id }}{% if image %}, {{ image.id }}{% endif %});return false" class="find-handler cd_show"><img src="{{ media_url }}img/cropduster_icon_upload_select_small.png" alt=""></a>
+</div>
+
+
+<div class="cropduster_thumbs">
+{% if image %}
+	{% for size in image.size_set.get_size_by_ratio() %}
+	<img src="{{ image.thumbnail_url(size.slug) }}" height="30" />
+	{% endfor %}
+{% endif %}
+</div>
+
+
+<div id="cropduster_input_{{ attrs["id"] }}">
+{{ input|safe }}
+
+</div>

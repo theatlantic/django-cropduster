@@ -1,0 +1,141 @@
+{% extends "admin/base.html" %}
+
+<!-- LOADING -->
+{% load i18n adminmedia fb_tags fb_pagination cropdustermedia %}
+
+
+
+<!-- JAVASCRIPTS -->
+{% block javascripts %}
+	{{ block.super }}
+	<link rel="stylesheet" href="{% cropduster_media_prefix %}css/CropDuster.css" type="text/css" />
+	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/jquery.Jcrop.js?v=2"></script>
+	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/init.js"></script>
+	<link rel="stylesheet" href="{% cropduster_media_prefix %}css/jquery.Jcrop.css" type="text/css" />
+{% endblock %}
+
+<!-- Get rid of nav -->
+{% block nav-global %}{% endblock %}
+
+{% block content-class %}content-flexible{% endblock %}
+
+{% block breadcrumbs %}{% endblock %}
+
+
+<!-- CONTENT -->
+{% block content %}
+<h1 id="step-header">Upload, Crop, and Generate Thumbnails {% if min_w or min_h %}({{ min_w }} x {{ min_h }}){% endif %}</h1>
+<div id="content-main">
+
+	<div id="error-container">
+		{% for error in formset.errors.values %}
+		{{ error }}
+		{% endfor %}
+
+		{% for error in crop_formset.errors.values %}
+		{{ error }}
+		{% endfor %}
+	</div>
+
+
+	<form method="post" action="" enctype="multipart/form-data">
+		<input type="hidden" name="aspect_ratio_id" value="{{ aspect_ratio_id }}" />
+		
+	{% if aspect_ratio_id == 0 %}
+		{{ formset.management_form }}
+		{% for form in formset %}
+			<p id="row_{{ form.auto_id }}">
+				<label for="{{ form.auto_id }}">{{ form.label }}</label>
+				<span id="{{ form.auto_id }}" class="form_field">{{ form }}</span>
+			</p>
+		{% endfor %}
+	{% endif %}
+	
+	
+	{% if image.image and not formset.errors.values %}
+	<input type="hidden" name="image_id" value="{{ image.id }}" />
+	<div id="cropbox">
+		<img src="{{ image|safe }}" style="max-width:{{ browser_width }}px" alt="" />
+	</div>
+	{% endif %}
+	
+	{% if crop_w %}
+	
+	
+<script type="text/javascript">	
+(function($){
+
+	{% if image_exists %}
+	image_width = {{ image.image.width }};
+	{% else %}
+	image_width = 0;
+	{% endif %}
+	max_width = {{ browser_width }};
+
+	function scale(val, ratio){
+		if (image_width > max_width){
+			return Math.round(val * ratio);
+		}else{
+			return val;
+		}
+	}
+
+
+	function scale_up(val){
+		return scale(val, image_width/max_width);
+	}
+	function scale_down(val){
+		return scale(val, max_width/image_width);
+	}
+	
+	
+	function updateCrop(c){
+		$("#id_crop_x").val(scale_up(c.x));
+		$("#id_crop_y").val(scale_up(c.y));
+		$("#id_crop_w").val(scale_up(c.w));
+		$("#id_crop_h").val(scale_up(c.h));
+	}
+
+	$(document).ready(function(){
+		
+		$("#cropbox img").Jcrop({
+			"setSelect":   [ 
+				scale_down({{ crop_x }}), 
+				scale_down({{ crop_y }}), 
+				scale_down({{ crop_x }} + {{ crop_w }}), 
+				scale_down({{ crop_y }} + {{ crop_h }})
+			],
+			"minSize":[scale_down({{ min_w }}), scale_down({{ min_h }})],
+			"aspectRatio": {{ aspect_ratio }},
+			"onChange": updateCrop
+		});
+		
+    });
+}(django.jQuery));
+</script>
+	{% endif %}
+	
+
+	<div id="crop_formset">
+	{{ crop_formset.management_form }}
+	{% for form in crop_formset %}
+		<p>
+			{{ form }}
+		</p>
+	{% endfor %}
+   
+	</div>
+     
+     
+
+	<div class="module footer" id="upload-footer">
+			<ul class="submit-row">
+				<li class="submit-button-container">
+					<input id="upload-button" class="default" type="submit" name="_save" value='Save' />
+				</li>
+			</ul>
+		</div>
+	</form>
+	
+</div>
+{% endblock %}
