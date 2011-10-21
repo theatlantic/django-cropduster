@@ -34,7 +34,8 @@ class ImageForm(ModelForm):
 			logger.error(self.errors)
 		image = self.cleaned_data.get("image")
 		if image:
-							
+			
+			
 			file_root, extension = os.path.splitext(image.name)
 			
 			extension = extension.lower()
@@ -45,8 +46,8 @@ class ImageForm(ModelForm):
 			if extension not in EXTENSION_WHITELIST:
 				raise ValidationError("Invalid filetype. Allowed filetypes are: %s" % [ext for ext in EXTENSION_WHITELIST])
 			
-			
-			self.cleaned_data['image'].name = slugify(file_root) + extension
+			file_path, file_name = os.path.split(file_root)
+			self.cleaned_data['image'].name = os.path.join(file_path, slugify(file_name)) + extension
 			
 			large_enough = True
 			
