@@ -9,6 +9,8 @@ import Image as pil
 
 IMAGE_SAVE_PARAMS =  {'quality' :95}
 
+EXTENSION_WHITELIST = (".jpg", ".jpeg", ".gif", ".png")
+
 from south.modelsinspector import add_introspection_rules
 add_introspection_rules([], ["^cropduster\.models\.CropDusterField"])
 
@@ -202,8 +204,7 @@ class Image(models.Model):
 			
 	def get_absolute_url(self):
 		return settings.STATIC_URL + self.image
-	
-	
+			
 
 		
 
