@@ -27,16 +27,13 @@
 <h1 id="step-header">Upload, Crop, and Generate Thumbnails {% if min_w or min_h %}({{ min_w }} x {{ min_h }}){% endif %}</h1>
 <div id="content-main">
 
-	<div id="error-container">
-		{% for error in formset.errors.values %}
-		{{ error }}
+	{% if errors %}
+	<ul class="error-container errorlist">
+		{% for error in errors %}
+		<li>{{ error }}</li>
 		{% endfor %}
-
-		{% for error in crop_formset.errors.values %}
-		{{ error }}
-		{% endfor %}
-	</div>
-
+	</ul>
+	{% endif %}
 
 	<form method="post" action="" enctype="multipart/form-data">
 		<input type="hidden" name="aspect_ratio_id" value="{{ aspect_ratio_id }}" />

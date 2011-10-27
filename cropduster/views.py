@@ -31,17 +31,13 @@ class ImageForm(ModelForm):
 			# Don't bother validating the formset unless each form is valid on its own
 			logger.error(self.errors)
 		image = self.cleaned_data.get("image")
-		if not image:
-			raise ValidationError("Invalid image: %s" % self.errors)
 		
+		if image:		
+			pil_image = pil.open(image)
 		
-		large_enough = True
-		
-		pil_image = pil.open(image)
-		
-		for size in size_set.size_set.all():
-			if not size.auto_size and (size.width > pil_image.size[0] or size.height > pil_image.size[1]):
-				raise ValidationError("Uploaded image (%s x %s) is smaller than a required thumbnail size: %s" % (pil_image.size[0], pil_image.size[1], size))
+			for size in size_set.size_set.all():
+				if not size.auto_size and (size.width > pil_image.size[0] or size.height > pil_image.size[1]):
+					raise ValidationError("Uploaded image (%s x %s) is smaller than a required thumbnail size: %s" % (pil_image.size[0], pil_image.size[1], size))
 		return self.cleaned_data
 		
 		
@@ -170,21 +166,32 @@ def upload(request):
 		crop_w = crop.crop_w or size.width
 		crop_h = crop.crop_h or size.height
 		
+		#combine errors from both forms, eliminate duplicates
+		errors = dict(crop_formset.errors)
+		errors.update(formset.errors)
+		all_errors = []
+		for error in  errors.items():
+			all_errors.append(u"%s: %s" % (error[0].capitalize(), error[1].as_text()))
+			
+		
+		
 		context = {
-			"aspect_ratio_id": aspect_ratio_id,
-			"image": image,
-			"formset": formset,
+			"aspect_ratio": size.aspect_ratio,
+			"aspect_ratio_id": aspect_ratio_id,	
+			"browser_width": BROWSER_WIDTH,
 			"crop_formset": crop_formset,
 			"crop_w" : crop_w,
 			"crop_h" : crop_h,
 			"crop_x" : crop.crop_x,
 			"crop_y" : crop.crop_y,
+			"errors" : all_errors,
+			"formset": formset,
+			"image": image,
+			"image_element_id" : request.GET["image_element_id"],
+			"image_exists": image.image and os.path.exists(image.image.path),
 			"min_w"  : size.width,
 			"min_h"  : size.height,
-			"aspect_ratio": size.aspect_ratio,
-			"image_element_id" : request.GET["image_element_id"],
-			"browser_width": BROWSER_WIDTH,
-			"image_exists": image.image and os.path.exists(image.image.path)
+
 		}
 		
 		context = RequestContext(request, context)
