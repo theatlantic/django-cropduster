@@ -144,6 +144,7 @@ class Image(models.Model):
 	caption = models.CharField(max_length=255, blank=True, null=True)
 
 	def save(self, *args, **kwargs):
+
 		super(Image, self).save(*args, **kwargs)
 
 		for size in self.size_set.size_set.all().filter(auto_size=1):
