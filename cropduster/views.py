@@ -11,10 +11,6 @@ from cropduster.settings import CROPDUSTER_MEDIA_ROOT
 
 import Image as pil
 
-import logging
-from sentry.client.handlers import SentryHandler
-logger = logging.getLogger("root")
-logger.addHandler(SentryHandler())
 
 from django.forms import ModelForm, ValidationError
 
@@ -27,14 +23,15 @@ class ImageForm(ModelForm):
 		model = CropDusterImage
 	def clean(self):
 		size_set = self.cleaned_data.get("size_set") or self.instance.size_set
-		if any(self.errors):
-			# Don't bother validating the formset unless each form is valid on its own
-			logger.error(self.errors)
+
 		image = self.cleaned_data.get("image")
 		
-		if image:		
-			pil_image = pil.open(image)
+		if os.path.splitext(image.name)[1] == '':
+			raise ValidationError("Please make sure images have file extensions before uploading")
 		
+		if image:
+			pil_image = pil.open(image)
+			
 			for size in size_set.size_set.all():
 				if not size.auto_size and (size.width > pil_image.size[0] or size.height > pil_image.size[1]):
 					raise ValidationError("Uploaded image (%s x %s) is smaller than a required thumbnail size: %s" % (pil_image.size[0], pil_image.size[1], size))
