@@ -45,6 +45,10 @@ class CropForm(ModelForm):
 			"image": TextInput(),
 		}
 	def clean(self):
+		if "crop_x" not in self.data or "crop_y" not in self.data:
+			self._errors.clear()
+			raise ValidationError("Missing crop values")
+			
 		if int(self.data["crop_x"]) < 0 or int(self.data["crop_y"]) < 0:
 			self._errors.clear()
 			raise ValidationError("Crop positions must be non-negative")
@@ -182,8 +186,8 @@ def upload(request):
 			"crop_formset": crop_formset,
 			"crop_w" : crop_w,
 			"crop_h" : crop_h,
-			"crop_x" : crop.crop_x,
-			"crop_y" : crop.crop_y,
+			"crop_x" : crop.crop_x or 0,
+			"crop_y" : crop.crop_y or 0,
 			"errors" : all_errors,
 			"formset": formset,
 			"image": image,
