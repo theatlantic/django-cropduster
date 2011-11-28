@@ -4,7 +4,7 @@ import os
 from django.contrib.contenttypes.generic import GenericRelation
 from decimal import Decimal
 from cropduster import utils
-import Image as pil
+from PIL import Image as pil
 
 
 IMAGE_SAVE_PARAMS =  {"quality" :95}

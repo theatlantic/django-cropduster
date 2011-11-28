@@ -9,7 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from cropduster.models import Image as CropDusterImage, Crop, Size, SizeSet
 from cropduster.settings import CROPDUSTER_MEDIA_ROOT
 
-import Image as pil
+from PIL import Image as pil
 
 import logging
 from sentry.client.handlers import SentryHandler
