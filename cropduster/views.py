@@ -11,10 +11,6 @@ from cropduster.settings import CROPDUSTER_MEDIA_ROOT
 
 from PIL import Image as pil
 
-import logging
-from sentry.client.handlers import SentryHandler
-logger = logging.getLogger("root")
-logger.addHandler(SentryHandler())
 
 from django.forms import ModelForm, ValidationError
 
@@ -27,14 +23,15 @@ class ImageForm(ModelForm):
 		model = CropDusterImage
 	def clean(self):
 		size_set = self.cleaned_data.get("size_set") or self.instance.size_set
-		if any(self.errors):
-			# Don't bother validating the formset unless each form is valid on its own
-			logger.error(self.errors)
+
 		image = self.cleaned_data.get("image")
 		
-		if image:		
-			pil_image = pil.open(image)
+		if os.path.splitext(image.name)[1] == '':
+			raise ValidationError("Please make sure images have file extensions before uploading")
 		
+		if image:
+			pil_image = pil.open(image)
+			
 			for size in size_set.size_set.all():
 				if not size.auto_size and (size.width > pil_image.size[0] or size.height > pil_image.size[1]):
 					raise ValidationError("Uploaded image (%s x %s) is smaller than a required thumbnail size: %s" % (pil_image.size[0], pil_image.size[1], size))
@@ -48,6 +45,10 @@ class CropForm(ModelForm):
 			"image": TextInput(),
 		}
 	def clean(self):
+		if "crop_x" not in self.data or "crop_y" not in self.data:
+			self._errors.clear()
+			raise ValidationError("Missing crop values")
+			
 		if int(self.data["crop_x"]) < 0 or int(self.data["crop_y"]) < 0:
 			self._errors.clear()
 			raise ValidationError("Crop positions must be non-negative")
@@ -185,8 +186,8 @@ def upload(request):
 			"crop_formset": crop_formset,
 			"crop_w" : crop_w,
 			"crop_h" : crop_h,
-			"crop_x" : crop.crop_x,
-			"crop_y" : crop.crop_y,
+			"crop_x" : crop.crop_x or 0,
+			"crop_y" : crop.crop_y or 0,
 			"errors" : all_errors,
 			"formset": formset,
 			"image": image,
