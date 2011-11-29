@@ -53,8 +53,8 @@ class CropForm(ModelForm):
 			raise ValidationError("Crop positions must be non-negative")
 		
 		return self.cleaned_data
-			
-def error(request, formset):
+
+def handle_error(request, formset):
 	errors = formset.errors.values()[0]
 	context = {
 			"errors": errors,
@@ -63,7 +63,7 @@ def error(request, formset):
 		}
 
 	context = RequestContext(request, context)
-	
+
 	return render_to_response("admin/upload.html", context)
 	
 	
@@ -112,7 +112,7 @@ def upload(request):
 				image = formset.save()
 				crop.image = image
 			else:
-				error(request, formset)
+				handle_error(request, formset)
 				
 			crop_formset = CropForm(instance=crop)
 		else:
