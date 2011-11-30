@@ -1,4 +1,4 @@
-import Image
+from PIL import Image
 
 
 def rescale(img, w=0, h=0, crop=True, **kwargs):

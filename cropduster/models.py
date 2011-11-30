@@ -4,10 +4,10 @@ import os
 from django.contrib.contenttypes.generic import GenericRelation
 from decimal import Decimal
 from cropduster import utils
-import Image as pil
+from PIL import Image as pil
 
 
-IMAGE_SAVE_PARAMS =  {'quality' :95}
+IMAGE_SAVE_PARAMS =  {"quality" :95}
 
 from south.modelsinspector import add_introspection_rules
 add_introspection_rules([], ["^cropduster\.models\.CropDusterField"])
@@ -79,14 +79,15 @@ class Size(models.Model):
 		super(Size, self).save(*args, **kwargs)
 	
 	class Meta:
-		db_table = 'cropduster_size'
+		db_table = "cropduster_size"
 	
 	def __unicode__(self):
 		return u"%s: %sx%s" % (self.name, self.width, self.height)
 
 class Crop(models.Model):
 	class Meta:
-		db_table = 'cropduster_crop'
+		db_table = "cropduster_crop"
+		unique_together = (("size", "image"),)
 		
 	crop_x = models.PositiveIntegerField(default=0, blank=True, null=True)
 	crop_y = models.PositiveIntegerField(default=0, blank=True, null=True)
@@ -94,14 +95,14 @@ class Crop(models.Model):
 	crop_h = models.PositiveIntegerField(default=0, blank=True, null=True)
 	
 	size = models.ForeignKey(
-		'cropduster.Size', 
-		related_name = 'size',
-		verbose_name = 'sizes',
+		"cropduster.Size", 
+		related_name = "size",
+		verbose_name = "sizes",
 	)
 	image = models.ForeignKey(
-		'cropduster.Image', 
-		related_name = 'images',
-		verbose_name = 'images',
+		"cropduster.Image", 
+		related_name = "images",
+		verbose_name = "images",
 	)
 	
 	def __unicode__(self):
@@ -129,17 +130,21 @@ class Crop(models.Model):
 class Image(models.Model):
 	
 	image = models.ImageField(
-		upload_to=settings.CROPDUSTER_UPLOAD_PATH + '%Y/%m/%d', 
+		upload_to=settings.CROPDUSTER_UPLOAD_PATH + "%Y/%m/%d", 
 		max_length=255, 
 		db_index=True
-		)
+	)
+		
 	size_set = models.ForeignKey(
 		SizeSet,
 	)
+	
 	attribution = models.CharField(max_length=255, blank=True, null=True)
+	
 	caption = models.CharField(max_length=255, blank=True, null=True)
 
 	def save(self, *args, **kwargs):
+
 		super(Image, self).save(*args, **kwargs)
 
 		for size in self.size_set.size_set.all().filter(auto_size=1):
@@ -196,7 +201,7 @@ class Image(models.Model):
 
 	def __unicode__(self):
 		if self.image:
-			return u'%s' % self.image.url
+			return u"%s" % self.image.url
 		else:
 			return ""
 			
