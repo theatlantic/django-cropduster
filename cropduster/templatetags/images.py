@@ -8,7 +8,7 @@ from cropduster.models import Size
 image_sizes = Size.objects.all()
 image_size_map = {}
 for size in image_sizes:
-	image_size_map[size.slug] = size
+	image_size_map[(size.size_set_id, size.slug)] = size
 
 
 @register.object
@@ -20,7 +20,7 @@ def get_image(post, size_name="large", template_name="image.html", width=None, h
 		if image_url is None or image_url == "":
 			return ""
 		try:
-			image_size = image_size_map[size_name]
+			image_size = image_size_map[(post.image.size_set_id,size_name)]
 		except KeyError:
 			return ""
 	
