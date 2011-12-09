@@ -12,15 +12,15 @@ for size in image_sizes:
 
 
 @register.object
-def get_image(post, size_name="large", template_name="image.html", width=None, height=None, **kwargs):
+def get_image(image, size_name="large", template_name="image.html", width=None, height=None, **kwargs):
 
-	if post.image:
+	if image:
 		
-		image_url = post.image.thumbnail_url(size_name)
+		image_url = image.thumbnail_url(size_name)
 		if image_url is None or image_url == "":
 			return ""
 		try:
-			image_size = image_size_map[(post.image.size_set_id,size_name)]
+			image_size = image_size_map[(image.size_set_id,size_name)]
 		except KeyError:
 			return ""
 	
@@ -33,8 +33,8 @@ def get_image(post, size_name="large", template_name="image.html", width=None, h
 			kwargs["image_url"] = "http://placekitten.com/{0}/{1}".format(kwargs["width"], kwargs["height"])
 
 		kwargs["size_name"] = size_name
-		kwargs["attribution"] = post.image.attribution
-		kwargs["alt"] = kwargs["alt"] if "alt" in kwargs else post.image.caption
+		kwargs["attribution"] = image.attribution
+		kwargs["alt"] = kwargs["alt"] if "alt" in kwargs else image.caption
 		kwargs["title"] = kwargs["title"] if "title" in kwargs else kwargs["alt"]
 			
 
