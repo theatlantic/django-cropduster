@@ -1,21 +1,25 @@
 from django.db import models
 from django.conf import settings
 import os
-from django.contrib.contenttypes.generic import GenericRelation
 from decimal import Decimal
 from cropduster import utils
 from PIL import Image as pil
-
 
 IMAGE_SAVE_PARAMS =  {"quality" :95}
 
 from south.modelsinspector import add_introspection_rules
 add_introspection_rules([], ["^cropduster\.models\.CropDusterField"])
 
+try:
+	from caching.base import CachingMixin, CachingManager
+except ImportError:
+	class CachingMixin(object):
+		pass
+	CachingManager = models.Manager
 
-class SizeSet(models.Model):
+class SizeSet(CachingMixin, models.Model):
+	objects = CachingManager()
 	name = models.CharField(max_length=255, db_index=True)
-	
 	slug = models.SlugField(max_length=50, null=False,)
 	
 	def __unicode__(self):
@@ -40,7 +44,7 @@ class SizeSet(models.Model):
 			#
 			
 
-class SizeManager(models.Manager):
+class SizeManager(CachingManager, models.Manager):
 	def get_size_by_ratio(self, size_set, aspect_ratio_id):
 		size_query = Size.objects.all().only("aspect_ratio").filter(size_set=size_set).exclude(auto_size=1).order_by("-aspect_ratio")
 		size_query.query.group_by = ["aspect_ratio"]
@@ -49,11 +53,13 @@ class SizeManager(models.Manager):
 			size = size_query[aspect_ratio_id]
 			
 			# get the largest size with this aspect ratio
-			return Size.objects.all().filter(aspect_ratio=size.aspect_ratio, auto_size=False).order_by("-width")[0]
+			return Size.objects.all().filter(size_set=size_set, aspect_ratio=size.aspect_ratio, auto_size=False).order_by("-width")[0]
 		except:
 			return None
 
-class Size(models.Model):
+class Size(CachingMixin, models.Model):
+	
+	objects = SizeManager()
 	
 	name = models.CharField(max_length=255, db_index=True)
 	
@@ -69,7 +75,6 @@ class Size(models.Model):
 	
 	aspect_ratio = models.FloatField(default=1)
 	
-	objects = SizeManager()
 	
 	def save(self, *args, **kwargs):
 		if not self.height:
@@ -84,10 +89,12 @@ class Size(models.Model):
 	def __unicode__(self):
 		return u"%s: %sx%s" % (self.name, self.width, self.height)
 
-class Crop(models.Model):
+class Crop(CachingMixin, models.Model):
 	class Meta:
 		db_table = "cropduster_crop"
 		unique_together = (("size", "image"),)
+		
+	objects = CachingManager()
 		
 	crop_x = models.PositiveIntegerField(default=0, blank=True, null=True)
 	crop_y = models.PositiveIntegerField(default=0, blank=True, null=True)
@@ -127,20 +134,18 @@ class Crop(models.Model):
 					thumbnail.save(self.image.thumbnail_path(size), **IMAGE_SAVE_PARAMS)
 
 
-class Image(models.Model):
+class Image(CachingMixin, models.Model):
 	
+	objects = CachingManager()
 	image = models.ImageField(
 		upload_to=settings.CROPDUSTER_UPLOAD_PATH + "%Y/%m/%d", 
 		max_length=255, 
 		db_index=True
 	)
-		
 	size_set = models.ForeignKey(
 		SizeSet,
 	)
-	
 	attribution = models.CharField(max_length=255, blank=True, null=True)
-	
 	caption = models.CharField(max_length=255, blank=True, null=True)
 
 	def save(self, *args, **kwargs):
