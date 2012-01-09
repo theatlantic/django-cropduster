@@ -1,0 +1,3 @@
+Image uploading/cropping tool for Django.  Integrates into the Django admin with an image file field, and then size sets are created to correspond with the thumbnails to be created.  On image upload, it prompts to define a crop area and zoom for each aspect ratio from the size set. Includes template tag to display images on the front end, and allows to delay thumbnail creation until first request in template for rarely used thumbnails.  
+
+Requires Python Image Library (with PNG support for use with PNG files)
