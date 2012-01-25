@@ -72,7 +72,7 @@ class Size(models.Model):
 	objects = SizeManager()
 	
 	def save(self, *args, **kwargs):
-		if not self.height:
+		if not self.height or not self.width:
 			self.aspect_ratio = 1
 		else:
 			self.aspect_ratio = Decimal(str(round(float(self.width)/float(self.height), 2)))
