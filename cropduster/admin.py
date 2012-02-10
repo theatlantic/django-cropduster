@@ -12,8 +12,8 @@ class SizeInline(admin.TabularInline):
 				'name', 
 				'slug', 
 				'width', 
-				'height', 
-				'auto_crop',
+				'height',
+				'auto_size',
 				'size_set', 
 				'aspect_ratio',
 			)
