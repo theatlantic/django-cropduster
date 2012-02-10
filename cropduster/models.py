@@ -44,7 +44,7 @@ class SizeSet(CachingMixin, models.Model):
 			#
 			
 
-class SizeManager(CachingManager, models.Manager):
+class SizeManager(CachingManager):
 	def get_size_by_ratio(self, size_set, aspect_ratio_id):
 		size_query = Size.objects.all().only("aspect_ratio").filter(size_set=size_set).exclude(auto_size=1).order_by("-aspect_ratio")
 		size_query.query.group_by = ["aspect_ratio"]
