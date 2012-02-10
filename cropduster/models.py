@@ -37,23 +37,19 @@ class SizeSet(CachingMixin, models.Model):
 		except ValueError:
 			return None
 			
-#	def get_max_size(self):
-#		max_width = 0
-#		max_height = 0
-#		for size in self.size_set.all():
-			#
+
 			
 
 class SizeManager(CachingManager, models.Manager):
 	def get_size_by_ratio(self, size_set, aspect_ratio_id):
-		size_query = Size.objects.all().only("aspect_ratio").filter(size_set=size_set).exclude(auto_size=1).order_by("-aspect_ratio")
+		size_query = Size.objects.all().only("aspect_ratio").filter(size_set=size_set).exclude(auto_crop=1).order_by("-aspect_ratio")
 		size_query.query.group_by = ["aspect_ratio"]
 
 		try:
 			size = size_query[aspect_ratio_id]
 			
 			# get the largest size with this aspect ratio
-			return Size.objects.all().filter(size_set=size_set, aspect_ratio=size.aspect_ratio, auto_size=False).order_by("-width")[0]
+			return Size.objects.all().filter(size_set=size_set, aspect_ratio=size.aspect_ratio, auto_crop=False).order_by("-width")[0]
 		except:
 			return None
 
@@ -69,7 +65,7 @@ class Size(CachingMixin, models.Model):
 	
 	width = models.PositiveIntegerField(blank=True, null=True)
 	
-	auto_size = models.BooleanField(default=False)
+	auto_crop = models.BooleanField(default=False)
 	
 	size_set = models.ForeignKey(SizeSet)
 	
@@ -120,13 +116,20 @@ class Crop(CachingMixin, models.Model):
 		super(Crop, self).save(*args, **kwargs)
 
 		if self.size:
-			sizes = Size.objects.all().filter(aspect_ratio=self.size.aspect_ratio, size_set=self.size.size_set).exclude(auto_size=1).order_by("-width")
+			# get all the sizes with the same aspect ratio as this crop/size
+			sizes = Size.objects.all().filter(
+				aspect_ratio=self.size.aspect_ratio, 
+				size_set=self.size.size_set,
+			).exclude(auto_crop=1).order_by("-width")
+			
 			if sizes:
+				# create the cropped image 
 				cropped_image = utils.create_cropped_image(self.image.image.path, self.crop_x, self.crop_y, self.crop_w, self.crop_h)
-					
+				
+				# loop through the other sizes of the same aspect ratio, and create those crops
 				for size in sizes:
 					
-					thumbnail = utils.rescale(cropped_image, size.width, size.height, crop=size.auto_size)
+					thumbnail = utils.rescale(cropped_image, size.width, size.height, crop=size.auto_crop)
 	
 					if not os.path.exists(self.image.folder_path):
 						os.makedirs(self.image.folder_path)
@@ -152,7 +155,7 @@ class Image(CachingMixin, models.Model):
 
 		super(Image, self).save(*args, **kwargs)
 
-		for size in self.size_set.size_set.all().filter(auto_size=1):
+		for size in self.size_set.size_set.all().filter(auto_crop=1):
 			if self.image.width > size.width and self.image.height > size.height:
 				thumbnail = utils.rescale(pil.open(self.image.path), size.width, size.height, crop=True)
 				if not os.path.exists(self.folder_path):

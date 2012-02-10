@@ -37,7 +37,7 @@ class ImageForm(ModelForm):
 				raise ValidationError("Unable to open image file")
 				
 			for size in size_set.size_set.all():
-				if not size.auto_size and (size.width > pil_image.size[0] or size.height > pil_image.size[1]):
+				if not size.auto_crop and (size.width > pil_image.size[0] or size.height > pil_image.size[1]):
 					raise ValidationError("Uploaded image (%s x %s) is smaller than a required thumbnail size: %s" % (pil_image.size[0], pil_image.size[1], size))
 		return self.cleaned_data
 		

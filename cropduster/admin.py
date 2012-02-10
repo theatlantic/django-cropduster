@@ -13,7 +13,7 @@ class SizeInline(admin.TabularInline):
 				'slug', 
 				'width', 
 				'height', 
-				'auto_size',
+				'auto_crop',
 				'size_set', 
 				'aspect_ratio',
 			)
