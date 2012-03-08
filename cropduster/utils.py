@@ -3,9 +3,6 @@ from PIL import Image
 
 def rescale(img, w=0, h=0, crop=True, **kwargs):
 	"""Rescale the given image, optionally cropping it to make sure the result image has the specified width and height."""
-
-	if w <= 0 and h <= 0:
-		raise ValueError("Width and height must be greater than zero")
 		
 	if w <= 0:
 		w = float(img.size[0] * h) /float(img.size[1])
@@ -59,8 +56,6 @@ def rescale(img, w=0, h=0, crop=True, **kwargs):
 def create_cropped_image(path=None, x=0, y=0, w=0, h=0):
 	if path is None:
 		raise ValueError("A path must be specified")
-	if w <= 0 or h <= 0:
-		raise ValueError("Width and height must be greater than zero")
 
 	img = Image.open(path)
 	img.copy()
