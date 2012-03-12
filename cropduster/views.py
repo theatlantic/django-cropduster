@@ -37,7 +37,7 @@ class ImageForm(ModelForm):
 				raise ValidationError("Unable to open image file")
 				
 			for size in size_set.size_set.all():
-				if not size.auto_size and (size.width > pil_image.size[0] or size.height > pil_image.size[1]):
+				if (size.width > pil_image.size[0] or size.height > pil_image.size[1]):
 					raise ValidationError("Uploaded image (%s x %s) is smaller than a required thumbnail size: %s" % (pil_image.size[0], pil_image.size[1], size))
 		return self.cleaned_data
 		
@@ -52,10 +52,16 @@ class CropForm(ModelForm):
 		if "crop_x" not in self.data or "crop_y" not in self.data:
 			self._errors.clear()
 			raise ValidationError("Missing crop values")
-			
-		if int(self.data["crop_x"]) < 0 or int(self.data["crop_y"]) < 0:
+		
+		cleaned_data = super(CropForm, self).clean()
+
+		if cleaned_data["crop_x"] < 0 or cleaned_data["crop_y"] < 0:
 			self._errors.clear()
 			raise ValidationError("Crop positions must be non-negative")
+			
+		if cleaned_data["crop_w"] <= 0 or cleaned_data["crop_h"] <= 0:
+			self._errors.clear()
+			raise ValidationError("Crop measurements must be greater than zero")
 		
 		return self.cleaned_data
 	
@@ -78,10 +84,7 @@ def upload(request):
 	else:
 		image = CropDusterImage(size_set=size_set)
 	
-
-	
 	size = Size.objects.get_size_by_ratio(size_set.id, aspect_ratio_id) or Size()
-	
 
 	# Get the current crop
 	try:
@@ -179,10 +182,12 @@ def upload(request):
 		errors.update(formset.errors)
 		all_errors = []
 		for error in  errors.items():
-			all_errors.append(u"%s: %s" % (error[0].capitalize(), error[1].as_text()))
+			if error[0] != '__all__':
+				string = u"%s: %s" % (error[0].capitalize(), error[1].as_text())
+			else: 
+				string = error[1].as_text()
+			all_errors.append(string)
 			
-		
-		
 		context = {
 			"aspect_ratio": size.aspect_ratio,
 			"aspect_ratio_id": aspect_ratio_id,	
