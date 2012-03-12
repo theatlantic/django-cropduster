@@ -27,17 +27,17 @@ function cropduster_pop(id, size_set_id, image_id){
 }
 
 function toggle_delete(obj){
-	var container = $(obj).parent().parent().parent().parent();
+	var container = django.jQuery(obj).parent().parent().parent().parent();
 	
 	
-	$(container).toggleClass("predelete");
+	django.jQuery(container).toggleClass("predelete");
 	
 	// Swap the title and the value fields, that way the values can be swapped back if deletion is canceled
-	var tempValue = $(container).find("input.cropduster").val();
-	var tempTitle = $(container).find("input.cropduster").attr("title");
+	var tempValue = django.jQuery(container).find("input.cropduster").val();
+	var tempTitle = django.jQuery(container).find("input.cropduster").attr("title");
 
-	$(container).find("input.cropduster").val(tempTitle);
-	$(container).find("input.cropduster").attr("title", tempValue);
+	django.jQuery(container).find("input.cropduster").val(tempTitle);
+	django.jQuery(container).find("input.cropduster").attr("title", tempValue);
 
 	return false;
 }
