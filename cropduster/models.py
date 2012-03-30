@@ -7,9 +7,6 @@ from PIL import Image as pil
 
 IMAGE_SAVE_PARAMS =  {"quality" :95}
 
-from south.modelsinspector import add_introspection_rules
-add_introspection_rules([], ["^cropduster\.models\.CropDusterField"])
-
 try:
 	from caching.base import CachingMixin, CachingManager
 except ImportError:
@@ -213,11 +210,14 @@ class Image(CachingMixin, models.Model):
 	def get_absolute_url(self):
 		return settings.STATIC_URL + self.image
 	
-	
-
-		
 
 class CropDusterField(models.ForeignKey):
 	pass	
 
 
+try:
+	from south.modelsinspector import add_introspection_rules
+except ImportError:
+	pass
+else:
+	add_introspection_rules([], ["^cropduster\.models\.CropDusterField"])
