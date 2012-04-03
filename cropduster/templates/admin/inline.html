@@ -49,7 +49,7 @@ function toggle_delete(obj){
 
 </div>
 
-<p><a href="#" onclick="cropduster_pop('{{ attrs["id"] }}', {{ size_set.id }}{% if image %}, {{ image.id }}{% endif %});return false" class="cd_show"><img src="{{ media_url }}/img/cropduster_icon_upload_select.png" alt=""></a></p>
+<p><a href="#" onclick="cropduster_pop('{{ attrs["id"] }}', {{ size_set.id }}{% if image %}, {{ image.id }}{% endif %});return false" class="cd_show"><img src="{{ static_url }}admin/cropduster/img/cropduster_icon_upload_select.png" alt="" /></a></p>
 
 	<div class="cropduster_thumbs">
 	{% if image %}

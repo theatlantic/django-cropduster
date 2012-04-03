@@ -1,4 +1,12 @@
 from PIL import Image
+from decimal import Decimal
+
+def aspect_ratio(w, h):
+	if not h or not w:
+		return 1
+	else:
+		return Decimal(str(round(float(w)/float(h), 2)))
+
 
 
 def rescale(img, w=0, h=0, crop=True, **kwargs):

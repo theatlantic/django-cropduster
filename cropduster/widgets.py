@@ -1,6 +1,7 @@
 from django.forms import HiddenInput
 from coffin.template import Context, loader
 from django.core.urlresolvers import reverse
+from django.conf import settings
 from cropduster.models import SizeSet, Image as CropDusterImage
 
 class AdminCropdusterWidget(HiddenInput):
@@ -16,8 +17,6 @@ class AdminCropdusterWidget(HiddenInput):
 	def render(self, name, value, attrs=None):
 		attrs.setdefault("class", "cropduster")
 		
-		media_url = reverse("cropduster-static", kwargs={"path":""})
-		
 		cropduster_url = reverse("cropduster-upload")
 	
 		input = super(HiddenInput, self).render(name, value, attrs)
@@ -32,7 +31,7 @@ class AdminCropdusterWidget(HiddenInput):
 		c = Context({
 			"image": image,
 			"size_set": self.size_set,
-			"media_url": media_url,
+			"static_url": settings.STATIC_URL,
 			"cropduster_url": cropduster_url,
 			"input": input,
 			"attrs": attrs,

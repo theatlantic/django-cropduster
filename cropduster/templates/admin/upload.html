@@ -8,10 +8,10 @@
 <!-- JAVASCRIPTS -->
 {% block javascripts %}
 	{{ block.super }}
-	<link rel="stylesheet" href="{% cropduster_media_prefix %}css/CropDuster.css" type="text/css" />
-	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/jquery.Jcrop.js?v=2"></script>
-	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/init.js"></script>
-	<link rel="stylesheet" href="{% cropduster_media_prefix %}css/jquery.Jcrop.css" type="text/css" />
+	<link rel="stylesheet" href="{{ static_url }}admin/cropduster/css/CropDuster.css" type="text/css" />
+	<script language="javascript" type="text/javascript" src="{{ static_url }}admin/cropduster/js/jquery.Jcrop.js?v=2"></script>
+	<script language="javascript" type="text/javascript" src="{{ static_url }}admin/cropduster/js/init.js"></script>
+	<link rel="stylesheet" href="{{ static_url }}admin/cropduster/css/jquery.Jcrop.css" type="text/css" />
 {% endblock %}
 
 <!-- Get rid of nav -->

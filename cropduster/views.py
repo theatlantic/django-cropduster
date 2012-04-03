@@ -1,13 +1,13 @@
 import os
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.forms import TextInput
-from django.forms.widgets import Select
 from django.views.decorators.csrf import csrf_exempt
 
 from cropduster.models import Image as CropDusterImage, Crop, Size, SizeSet
-from cropduster.settings import CROPDUSTER_MEDIA_ROOT
+from utils import aspect_ratio
+import json
 
 from PIL import Image as pil
 
@@ -15,6 +15,12 @@ from PIL import Image as pil
 from django.forms import ModelForm, ValidationError
 
 BROWSER_WIDTH = 800
+
+
+def get_ratio(request): 
+	return HttpResponse(json.dumps(
+		[u"%s" % aspect_ratio(request.GET["width"], request.GET["height"])]
+	))
 
 
 # Create the form class.
@@ -129,7 +135,7 @@ def upload(request):
 					
 			#If its the first frame, get the image formset and save it (for attribution)
 			
-			if aspect_ratio_id ==0:
+			if aspect_ratio_id == 0:
 				formset = ImageForm(request.POST, instance=image)
 				if formset.is_valid():
 					formset.save()

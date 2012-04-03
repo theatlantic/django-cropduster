@@ -1,13 +1,13 @@
 from django.db import models
 from django.conf import settings
 import os
-from decimal import Decimal
 from cropduster import utils
 from PIL import Image as pil
+from south.modelsinspector import add_introspection_rules
 
 IMAGE_SAVE_PARAMS =  {"quality" :95}
 
-from south.modelsinspector import add_introspection_rules
+
 add_introspection_rules([], ["^cropduster\.models\.CropDusterField"])
 
 GENERATION_CHOICES = (
@@ -15,7 +15,6 @@ GENERATION_CHOICES = (
 	(1, "Auto-Crop"),
 	(2, "Auto-Size"),
 )
-
 
 try:
 	from caching.base import CachingMixin, CachingManager
@@ -82,10 +81,7 @@ class Size(CachingMixin, models.Model):
 	
 	
 	def save(self, *args, **kwargs):
-		if not self.height or not self.width:
-			self.aspect_ratio = 1
-		else:
-			self.aspect_ratio = Decimal(str(round(float(self.width)/float(self.height), 2)))
+		self.aspect_ratio = utils.aspect_ratio(self.width, self.height)
 		super(Size, self).save(*args, **kwargs)
 	
 	class Meta:
@@ -226,11 +222,14 @@ class Image(CachingMixin, models.Model):
 	def get_absolute_url(self):
 		return settings.STATIC_URL + self.image
 	
-	
-
-		
 
 class CropDusterField(models.ForeignKey):
 	pass	
 
 
+try:
+	from south.modelsinspector import add_introspection_rules
+except ImportError:
+	pass
+else:
+	add_introspection_rules([], ["^cropduster\.models\.CropDusterField"])
