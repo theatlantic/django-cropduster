@@ -81,11 +81,13 @@ class Size(CachingMixin, models.Model):
 	aspect_ratio = models.FloatField(default=1)
 	
 	def clean(self):
-		"""
-		Raise a validation error if set to auto-crop and both sizes aren't provided
-		Otherwise it won't know what to crop the image to
-		"""
-		if GENERATION_CHOICES[self.auto_size][1] == "Auto-Crop" and not (self.width and self.height):
+		if not (self.width or self.height):
+			raise ValidationError("Crop size requires either a width, a height, or both")
+		elif GENERATION_CHOICES[self.auto_size][1] == "Auto-Crop" and not (self.width and self.height):
+			"""
+			Raise a validation error if set to auto-crop and both sizes aren't provided
+			Otherwise it won't know what to crop the image to
+			"""
 			raise ValidationError("Auto-crop requires both sizes be valid")
 	
 	def save(self, *args, **kwargs):
