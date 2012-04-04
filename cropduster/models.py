@@ -8,9 +8,6 @@ from django.core.exceptions import ValidationError
 
 IMAGE_SAVE_PARAMS =  {"quality" :95}
 
-
-add_introspection_rules([], ["^cropduster\.models\.CropDusterField"])
-
 GENERATION_CHOICES = (
 	(0, "Manually Crop"),
 	(1, "Auto-Crop"),
@@ -43,9 +40,7 @@ class SizeSet(CachingMixin, models.Model):
 			return size_query
 		except ValueError:
 			return None
-			
 
-			
 
 class SizeManager(CachingManager):
 	def get_size_by_ratio(self, size_set, aspect_ratio_id):
