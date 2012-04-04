@@ -4,6 +4,7 @@ import os
 from cropduster import utils
 from PIL import Image as pil
 from south.modelsinspector import add_introspection_rules
+from django.core.exceptions import ValidationError
 
 IMAGE_SAVE_PARAMS =  {"quality" :95}
 
@@ -79,6 +80,13 @@ class Size(CachingMixin, models.Model):
 	
 	aspect_ratio = models.FloatField(default=1)
 	
+	def clean(self):
+		"""
+		Raise a validation error if set to auto-crop and both sizes aren't provided
+		Otherwise it won't know what to crop the image to
+		"""
+		if GENERATION_CHOICES[self.auto_size][1] == "Auto-Crop" and not (self.width and self.height):
+			raise ValidationError("Auto-crop requires both sizes be valid")
 	
 	def save(self, *args, **kwargs):
 		self.aspect_ratio = utils.aspect_ratio(self.width, self.height)
@@ -125,7 +133,7 @@ class Crop(CachingMixin, models.Model):
 			sizes = Size.objects.all().filter(
 				aspect_ratio=self.size.aspect_ratio, 
 				size_set=self.size.size_set,
-			).exclude(auto_size=1).order_by("-width")
+			).filter(auto_size=1).order_by("-width")
 			
 			if sizes:
 				# create the cropped image 
