@@ -133,7 +133,7 @@ class Crop(CachingMixin, models.Model):
 			sizes = Size.objects.all().filter(
 				aspect_ratio=self.size.aspect_ratio, 
 				size_set=self.size.size_set,
-			).filter(auto_size=1).order_by("-width")
+			).filter(auto_size=0).order_by("-width")
 			
 			if sizes:
 				# create the cropped image 
