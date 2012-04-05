@@ -45,6 +45,8 @@ INSTALLED_APPS = (
 )
 ```
 
+Define CROPDUSTER_UPLOAD_PATH in settings to set the upload_to attribute for file uploads.  Otherwise defaults to MEDIA_ROOT.
+
 Then, run syncdb and/or a South migration to create the database tables.
 
 You can create the set of image sizes for use with your app in the Django

@@ -6,6 +6,9 @@ from PIL import Image as pil
 from south.modelsinspector import add_introspection_rules
 from django.core.exceptions import ValidationError
 
+
+CROPDUSTER_UPLOAD_PATH = getattr(settings, 'CROPDUSTER_UPLOAD_PATH', "")
+
 IMAGE_SAVE_PARAMS =  {"quality" :95}
 
 GENERATION_CHOICES = (
