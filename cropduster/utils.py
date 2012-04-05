@@ -9,6 +9,7 @@ def aspect_ratio(w, h):
 
 
 
+
 def rescale(img, w=0, h=0, crop=True, **kwargs):
 	"""Rescale the given image, optionally cropping it to make sure the result image has the specified width and height."""
 		

@@ -26,7 +26,9 @@ except ImportError:
 
 class SizeSet(CachingMixin, models.Model):
 	objects = CachingManager()
+	
 	name = models.CharField(max_length=255, db_index=True)
+	
 	slug = models.SlugField(max_length=50, null=False,)
 	
 	def __unicode__(self):
@@ -77,6 +79,8 @@ class Size(CachingMixin, models.Model):
 	size_set = models.ForeignKey(SizeSet)
 	
 	aspect_ratio = models.FloatField(default=1)
+	
+	create_on_request = models.BooleanField("Crop on request", default=False)
 	
 	def clean(self):
 		if not (self.width or self.height):
@@ -147,40 +151,55 @@ class Crop(CachingMixin, models.Model):
 					if not os.path.exists(self.image.folder_path):
 						os.makedirs(self.image.folder_path)
 					
-					thumbnail.save(self.image.thumbnail_path(size), **IMAGE_SAVE_PARAMS)
+					thumbnail.save(self.image.thumbnail_path(size.slug), **IMAGE_SAVE_PARAMS)
 
 
 class Image(CachingMixin, models.Model):
 	
 	objects = CachingManager()
+	
 	image = models.ImageField(
 		upload_to=settings.CROPDUSTER_UPLOAD_PATH + "%Y/%m/%d", 
 		max_length=255, 
 		db_index=True
 	)
+	
 	size_set = models.ForeignKey(
 		SizeSet,
 	)
+	
 	attribution = models.CharField(max_length=255, blank=True, null=True)
+	
 	caption = models.CharField(max_length=255, blank=True, null=True)
 
 	def save(self, *args, **kwargs):
 
 		super(Image, self).save(*args, **kwargs)
-
+	
 		for size in self.size_set.size_set.all().exclude(auto_size=0):
-			auto_crop = True if size.auto_size == 1 else False
-
-			if self.image.width > size.width and self.image.height > size.height:
-				thumbnail = utils.rescale(pil.open(self.image.path), size.width, size.height, crop=auto_crop)
-			else:
-				thumbnail = pil.open(self.image.path)
-
-			if not os.path.exists(self.folder_path):
-				os.makedirs(self.folder_path)
-			thumbnail.save(self.thumbnail_path(size), **IMAGE_SAVE_PARAMS)
-
+			self.create_individual_thumbnail(size)
 			
+	def create_individual_thumbnail(self, size):
+	
+		auto_crop = True if size.auto_size == 1 else False
+	
+		if self.image.width < size.width and self.image.height < size.height:
+			# as a failsafe for an image smaller than the destination size, 
+			# just create a duplicate of the original image
+			
+			thumbnail = pil.open(self.image.path)
+		elif size.auto_size == 0:
+			crop = Crop.objects.get(size=size, image=self)
+			cropped_image = utils.create_cropped_image(self.image.path, crop.crop_x, crop.crop_y, crop.crop_w, crop.crop_h)
+		else:
+			cropped_image = pil.open(self.image.path)
+			
+		thumbnail = utils.rescale(cropped_image, size.width, size.height, crop=auto_crop)
+	
+		if not os.path.exists(self.folder_path):
+			os.makedirs(self.folder_path)
+
+		thumbnail.save(self.thumbnail_path(size.slug), **IMAGE_SAVE_PARAMS)
 
 	class Meta:
 		db_table = "cropduster_image"
@@ -198,10 +217,10 @@ class Image(CachingMixin, models.Model):
 		file_root, extension = os.path.splitext(file)
 		return u"%s" % os.path.join(file_path, file_root)
 		
-	def thumbnail_path(self, size):
+	def thumbnail_path(self, size_slug):
 		file_path, file = os.path.split(self.image.path)
 		file_root, extension = os.path.splitext(file)
-		return u"%s" % os.path.join(file_path, file_root, size.slug) + extension
+		return u"%s" % os.path.join(file_path, file_root, size_slug) + extension
 		
 	@property
 	def folder_url(self):

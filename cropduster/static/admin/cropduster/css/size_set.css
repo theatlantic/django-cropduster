@@ -1,0 +1,7 @@
+.height, .height input, .width, .width input {
+	width:50px;
+}
+
+.group .name, .group .name input, .group .slug, .group .slug input {
+	width:200px;
+}
