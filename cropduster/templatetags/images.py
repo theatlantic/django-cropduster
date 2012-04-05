@@ -23,7 +23,10 @@ def get_image(image, size_name="large", template_name="image.html", width=None, 
 			import os
 			thumb_path = image.thumbnail_path(size_name)
 			if not os.path.exists(thumb_path) and os.path.exists(image.image.path):
-				size = image.size_set.size_set.get(slug=size_name)
+				try:
+					size = image.size_set.size_set.get(slug=size_name)
+				except Size.DoesNotExist:
+					return ""
 				image.create_individual_thumbnail(size)
 		
 		

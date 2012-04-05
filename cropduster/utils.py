@@ -10,7 +10,7 @@ def aspect_ratio(w, h):
 
 
 
-def rescale(img, w=0, h=0, crop=True, **kwargs):
+def rescale(img, w=0, h=0, auto_crop=True, **kwargs):
 	"""Rescale the given image, optionally cropping it to make sure the result image has the specified width and height."""
 		
 	if w <= 0:
@@ -29,7 +29,7 @@ def rescale(img, w=0, h=0, crop=True, **kwargs):
 	
 	dst_ratio = float(dst_width) / float(dst_height)
 
-	if crop:
+	if auto_crop:
 		if dst_ratio < src_ratio:
 			crop_height = src_height
 			crop_width = crop_height * dst_ratio
@@ -42,12 +42,12 @@ def rescale(img, w=0, h=0, crop=True, **kwargs):
 			y_offset = float(src_height - crop_height) / 3
 			
 	
-			img = img.crop((
-				int(x_offset), 
-				int(y_offset), 
-				int(x_offset+crop_width), 
-				int(y_offset+crop_height)
-			))
+		img = img.crop((
+			int(x_offset), 
+			int(y_offset), 
+			int(x_offset + crop_width), 
+			int(y_offset + crop_height)
+		))
 
 	# if not cropping, don't squish, use w/h as max values to resize on
 	else:

@@ -133,15 +133,23 @@ class Crop(CachingMixin, models.Model):
 		super(Crop, self).save(*args, **kwargs)
 
 		if self.size:
-			# get all the sizes with the same aspect ratio as this crop/size
+			# get all the manually cropped sizes with the same aspect ratio as this crop/size
 			sizes = Size.objects.all().filter(
 				aspect_ratio=self.size.aspect_ratio, 
 				size_set=self.size.size_set,
-			).filter(auto_size=0).order_by("-width")
+				auto_size=0,
+				create_on_request=False
+			).order_by("-width")
 			
 			if sizes:
 				# create the cropped image 
-				cropped_image = utils.create_cropped_image(self.image.image.path, self.crop_x, self.crop_y, self.crop_w, self.crop_h)
+				cropped_image = utils.create_cropped_image(
+					self.image.image.path, 
+					self.crop_x, 
+					self.crop_y, 
+					self.crop_w, 
+					self.crop_h
+				)
 				
 				# loop through the other sizes of the same aspect ratio, and create those crops
 				for size in sizes:
@@ -175,27 +183,38 @@ class Image(CachingMixin, models.Model):
 	def save(self, *args, **kwargs):
 
 		super(Image, self).save(*args, **kwargs)
-	
-		for size in self.size_set.size_set.all().exclude(auto_size=0):
+		
+		# get all the auto sized thumbnails and create them
+		sizes = self.size_set.size_set.all().filter(
+			auto_size__in=[1,2], 
+			create_on_request=False
+		)
+		for size in sizes:
 			self.create_individual_thumbnail(size)
 			
 	def create_individual_thumbnail(self, size):
 	
 		auto_crop = True if size.auto_size == 1 else False
 	
-		if self.image.width < size.width and self.image.height < size.height:
-			# as a failsafe for an image smaller than the destination size, 
-			# just create a duplicate of the original image
-			
-			thumbnail = pil.open(self.image.path)
-		elif size.auto_size == 0:
-			crop = Crop.objects.get(size=size, image=self)
-			cropped_image = utils.create_cropped_image(self.image.path, crop.crop_x, crop.crop_y, crop.crop_w, crop.crop_h)
+		if size.auto_size == 0:
+			try:
+				crop = Crop.objects.get(size=size, image=self)
+				cropped_image = utils.create_cropped_image(
+					self.image.path, 
+					crop.crop_x, 
+					crop.crop_y, 
+					crop.crop_w, 
+					crop.crop_h
+				)
+			except Crop.DoesNotExist:
+				# auto-crop if no crop is defined
+				cropped_image = pil.open(self.image.path)
+				auto_crop = True
 		else:
 			cropped_image = pil.open(self.image.path)
 			
 		thumbnail = utils.rescale(cropped_image, size.width, size.height, crop=auto_crop)
-	
+		
 		if not os.path.exists(self.folder_path):
 			os.makedirs(self.folder_path)
 
