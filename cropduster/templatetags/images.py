@@ -3,26 +3,28 @@ from coffin.template.loader import get_template
 register = template.Library()
 from django.conf import settings
 from cropduster.models import Size
+from os.path import exists
 
 CROPDUSTER_CROP_ONLOAD = getattr(settings, 'CROPDUSTER_CROP_ONLOAD', True)
 CROPDUSTER_KITTY_MODE = getattr(settings, 'CROPDUSTER_KITTY_MODE', False)
 
 
-image_sizes = Size.objects.all()
-image_size_map = {}
-for size in image_sizes:
-	image_size_map[(size.size_set_id, size.slug)] = size
+# preload a map of image sizes so it doesn't make a DB call for each templatetag use
+IMAGE_SIZE_MAP = {}
+for size in Size.objects.all():
+	IMAGE_SIZE_MAP[(size.size_set_id, size.slug)] = size
 
 
 @register.object
 def get_image(image, size_name="large", template_name="image.html", width=None, height=None, **kwargs):
+	""" Templatetag to get the HTML for an image from a cropduster image object """
 
 	if image:
 		
 		if CROPDUSTER_CROP_ONLOAD:
-			import os
+			
 			thumb_path = image.thumbnail_path(size_name)
-			if not os.path.exists(thumb_path) and os.path.exists(image.image.path):
+			if not exists(thumb_path) and exists(image.image.path):
 				try:
 					size = image.size_set.size_set.get(slug=size_name)
 				except Size.DoesNotExist:
@@ -34,7 +36,7 @@ def get_image(image, size_name="large", template_name="image.html", width=None, 
 		if image_url is None or image_url == "":
 			return ""
 		try:
-			image_size = image_size_map[(image.size_set_id,size_name)]
+			image_size = IMAGE_SIZE_MAP[(image.size_set_id, size_name)]
 		except KeyError:
 			return ""
 	
