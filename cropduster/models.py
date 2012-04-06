@@ -34,12 +34,17 @@ class SizeSet(CachingMixin, models.Model):
 	def __unicode__(self):
 		return u"%s" % self.name
 		
-	def get_size_by_ratio(self):
+	def get_size_by_ratio(self, created=False):
 		""" Shorthand to get all the unique ratios for display in the admin, 
 		rather than show every possible thumbnail
 		"""
 		
 		size_query = Size.objects.all().filter(size_set__id=self.id)
+		
+		# Whether to only get the image sizes that have been created
+		if created:
+			size_query = size_query.filter(create_on_request=False)
+		
 		size_query.query.group_by = ["aspect_ratio"]
 		try:
 			return size_query

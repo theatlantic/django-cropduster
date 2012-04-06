@@ -27,8 +27,8 @@ class AdminCropdusterWidget(HiddenInput):
 			image = None
 		
 		
-		t = loader.get_template(self.template)
-		c = Context({
+		template = loader.get_template(self.template)
+		context = Context({
 			"image": image,
 			"size_set": self.size_set,
 			"static_url": settings.STATIC_URL,
@@ -36,4 +36,4 @@ class AdminCropdusterWidget(HiddenInput):
 			"input": input,
 			"attrs": attrs,
 		})
-		return t.render(c)
+		return template.render(context)
