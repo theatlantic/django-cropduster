@@ -1,25 +1,23 @@
 from PIL import Image
 from decimal import Decimal
 
-def aspect_ratio(w, h):
-	if not h or not w:
+def aspect_ratio(width, height):
+	if not height or not width:
 		return 1
 	else:
-		return Decimal(str(round(float(w)/float(h), 2)))
+		return Decimal(str(round(float(width)/float(height), 2)))
 
 
-
-
-def rescale(img, w=0, h=0, auto_crop=True, **kwargs):
+def rescale(img, width=0, height=0, auto_crop=True, **kwargs):
 	"""Rescale the given image, optionally cropping it to make sure the result image has the specified width and height."""
 		
-	if w <= 0:
-		w = float(img.size[0] * h) /float(img.size[1])
-	if h <= 0:
-		h = float(img.size[1] * w) /float(img.size[0])
+	if width <= 0:
+		width = float(img.size[0] * height) /float(img.size[1])
+	if height <= 0:
+		height = float(img.size[1] * width) /float(img.size[0])
 
-	max_width = w
-	max_height = h
+	max_width = width
+	max_height = height
 
 	src_width, src_height = img.size
 	
@@ -30,6 +28,7 @@ def rescale(img, w=0, h=0, auto_crop=True, **kwargs):
 	dst_ratio = float(dst_width) / float(dst_height)
 
 	if auto_crop:
+		
 		if dst_ratio < src_ratio:
 			crop_height = src_height
 			crop_width = crop_height * dst_ratio
@@ -40,8 +39,7 @@ def rescale(img, w=0, h=0, auto_crop=True, **kwargs):
 			crop_height = crop_width / dst_ratio
 			x_offset = 0
 			y_offset = float(src_height - crop_height) / 3
-			
-	
+
 		img = img.crop((
 			int(x_offset), 
 			int(y_offset), 
@@ -51,25 +49,25 @@ def rescale(img, w=0, h=0, auto_crop=True, **kwargs):
 
 	# if not cropping, don't squish, use w/h as max values to resize on
 	else:
-		if (src_ratio * w) > h:
-			dst_width = src_ratio * h
-			dst_height = h
+		if (src_ratio * width) > height:
+			dst_width = src_ratio * height
+			dst_height = height
 		else:
-			dst_width = w
-			dst_height = w/src_ratio
+			dst_width = width
+			dst_height = width/src_ratio
 			
 		img = img.resize((int(dst_width), int(dst_height)), Image.ANTIALIAS)
 
 	return img
 
-def create_cropped_image(path=None, x=0, y=0, w=0, h=0):
+def create_cropped_image(path=None, x=0, y=0, width=0, height=0):
 	if path is None:
 		raise ValueError("A path must be specified")
 
 	img = Image.open(path)
 	img.copy()
 	img.load()
-	img = img.crop((x, y, x + w, y + h))
+	img = img.crop((x, y, x + width, y + height))
 	img.load()
 	return img
 
