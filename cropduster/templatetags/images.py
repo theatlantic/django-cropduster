@@ -35,7 +35,7 @@ def get_image(image, size_name=None, template_name="image.html", **kwargs):
 		
 		image_url = image.thumbnail_url(size_name)
 		
-		if image_url is None or image_url == "":
+		if not image_url:
 			return ""
 		try:
 			image_size = IMAGE_SIZE_MAP[(image.size_set_id, size_name)]
