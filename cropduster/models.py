@@ -89,13 +89,13 @@ class Size(CachingMixin, models.Model):
 	
 	def clean(self):
 		if not (self.width or self.height):
-			raise ValidationError("Crop size requires either a width, a height, or both")
-		elif GENERATION_CHOICES[self.auto_size][1] != "Auto-Size" and not (self.width and self.height):
+			raise ValidationError("Size requires either a width, a height, or both")
+		elif GENERATION_CHOICES[self.auto_size][1] == "Auto-Crop" and not (self.width and self.height):
 			"""
 			Raise a validation error if one of the sizes is not set for cropping.
 			Auto-size is the only one that can take a missing size.
 			"""
-			raise ValidationError("Cropping requires both sizes be valid")
+			raise ValidationError("Auto-crop requires both sizes be specified")
 	
 	def save(self, *args, **kwargs):
 		self.aspect_ratio = utils.aspect_ratio(self.width, self.height)
