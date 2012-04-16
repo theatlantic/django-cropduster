@@ -6,6 +6,7 @@
 
 import sys
 import os
+import logging
 import inspect
 import traceback
 from collections import namedtuple
@@ -44,9 +45,9 @@ class PrettyError(object):
                 return f(*args, **kwargs)
             except CommandError:
                 raise
-
             except Exception, e:
                 raise CommandError(self.msg % dict(error=e))
+
         return _f
 
 Size = namedtuple('Size', ('name', 'path', 'crop', 'width', 'height'))
@@ -65,18 +66,31 @@ class Command(BaseCommand):
                               " they already exist."),
 
         make_option('--query_set',
-                    dest="query_set",
-                    default="all()",
-                    help="Queryset to use.  Default uses all models."),
+                    dest    = "query_set",
+                    default = "all()",
+                    help    = "Queryset to use.  Default uses all models."),
 
         make_option('--stretch',
-                    dest='stretch',
-                    action = "store_true",
-                    default=False,
-                    help="Indicates whether to resize an image if size is larger"\
-                         " than original.  Default is False.")
+                    dest    = 'stretch',
+                    action  = "store_true",
+                    default = False,
+                    help    = "Indicates whether to resize an image if size is larger"\
+                              " than original.  Default is False."),
+
+        make_option('--log_file',
+                    dest='logfile',
+                    default = 'regen_thumbs.out',
+                    help="Location of the log file.  Default regen_thumbs.out"),
+
+        make_option('--log_level',
+                    dest='loglevel',
+                    default = 'INFO',
+                    help="One of ERROR, INFO, DEBUG.  Default is INFO")
     )
     
+    IMG_TYPE_PARAMS = {
+        'JPEG': dict(quality=95)
+    }
     # Returns the path where an object was defined.
     get_def_file = lambda s, o: os.path.abspath(inspect.getfile(o))
 
@@ -100,6 +114,7 @@ class Command(BaseCommand):
             if isinstance(obj, ModelBase) and cur_file == self.get_def_file(obj):
                 classes.append(obj)
 
+        logging.debug('Found %i django models in module %s' % (len(classes), module))
         return classes
 
     def find_cropduster_images(self, model):
@@ -123,7 +138,7 @@ class Command(BaseCommand):
                 fields.append(field.name)
 
         if fields:
-            print "Fields for %s:" % model, fields
+            logging.info("Found image fields for %s: %s" % (model, fields))
         return fields
 
     def import_app(self, app_name, model_name=None, field_name=None):
@@ -219,16 +234,20 @@ class Command(BaseCommand):
         @return: 
         @rtype: 
         """
-        img_save_params = {}
-        if image.format == 'JPEG':
-            img_save_params['quality'] = 95
-        for size in set(sizes):
+        img_params = (self.IMG_TYPE_PARAMS.get(image.format) or {}).copy()
+        for size in sizes:
+            
+            logging.debug('Converting image to size `%s` (%s x %s)' % (size.name,
+                                                                       size.width,
+                                                                       size.height))
             # Do we need to recreate the file?
             if not force and os.path.isfile(size.path) and os.stat(size.path).st_size > 0:
+                logging.debug(' - Image `%s` exists, skipping...' % size.name)
                 continue
 
             folder, _basename = os.path.split(size.path)
             if not os.path.isdir(folder):
+                logging.debug(' - Directory %s does not exist.  Creating...' % folder)
                 os.makedirs(folder)
 
             try:
@@ -240,28 +259,27 @@ class Command(BaseCommand):
 
                 tmp_path = size.path + '.tmp'
 
-                thumbnail.save(tmp_path, image.format, **img_save_params)
+                thumbnail.save(tmp_path, image.format, **img_params)
 
             # No idea what this can throw, so catch them all
             except Exception, e:
-                sys.stdout.write(traceback.format_exc(e))
-                sys.stderr.write("Error saving thumbnail %s...\n" % size.path)
+                logging.exception('Error saving thumbnail to %s' % tmp_path)
                 resp = raw_input('Continue? [Y/n]: ')
                 if resp.lower().strip() == 'n':
                     raise SystemExit('Exiting...')
                 
             else:
-                print size.name, '%sx%s' %(size.width, size.height), size.path
                 os.rename(tmp_path, size.path)
             
     def get_sizes(self, cd_image, stretch):
         """
-        Extracts sizes from image.
+        Extracts sizes for an image.
 
         @param cd_image: Cropduster image to use
         @type  cd_image: CropDusterImage
 
-        @param stretch: Indicates whether or not we want to stretch images.
+        @param stretch: Indicates whether or not we want to include sizes that 
+                        would stretch the original image.
         @type  stretch: bool
 
         @return: Set of sizes to use
@@ -282,16 +300,33 @@ class Command(BaseCommand):
                                    size.height) )
         return set(sizes)
 
-    #@PrettyError("Failed to regenerate thumbs: %(error)s")
+
+    def setup_logging(self, options):
+        """
+        Sets up logging details.
+        """
+        logging.basicConfig(filename=options['logfile'],
+                            level = getattr(logging, options['loglevel'].upper()),
+                            format="%(asctime)s %(levelname)s %(message)s")
+
+    @PrettyError("Failed to regenerate thumbs: %(error)s")
     def handle(self, *apps, **options):
         """
         Resolves out the models and images for regeneratating thumbnails and
         then resolves them.
         """
+        
+        self.setup_logging(options)
+
         # Figures out the models and cropduster fields on them
         for model, field_names in self.resolve_apps(apps):
-            # Returns the queryset for each jmodel
-            for obj in self.get_queryset(model, options['query_set']):
+
+            logging.info("Processing model %s with fields %s" % (model, field_names))
+
+            # Returns the queryset for each model
+            query = self.get_queryset(model, options['query_set'])
+            logging.info("Queryset return %i objects" % query.count())
+            for obj in query:
 
                 for field_name in field_names:
 
@@ -301,11 +336,13 @@ class Command(BaseCommand):
                         continue
 
                     file_name = cd_image.image.path
+                    logging.info("Processing image %s" % file_name)
                     try:
                         image = Image.open(file_name)
                     except IOError:
-                        sys.stderr.write('*** Error opening image: %s\n' % file_name)
+                        logging.warning('Could not open image %s' % file_name)
                         continue
 
                     sizes = self.get_sizes(cd_image, options['stretch'])
                     self.resize_image(image, sizes, options['force'])
+
