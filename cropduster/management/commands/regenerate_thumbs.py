@@ -71,7 +71,7 @@ class Command(BaseCommand):
 
         make_option('--stretch',
                     dest='stretch',
-                    action = "store_true"
+                    action = "store_true",
                     default=False,
                     help="Indicates whether to resize an image if size is larger"\
                          " than original.  Default is False.")
