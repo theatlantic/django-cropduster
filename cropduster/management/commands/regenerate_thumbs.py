@@ -61,12 +61,20 @@ class Command(BaseCommand):
                     action  = "store_true",
                     dest    = "force",
                     default = False,
-                    help    = "Resizes all images regardless of whether or not they already exist"),
+                    help    = "Resizes all images regardless of whether or not"\
+                              " they already exist."),
 
         make_option('--query_set',
                     dest="query_set",
                     default="all()",
-                    help="Queryset to use.  Default uses all models.")
+                    help="Queryset to use.  Default uses all models."),
+
+        make_option('--stretch',
+                    dest='stretch',
+                    action = "store_true"
+                    default=False,
+                    help="Indicates whether to resize an image if size is larger"\
+                         " than original.  Default is False.")
     )
     
     # Returns the path where an object was defined.
@@ -246,23 +254,32 @@ class Command(BaseCommand):
                 print size.name, '%sx%s' %(size.width, size.height), size.path
                 os.rename(tmp_path, size.path)
             
-    def get_sizes(self, cd_image):
+    def get_sizes(self, cd_image, stretch):
         """
         Extracts sizes from image.
 
         @param cd_image: Cropduster image to use
         @type  cd_image: CropDusterImage
 
+        @param stretch: Indicates whether or not we want to stretch images.
+        @type  stretch: bool
+
         @return: Set of sizes to use
         @rtype:  Sizes
         """
         sizes = []
+        orig_width, orig_height = cd_image.image.width, cd_image.image.height
         for size in cd_image.size_set.size_set.all():
-            sizes.append( Size(size.slug,
-                               cd_image.thumbnail_path(size),
-                               size.auto_size,
-                               size.width,
-                               size.height) )
+
+            # Filter out thumbnail sizes which are larger than the original
+            if stretch or (orig_width >= size.width and 
+                           orig_height >= size.height):
+
+                sizes.append( Size(size.slug,
+                                   cd_image.thumbnail_path(size),
+                                   size.auto_size,
+                                   size.width,
+                                   size.height) )
         return set(sizes)
 
     #@PrettyError("Failed to regenerate thumbs: %(error)s")
@@ -290,7 +307,5 @@ class Command(BaseCommand):
                         sys.stderr.write('*** Error opening image: %s\n' % file_name)
                         continue
 
-                    # Actually resize the image
-                    self.resize_image(image,self.get_sizes(cd_image),options['force'])
-                    
-    
+                    sizes = self.get_sizes(cd_image, options['stretch'])
+                    self.resize_image(image, sizes, options['force'])
