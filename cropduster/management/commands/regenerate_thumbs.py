@@ -4,57 +4,19 @@
 #
 # Search for 'changeme' for lines that should be modified
 
+import sys
 import os
 import inspect
+import traceback
+from collections import namedtuple
 from optparse import make_option
 
 from django.db.models.base import ModelBase
 from django.core.management.base import BaseCommand, CommandError
 
-from cropduster.models import Image as CropDusterImage, Thumb as CropDusterThumb
+from cropduster.models import Image as CropDusterImage,CropDusterField as CDF
 from cropduster.utils import create_cropped_image, rescale
 import Image
-
-def generate_and_save_thumbs(db_image, sizes, img, file_dir, file_ext, is_auto=False):
-    '''
-    Loops through the sizes given and saves a thumbnail for each one. Returns
-    a dict of key value pairs with size_name, thumbnail_id
-    '''
-    thumb_ids = {}
-
-    img_save_params = {}
-    if img.format == 'JPEG':
-        img_save_params['quality'] = 95
-
-    for size_name in sizes:
-        size = sizes[size_name]
-        thumb_w = int(size[0])
-        thumb_h = int(size[1])
-
-        thumb = img.copy()
-        if is_auto:
-            thumb = rescale(img, thumb_w, thumb_h)
-        else:
-            thumb = rescale(thumb, thumb_w, thumb_h, crop=False)
-
-        # Save to the real thumb_path if the image is new
-
-        thumb_path = file_dir + '/' + size_name + file_ext
-        if not os.path.exists(thumb_path):
-            thumb.save(thumb_path, **img_save_params)
-
-        thumb_tmp_path = file_dir + '/' + size_name + '_tmp' + file_ext
-
-        thumb.save(thumb_tmp_path, **img_save_params)
-
-        db_thumb = db_image.save_thumb(
-            width = thumb_w,
-            height = thumb_h,
-            name = size_name
-        )
-        thumb_ids[size_name] = db_thumb.id
-
-    return thumb_ids
 
 def to_CE(f, *args, **kwargs):
     """
@@ -69,9 +31,10 @@ def to_CE(f, *args, **kwargs):
     try:
         return f(*args, **kwargs)
     except Exception, e:
+        sys.stderr.write(traceback.format_exc(e))
         raise CommandError('Error: %s(%s)' % (type(e), e))
  
-class PrettyError(f):
+class PrettyError(object):
     def __init__(self, msg):
         self.msg = msg
 
@@ -79,9 +42,14 @@ class PrettyError(f):
         def _f(*args, **kwargs):
             try:
                 return f(*args, **kwargs)
-            except Exception:
+            except CommandError:
+                raise
+
+            except Exception, e:
                 raise CommandError(self.msg % dict(error=e))
-    return _f
+        return _f
+
+Size = namedtuple('Size', ('name', 'path', 'crop', 'width', 'height'))
 
 class Command(BaseCommand):
     args = "app_name[:model[.field]][, ...]"
@@ -89,12 +57,6 @@ class Command(BaseCommand):
            "app or specific model and/or field."
 
     option_list = BaseCommand.option_list + (
-        make_option('--verify',
-                    action  = "store_true",
-                    dest    = "verify",
-                    default = False,
-                    help    = "Checks that all the thumbs are generated for an app."),
-
         make_option('--force',
                     action  = "store_true",
                     dest    = "force",
@@ -145,10 +107,16 @@ class Command(BaseCommand):
         @rtype:  ["field1", ...]
         """
         fields = []
-        for field_name, dets in model._meta._name_map.iteritems():
-            if isinstance(dets[0], Image):
-                fields.append(field_name)
-        return field
+        for field in model._meta.fields:
+            if isinstance(field, CropDusterImage) or isinstance(field, CDF):
+                fields.append(field.name)
+            # We also need to handle m2m, o2m, m2o relationships
+            elif field.rel is not None and field.rel.to is CropDusterImage:
+                fields.append(field.name)
+
+        if fields:
+            print "Fields for %s:" % model, fields
+        return fields
 
     def import_app(self, app_name, model_name=None, field_name=None):
         """
@@ -169,7 +137,7 @@ class Command(BaseCommand):
         @rtype: [(Model1, ["field1", ...])]
         """
         # Attempt to import
-        module = to_CE(__import__, appname + '.models', globals(), locals())
+        module = to_CE(__import__, app_name, globals(), locals(), ['models']).models
 
         # if we have a specific model, use only that particular one.
         if model_name is not None:
@@ -181,83 +149,148 @@ class Command(BaseCommand):
 
         # Find all the relevant field(s)
         if field_name is not None:
-            field_map = [(models[0], [ to_CE(getattr, models[0], field_name) ])]
+            field_map = [(models[0], [ field_name ])]
         else:
-            # Otherwise, more introsepction!
+            # Otherwise, more introspection!
             field_map = []
             for model in models:
                 field_map.append((model, self.find_cropduster_images(model)))
 
         return field_map
 
-    @PrettyError("Failed to regenerate thumbs: %(error)s")
-    def handle(self, paths, **options):
-        pass
-        
-    @PrettyError("Failed to regenerate thumbs: %(error)s")
-    def handle(self, *args, **options):
-        print args, options
-        num_resized = num_tried = num_thumbs = 0
+    def resolve_apps(self, apps):
+        """
+        Takes a couple of raw apps and converts them into sets of Models/fields.
 
-        # changeme
-        #videos = Entry.objects.all()
-        for video in videos:
-            db_image = video.image
-            if db_image is None:
+        @param apps: set of apps
+        @type  apps: <"app[:model[.field]]", ...>
+
+        @return: Set of models, fields
+        @rtype: [(Model1, ["field1", ...]), ...]
+        """
+        for app_name in apps:
+            field_name = model_name = None
+            if ':' in app_name:
+                if '.' in app_name and app_name.index('.') > app_name.index(':'):
+                    app_name, field_name = app_name.rsplit('.', 1)
+                app_name, model_name = app_name.split(':', 1)
+
+            for model, fields in self.import_app(app_name, model_name, field_name):
+                if fields:
+                    yield model, fields
+
+    def get_queryset(self, model, query_str):
+        """
+        Gets the query set from the provided model based on the user's filters.
+
+        @param model: Django Model to query
+        @type  model: Class 
+        
+        @param query_str: Filter query to retrieve objects with
+        @type  query_str: "filter string" 
+
+        @return: QuerySet for the given model.
+        @rtype:  <iterable of object>
+        """
+        query_str = 'model.objects.' + query_str.lstrip('.')
+        return eval(query_str, dict(model=model))
+
+    def resize_image(self, image, sizes, force):
+        """
+        Resizes an image to the provided set sizes.
+
+        @param image: Opened original image
+        @type  image: PIL.Image
+        
+        @param sizes: Set of sizes to create.
+        @type  sizes: [Size1, ...]
+        
+        @param force: Whether or not to recreate a thumbnail if it already exists.
+        @type  force: bool
+
+        @return: 
+        @rtype: 
+        """
+        img_save_params = {}
+        if image.format == 'JPEG':
+            img_save_params['quality'] = 95
+        for size in set(sizes):
+            # Do we need to recreate the file?
+            if not force and os.path.isfile(size.path) and os.stat(size.path).st_size > 0:
                 continue
-            # changeme
-            sizes = {
-                "still": (620, 465),
-                "thumb": (120, 90),
-            }
-            (width, height) = video.get_video_dimensions()
-            if width is not None and height is not None:
-                if width > 620:
-                    still_width = 620
-                    still_height = int(round(620 * height / width))
-                else:
-                    still_width = int(width)
-                    still_height = int(height)
-                thumb_height = int(round(120 * height / width))
-                # changeme
-                sizes = {
-                    "still": (still_width, still_height),
-                    "thumb": (120, thumb_height),
-                }
-            
-            num_tried += 1
-            try:
-                original_file_path = db_image.get_image_path("original")
-                img = Image.open(original_file_path)
 
-                (w, h) = img.size
-                # First pass resize if it's too large
-                # (height > 500 px or width > 800 px)
-                resize_ratio = min(800/float(w), 500/float(h))
-                if resize_ratio < 1:
-                    w = int(round(w * resize_ratio))
-                    h = int(round(h * resize_ratio))
-                    img.thumbnail((w, h), Image.ANTIALIAS)
-            
-                preview_file_path = db_image.get_image_path("_preview")
-                img_save_params = {}
-                if img.format == 'JPEG':
-                    img_save_params['quality'] = 95
-                img.save(preview_file_path, **img_save_params)
-                num_resized += 1
-                num_thumbs += 1
-                file_root, file_ext = os.path.splitext(original_file_path)
-                file_dir, file_prefix = os.path.split(file_root)
-                auto_sizes = {
-                    'atlantic_thumb': (110, 90),
-                    'grid': (130, 100),
-                    'related': (88,66),
-                }
-                cropped_img = create_cropped_image(original_file_path, x=db_image.crop_x, y=db_image.crop_y, w=db_image.crop_w, h=db_image.crop_h)
-                generate_and_save_thumbs(db_image, sizes, cropped_img, file_dir, file_ext, is_auto=False)
-                generate_and_save_thumbs(db_image, auto_sizes, cropped_img, file_dir, file_ext, is_auto=True)
-                db_image.save()
+            folder, _basename = os.path.split(size.path)
+            if not os.path.isdir(folder):
+                os.makedirs(folder)
+
+            try:
+                # In place scaling, so we need to use a copy of the image.
+                thumbnail = rescale(image.copy(),
+                                    size.width,
+                                    size.height,
+                                    crop=size.crop)
+
+                tmp_path = size.path + '.tmp'
+
+                thumbnail.save(tmp_path, image.format, **img_save_params)
+
+            # No idea what this can throw, so catch them all
             except Exception, e:
-                self.stdout.write("Encountered error on %s: %s\n" % (db_image.path, unicode(e)))
-        
-        self.stdout.write("Successfully resized %d of %d thumbnails (%d)\n" % (num_resized, num_tried, num_thumbs))
+                sys.stdout.write(traceback.format_exc(e))
+                sys.stderr.write("Error saving thumbnail %s...\n" % size.path)
+                resp = raw_input('Continue? [Y/n]: ')
+                if resp.lower().strip() == 'n':
+                    raise SystemExit('Exiting...')
+                
+            else:
+                print size.name, '%sx%s' %(size.width, size.height), size.path
+                os.rename(tmp_path, size.path)
+            
+    def get_sizes(self, cd_image):
+        """
+        Extracts sizes from image.
+
+        @param cd_image: Cropduster image to use
+        @type  cd_image: CropDusterImage
+
+        @return: Set of sizes to use
+        @rtype:  Sizes
+        """
+        sizes = []
+        for size in cd_image.size_set.size_set.all():
+            sizes.append( Size(size.slug,
+                               cd_image.thumbnail_path(size),
+                               size.auto_size,
+                               size.width,
+                               size.height) )
+        return set(sizes)
+
+    #@PrettyError("Failed to regenerate thumbs: %(error)s")
+    def handle(self, *apps, **options):
+        """
+        Resolves out the models and images for regeneratating thumbnails and
+        then resolves them.
+        """
+        # Figures out the models and cropduster fields on them
+        for model, field_names in self.resolve_apps(apps):
+            # Returns the queryset for each jmodel
+            for obj in self.get_queryset(model, options['query_set']):
+
+                for field_name in field_names:
+
+                    # Sanity check; we really should have a cropduster image here.
+                    cd_image = getattr(obj, field_name)
+                    if not (cd_image and isinstance(cd_image, CropDusterImage)):
+                        continue
+
+                    file_name = cd_image.image.path
+                    try:
+                        image = Image.open(file_name)
+                    except IOError:
+                        sys.stderr.write('*** Error opening image: %s\n' % file_name)
+                        continue
+
+                    # Actually resize the image
+                    self.resize_image(image,self.get_sizes(cd_image),options['force'])
+                    
+    
