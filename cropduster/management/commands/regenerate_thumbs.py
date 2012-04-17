@@ -17,6 +17,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from cropduster.models import Image as CropDusterImage,CropDusterField as CDF
 from cropduster.utils import create_cropped_image, rescale
+import apputils
 import Image
 
 def to_CE(f, *args, **kwargs):
@@ -91,117 +92,7 @@ class Command(BaseCommand):
     IMG_TYPE_PARAMS = {
         'JPEG': dict(quality=95)
     }
-    # Returns the path where an object was defined.
-    get_def_file = lambda s, o: os.path.abspath(inspect.getfile(o))
-
-    def find_django_models(self, module):
-        """
-        Returns all django models defined within a module.  It attempts this
-        by iterating through the module's contents and finding subclasses
-        of the Django base model.
-
-        @param module: Python Module
-        @type  module: Python Module
-
-        @return: Set of Django Model Classes
-        @rtype: [Class1, ...]
-        """
-        cur_file = self.get_def_file(module)
-        classes = []
-        for obj in module.__dict__.itervalues():
-            # We check the definition file for each object to make sure we
-            # only grab local models, not imports.
-            if isinstance(obj, ModelBase) and cur_file == self.get_def_file(obj):
-                classes.append(obj)
-
-        logging.debug('Found %i django models in module %s' % (len(classes), module))
-        return classes
-
-    def find_cropduster_images(self, model):
-        """
-        Dives into a model to find Cropduster images.
-
-        TODO:  Find if there's a cleaner way to do this.
-
-        @param model: Model to introspect. 
-        @type  model: Class 
-
-        @return: Set of cropduster image fields.
-        @rtype:  ["field1", ...]
-        """
-        fields = []
-        for field in model._meta.fields:
-            if isinstance(field, CropDusterImage) or isinstance(field, CDF):
-                fields.append(field.name)
-            # We also need to handle m2m, o2m, m2o relationships
-            elif field.rel is not None and field.rel.to is CropDusterImage:
-                fields.append(field.name)
-
-        if fields:
-            logging.info("Found image fields for %s: %s" % (model, fields))
-        return fields
-
-    def import_app(self, app_name, model_name=None, field_name=None):
-        """
-        Imports an app and figures out which models and fields are Cropduster 
-        Images
-
-        @param app_name: Name of the app, as known by its path
-        @type  app_name: "name" 
-        
-        @param model_name: Specific model to use or None to look at all models.
-        @type  model_name: "Model Name" or None
-        
-        @param field_name: Specific field on a model or None to look at all 
-                           fields. 
-        @type  field_name: "field name" or None
-
-        @return: set of field names by model
-        @rtype: [(Model1, ["field1", ...])]
-        """
-        # Attempt to import
-        module = to_CE(__import__, app_name, globals(), locals(), ['models']).models
-
-        # if we have a specific model, use only that particular one.
-        if model_name is not None:
-            models = [ to_CE(getattr, module, model_name) ]
-
-        else:
-            # Attempt to introspect the module
-            models = self.find_django_models(module)
-
-        # Find all the relevant field(s)
-        if field_name is not None:
-            field_map = [(models[0], [ field_name ])]
-        else:
-            # Otherwise, more introspection!
-            field_map = []
-            for model in models:
-                field_map.append((model, self.find_cropduster_images(model)))
-
-        return field_map
-
-    def resolve_apps(self, apps):
-        """
-        Takes a couple of raw apps and converts them into sets of Models/fields.
-
-        @param apps: set of apps
-        @type  apps: <"app[:model[.field]]", ...>
-
-        @return: Set of models, fields
-        @rtype: [(Model1, ["field1", ...]), ...]
-        """
-        for app_name in apps:
-            field_name = model_name = None
-            if ':' in app_name:
-                if '.' in app_name and app_name.index('.') > app_name.index(':'):
-                    app_name, field_name = app_name.rsplit('.', 1)
-                app_name, model_name = app_name.split(':', 1)
-
-            for model, fields in self.import_app(app_name, model_name, field_name):
-                if fields:
-                    yield model, fields
-
+    
     def get_queryset(self, model, query_str):
         """
         Gets the query set from the provided model based on the user's filters.
@@ -319,7 +210,7 @@ class Command(BaseCommand):
         self.setup_logging(options)
 
         # Figures out the models and cropduster fields on them
-        for model, field_names in self.resolve_apps(apps):
+        for model, field_names in to_CE(apputils.resolve_apps, apps):
 
             logging.info("Processing model %s with fields %s" % (model, field_names))
 
