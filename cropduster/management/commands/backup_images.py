@@ -9,7 +9,6 @@ import os
 import tempfile
 from optparse import make_option
 
-from django.db.models.base import ModelBase
 from django.core.management.base import BaseCommand, CommandError
 
 from cropduster.models import Image as CropDusterImage,CropDusterField as CDF
@@ -72,7 +71,7 @@ class Command(BaseCommand):
             if os.path.exists(path):
                 yield path
 
-    def build_file_list(self, apps, file_list, only_originals):
+    def find_image_files(self, apps, query_set, only_originals):
         """
         Finds all images specified in apps and builds a list of paths that
         need to be stored.
@@ -80,14 +79,18 @@ class Command(BaseCommand):
         @param apps: Set of app paths to look for images in.
         @type  apps: ["app[:model[.field]], ...]
         
-        @param file_list: File to store file_list in
-        @type  file_list: File
+        @param query_set: Query set of models to backup.
+        @type  query_set: str 
+        
+        @param only_originals: Whether or not to only backup originals.
+        @type  only_originals: bool
+
         """
         # Figures out the models and cropduster fields on them
         for model, field_names in apputils.resolve_apps(apps):
 
             # Returns the queryset for each model
-            query = self.get_queryset(model, options['query_set'])
+            query = self.get_queryset(model, query_set)
             for obj in query:
 
                 for field_name in field_names:
@@ -103,32 +106,46 @@ class Command(BaseCommand):
                         sys.stderr.write('missing: %s\n' % file_name)
                         continue
 
-                    files = [file_name]
-                    if not only_originals:
-                        files.extend( self.get_derived_paths(cd_image) )
+                    yield file_name
+                    if only_originals:
+                        continue
+                    
+                    # Get all derived images as well
+                    for path in self.get_derived_paths(cd_image):
+                        yield path
 
-                    # Store the files
-                    for path in files:
-                        print >> file_list, path
- 
-    @PrettyError("Failed to regenerate thumbs: %(error)s")
+    #@PrettyError("Failed to build thumbs: %(error)s")
     def handle(self, *apps, **options):
         """
         Grabs all images for a given app and stores them in a tar file.
         """
         abs_path = os.path.abspath( options['backup_file'] )
-        file_list_path = abs_path + '.files.tmp'
+        if os.path.exists(abs_path):
+            print "\nBackup file `%s` already exists.  If you continue, the file "\
+                  "will be overwritten." % options['backup_file']
+            ret = raw_input('Continue? [y/N]: ')
+            if not ret.lower() == 'y':
+                raise SystemExit('Quitting...')
+
+        file_list_path = abs_path + '.files'
         
+        print "Finding image files..."
         # find all images
         with file(file_list_path, 'w') as file_list:
-            self.build_file_list(apps, file_list, options['only_origs'])
+            for i, path in enumerate(self.find_image_files(apps,
+                                               options['query_set'],
+                                               options['only_origs'])):
+                file_list.write( (path+'\n').encode('utf8') )
+            
+            print "Found %i images to archive" % (locals().get('i', -1) + 1)
 
         # attempt to tar 
-        ret_code = os.system('tar cf %s.tmp -T %s' % (abs_path, file_list_path)) >> 8
+        print "Tarring...."
+        ret_code = os.system('tar cvf %s.tmp -T %s' % (abs_path, file_list_path)) >> 8
         if ret_code > 0:
             raise CommandError("Failed when tarring files!  Exit code: %i" % ret_code)
             
         # Success!
         os.remove(file_list_path)
         os.rename(abs_path+'.tmp', abs_path)
-
+        print "Successfully tarred images to %s" % abs_path

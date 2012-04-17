@@ -1,5 +1,9 @@
 import os.path
-get_def_file = lambda s, o: os.path.abspath(inspect.getfile(o))
+import inspect
+
+from django.db.models.base import ModelBase
+from cropduster.models import Image as CropDusterImage,CropDusterField as CDF
+get_def_file = lambda o: os.path.abspath(inspect.getfile(o))
 
 def find_django_models(module):
     """
