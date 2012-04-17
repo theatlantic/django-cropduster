@@ -55,8 +55,8 @@ def rescale(img, width=0, height=0, auto_crop=True, **kwargs):
 		else:
 			dst_width = width
 			dst_height = width/src_ratio
-			
-		img = img.resize((int(dst_width), int(dst_height)), Image.ANTIALIAS)
+		
+	img = img.resize((int(dst_width), int(dst_height)), Image.ANTIALIAS)
 
 	return img
 
