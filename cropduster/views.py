@@ -55,11 +55,12 @@ class CropForm(ModelForm):
 			"image": TextInput(),
 		}
 	def clean(self):
-		if "crop_x" not in self.data or "crop_y" not in self.data:
+	
+		cleaned_data = super(CropForm, self).clean()
+	
+		if "crop_x" not in cleaned_data or "crop_y" not in cleaned_data:
 			self._errors.clear()
 			raise ValidationError("Missing crop values")
-		
-		cleaned_data = super(CropForm, self).clean()
 
 		if cleaned_data["crop_x"] < 0 or cleaned_data["crop_y"] < 0:
 			self._errors.clear()
