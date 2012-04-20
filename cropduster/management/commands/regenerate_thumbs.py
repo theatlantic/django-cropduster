@@ -86,7 +86,20 @@ class Command(BaseCommand):
         make_option('--log_level',
                     dest='loglevel',
                     default = 'INFO',
-                    help="One of ERROR, INFO, DEBUG.  Default is INFO")
+                    help="One of ERROR, INFO, DEBUG.  Default is INFO"),
+
+        make_option('--stdout',
+                    dest='stdout',
+                    action="store_true",
+                    default=False,
+                    help="Prints log messages to stdout as well as log.  Default False"),
+
+        make_option('--processes',
+                    dest='procs',
+                    type="int",
+                    default=1,
+                    help="Indicates how many procs to use for converting images.  "\
+                         "Default is 1")
     )
     
     IMG_TYPE_PARAMS = {
@@ -155,9 +168,7 @@ class Command(BaseCommand):
             # No idea what this can throw, so catch them all
             except Exception, e:
                 logging.exception('Error saving thumbnail to %s' % tmp_path)
-                resp = raw_input('Continue? [Y/n]: ')
-                if resp.lower().strip() == 'n':
-                    raise SystemExit('Exiting...')
+                raise SystemExit('Exiting...')
                 
             else:
                 os.rename(tmp_path, size.path)
@@ -174,7 +185,7 @@ class Command(BaseCommand):
         @type  stretch: bool
 
         @return: Set of sizes to use
-        @rtype:  Sizes
+        @rtype:  set([Size, ...])
         """
         sizes = []
         orig_width, orig_height = cd_image.image.width, cd_image.image.height
@@ -200,22 +211,37 @@ class Command(BaseCommand):
                             level = getattr(logging, options['loglevel'].upper()),
                             format="%(asctime)s %(levelname)s %(message)s")
 
-    @PrettyError("Failed to regenerate thumbs: %(error)s")
-    def handle(self, *apps, **options):
+        # Add stdout to logging, useful for short query sets.
+        if 'stdout' in options:
+            formatter = logging.root.handlers[0].formatter
+            sh = logging.StreamHandler(sys.stdout)
+            sh.formatter = formatter
+            logging.root.addHandler( sh )
+    
+    def get_images(self, apps, query_set, stretch):
         """
-        Resolves out the models and images for regeneratating thumbnails and
-        then resolves them.
-        """
+        Returns all original images and sizes for the given apps and query sets.
         
-        self.setup_logging(options)
+        @param apps: Set of django apps to resize.
+        @type  apps: ["app:[model[.field]]", ..]
+        
+        @param query_set: query_set to retrieve objects with.
+        @type  query_set: str.
+        
+        @param stretch: Whether or not to include sizes with dimensions larger 
+                        than the original image size.
+        @type  stretch: bool
 
+        @return: Generator yielding the raw Image and its sizes
+        @rtype: < (PIL.Image, [set([Size1, ...])), ... >
+        """
         # Figures out the models and cropduster fields on them
         for model, field_names in to_CE(apputils.resolve_apps, apps):
 
             logging.info("Processing model %s with fields %s" % (model, field_names))
 
             # Returns the queryset for each model
-            query = self.get_queryset(model, options['query_set'])
+            query = self.get_queryset(model, query_set)
             logging.info("Queryset return %i objects" % query.count())
             for obj in query:
 
@@ -234,6 +260,103 @@ class Command(BaseCommand):
                         logging.warning('Could not open image %s' % file_name)
                         continue
 
-                    sizes = self.get_sizes(cd_image, options['stretch'])
-                    self.resize_image(image, sizes, options['force'])
+                    sizes = self.get_sizes(cd_image, stretch)
+                    #self.resize_image(image, sizes, options['force'])
+                    yield image, sizes
+
+    def wait_all(self):
+        """
+        Wait for all child procs to finish.
+        """
+        while True:
+            try:
+                os.wait()
+            except OSError,e:
+                # Excellent, no longer waiting on a child proc
+                if e.errno == 10:
+                    return
+                raise
+
+    def wait_one(self, proc_list):
+        """
+        Waits for any process to finish.  If any child terminated
+        abnormally, raise an OSError.
+
+        @param proc_list: Set of child procs.
+        @type  proc_list: set(int, ...)
+
+        @return: 
+        @rtype: 
+        """
+        pid, code = os.wait()
+        proc_list.remove(pid)
+        # If an error
+        if code > 0:
+            self.wait_all(proc_list)
+            raise OSError('Process %i died with %i' % (pid, code))
+
+    def resize_parallel(self, images, force, total_procs):
+        """
+        Resizes images in parallel.  
+        
+        Why not use multiprocessing?  First reason is that we don't care 
+        about return values, which makes the synchronization for Pool objects 
+        more than we need.
+
+        Secondly, Process() has issues with KeyboardInterrupt exceptions,
+        which is a bummer when testing. Further, we never know which Process 
+        finishes first without using os.wait, which at that point we have 
+        what we have below.  The other option would be to loop through each
+        process, calling its join() method with a timeout, which  basically
+        turns the parent process into a spin lock.
+
+        Thirdly, we want to throw away our process when we are done with each
+        image.  Forking is cheap due to copy-on-write, and this keeps the 
+        memory consumption down.
+
+        @param images: Iterator yield images with their size set.
+        @type  images: ((image, sizes), ...]
+        
+        @param force: Whether or not resize images which already exist.
+        @type  force: bool
+        
+        @param total_procs: Total number of processes to use.
+        @type  total_procs: positive int
+        """
+        proc_list = set()
+        try:
+            for image, size in images:
+                if len(proc_list) == total_procs:
+                    self.wait_one(proc_list)
+           
+                pid = os.fork()
+                if pid:
+                    proc_list.add(pid)
+                    continue
+
+                # The child carries on
+                try:
+                    self.resize_image(image, size, force)
+                except:
+                    # Any error, doesn't matter what, must get caught.
+                    os._exit(1)
+                os._exit(0)
+        finally:
+            # wait for the kids to finish, no zombies for us.
+            self.wait_all()
+
+    @PrettyError("Failed to regenerate thumbs: %(error)s")
+    def handle(self, *apps, **options):
+        """
+        Resolves out the models and images for regeneratating thumbnails and
+        then resolves them.
+        """
+        
+        self.setup_logging(options)
+
+        # Get all images
+        images = self.get_images(apps, options['query_set'], options['stretch'])
+
+        # Go to town on the images.
+        self.resize_parallel(images, options['force'], options['procs'])
 
