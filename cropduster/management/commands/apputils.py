@@ -1,31 +1,10 @@
 import os.path
 import inspect
 
+from django.db.models.loading import get_app, get_models
 from django.db.models.base import ModelBase
 from cropduster.models import Image as CropDusterImage,CropDusterField as CDF
 get_def_file = lambda o: os.path.abspath(inspect.getfile(o))
-
-def find_django_models(module):
-    """
-    Returns all django models defined within a module.  It attempts this
-    by iterating through the module's contents and finding subclasses
-    of the Django base model.
-
-    @param module: Python Module
-    @type  module: Python Module
-
-    @return: Set of Django Model Classes
-    @rtype: [Class1, ...]
-    """
-    cur_file = get_def_file(module)
-    classes = []
-    for obj in module.__dict__.itervalues():
-        # We check the definition file for each object to make sure we
-        # only grab local models, not imports.
-        if isinstance(obj, ModelBase) and cur_file == get_def_file(obj):
-            classes.append(obj)
-
-    return classes
 
 def find_cropduster_images(model):
     """
@@ -67,16 +46,15 @@ def import_app(app_name, model_name=None, field_name=None):
     @return: set of field names by model
     @rtype: [(Model1, ["field1", ...])]
     """
-    # Attempt to import
-    module = __import__(app_name, globals(), locals(), ['models']).models
+
+    # Get all models for an app
+    models = get_models( get_app(app_name) )
 
     # if we have a specific model, use only that particular one.
     if model_name is not None:
-        models = [ getattr(module, model_name) ]
-
-    else:
-        # Attempt to introspect the module
-        models = find_django_models(module)
+        models = [ m for m in modules if m.__name__ == model_name]
+        if len(models) != 1:
+            raise NameError("Can't find model %s" % model_name)
 
     # Find all the relevant field(s)
     if field_name is not None:
