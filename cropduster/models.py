@@ -1,5 +1,7 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
+import uuid
 import os
 from cropduster import utils
 from PIL import Image as pil
@@ -36,25 +38,8 @@ class ImageSizeSet(CachingMixin, models.Model):
         except ValueError:
             return None
             
-class SizeManager(CachingManager):
-    def get_size_by_ratio(self, size_set, aspect_ratio_id):
-        size_query = Size.objects.all().only("aspect_ratio").filter(size_set=size_set).exclude(auto_size=1).order_by("-aspect_ratio")
-        size_query.query.group_by = ["aspect_ratio"]
-
-        try:
-            size = size_query[aspect_ratio_id]
-            
-            # get the largest size with this aspect ratio
-            return Size.objects.all().filter(size_set=size_set,
-                                             aspect_ratio=size.aspect_ratio,
-                                             auto_size=False).order_by("-width")[0]
-        except IndexError:
-            return None
-
 class ImageSize(CachingMixin, models.Model):
     
-    objects = SizeManager()
-
     # An ImageSize not associated with a set is a 'one off'
     size_set = models.ForeignKey(ImageSizeSet, null=True)
     
@@ -132,37 +117,6 @@ class Crop(CachingMixin, models.Model):
                                               self.crop_x + self.crop_w,
                                               self.crop_y + self.crop_h)
 
-    """
-    def save(self, *args, **kwargs):
-        super(Crop, self).save(*args, **kwargs)
-
-        if self.size:
-            sizes = Size.objects.all().filter(
-                    aspect_ratio = self.size.aspect_ratio, 
-                    size_set     = self.size.size_set
-                ).exclude(auto_size=1).order_by("-width")
-
-            if sizes:
-                cropped_image = utils.create_cropped_image(self.image.image.path,
-                                                           self.crop_x,
-                                                           self.crop_y,
-                                                           self.crop_w,
-                                                           self.crop_h)
-                    
-                for size in sizes:
-                    
-                    thumbnail = utils.rescale(cropped_image,
-                                              size.width,
-                                              size.height,
-                                              crop=size.auto_size)
-    
-                    if not os.path.exists(self.image.folder_path):
-                        os.makedirs(self.image.folder_path)
-                    
-                    thumbnail.save(self.image.thumbnail_path(size), **IMAGE_SAVE_PARAMS)
-    """
-
-
 class Image(CachingMixin, models.Model):
     
     objects = CachingManager()
@@ -236,12 +190,72 @@ class Image(CachingMixin, models.Model):
         """
         return Image(original=self, **kwargs)
 
-    def can_render(self):
-        return False
+    def render(self, force=False):
+        if not force and self.is_original:
+            raise ValidationError("Cannot render over an original image.  "\
+                                  "Use render(force=True) to override.")
+        # We really only want to do rescalings on derived images, but
+        # we don't prevent people from working wi
+        image_path = self.original.image.path if self.original else self.image.path 
 
-    def render(self):
-        return False
+        if not (self.crop or self.size):
+            # Nothing to do.
+            return
 
+        if self.crop:
+            image = util.create_cropped_image(image_path,
+                                              self.crop.crop_x,
+                                              self.crop.crop_y,
+                                              self.crop_w,
+                                              self.crop_h)
+        else:
+            image = pil.open(image_path)
+
+        if self.size:
+            image = utils.rescale(image,
+                                  self.size.width,
+                                  self.size.height,
+                                  self.size.auto_crop)
+
+        # Save the image in a temporary place
+        save_path = self._get_tmp_img_path()
+        utils.save_image(image, save_path)
+        self._new_image = save_path
+
+    def _get_tmp_img_path(self):
+        """
+        Returns a temporary image path.  We should probably be using the
+        Storage objects, but this works for now.
+
+        @return: Temporary image location.
+        @rtype:  "/path/to/file"
+        """
+        dest_path, base = os.path.split(self.get_dest_img_path())
+        ext = os.path.splitext(base)[1]
+
+        return os.path.join(dest_path, uuid.uuid4().hex+ext)
+
+    def get_dest_img_path(self):
+        """
+        Figures out where to place save a new image for this Image.
+
+        @return: path to image location
+        @rtype: "/path/to/image"
+        """
+        # If we have a path already, reuse it.
+        if self.image:
+            return self.image.path
+            
+        # Calculate it from the size slug if possible.
+        orig_path = self.original.image.path
+        if self.size:
+            # Remove the extension
+            path, ext = os.path.splitext(orig_path)
+            return os.path.join(path, self.size.slug) + ext
+
+        # Guess we have to use the original path.
+        return orig_path
+        
     @property
     def extension(self):
         _file_root, extension = os.path.splitext(self.image.path)
@@ -283,22 +297,14 @@ class Image(CachingMixin, models.Model):
         return settings.STATIC_URL + self.image
 
     def save(self, *args, **kwargs):
-        super(Image, self).save(*args, **kwargs)
+        # Do we have a new image?  If so, we need to move it over.
+        if getattr(self, '_new_image', None) is not None:
+            path = self.get_dest_img_path()
+            os.rename(self._new_image, path)
+            self.image = path
+            self._new_image = None
 
-        """
-        for size in self.size_set.size_set.all().filter(auto_size=1):
-            if self.image.width > size.width and self.image.height > size.height:
-                thumbnail = utils.rescale(pil.open(self.image.path), size.width, size.height, crop=True)
-                if not os.path.exists(self.folder_path):
-                    os.makedirs(self.folder_path)
-                        
-                thumbnail.save(self.thumbnail_path(size), **IMAGE_SAVE_PARAMS)
-            else:
-                thumbnail = pil.open(self.image.path)
-                if not os.path.exists(self.folder_path):
-                    os.makedirs(self.folder_path)
-                    thumbnail.save(self.thumbnail_path(size), **IMAGE_SAVE_PARAMS)
-        """
+        super(Image, self).save(*args, **kwargs)
 
 class CropDusterField(models.ForeignKey):
     pass    
