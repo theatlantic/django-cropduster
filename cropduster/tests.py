@@ -1,6 +1,7 @@
 import unittest
 import os
 import hashlib
+import shutil
 
 from django.conf import settings
 PATH = os.path.split(__file__)[0]
@@ -9,7 +10,10 @@ settings.MEDIA_ROOT = settings.STATIC_ROOT = settings.UPLOAD_PATH = PATH
 from django.core.exceptions import ObjectDoesNotExist as DNE, ValidationError
 import cropduster.models as CM
 
+from PIL import Image
+
 abspath = lambda x: os.path.join(PATH, x)
+to_retina_path = lambda p: '%s@2x%s' % os.path.splitext(p)
 
 def save_all(objs):
     for o in objs:
@@ -44,7 +48,13 @@ class TestCropduster(unittest.TestCase):
         delete_all( CM.ImageSize )
         delete_all( CM.Crop )
 
-        os.unlink(TEST_IMAGE)
+        if os.path.exists(TEST_IMAGE):
+            os.unlink(TEST_IMAGE)
+
+        # If we have derived images, delete the tree
+        TEST_DIR = os.path.splitext(TEST_IMAGE)[0]
+        if TEST_DIR and os.path.isdir(TEST_DIR):
+            shutil.rmtree(TEST_DIR)
 
     def create_size_sets(self):
         iss = CM.ImageSizeSet(name='Facebook', slug='facebook')
@@ -218,6 +228,30 @@ class TestCropduster(unittest.TestCase):
 
         self.assertEquals(CM.Image.objects.count(), 0)
 
+    def test_multi_level_delete(self):
+        """
+        Creates a multi-level tree from one image and deletes it.
+        """
+        self.create_size_sets()
+        cd1 = self.get_test_image()
+
+        stack = [cd1]
+        for i,image in enumerate(stack):
+            for size_set in CM.ImageSizeSet.objects.all():
+                for new_image in image.add_size_set(size_set):
+                    new_image.render()
+                    new_image.save()
+                    stack.append(new_image)
+            if i > 20:
+                break
+
+        # We should have a lot of images.
+        self.assertEquals(CM.Image.objects.count(), len(stack))
+
+        cd1.delete()
+
+        self.assertEquals(CM.Image.objects.count(), 0)
+
     def test_manual_derive(self):
         """
         Tests that we can do one-off derived images.
@@ -339,5 +373,55 @@ class TestCropduster(unittest.TestCase):
         self.assertEquals(img.height, 100)
         self.assertEquals(int(round(100 * cd1.aspect_ratio)), img.width)
         self.assertEquals(cd1.aspect_ratio, img.aspect_ratio)
+
+    def _test_delete_images(self):
+        """
+        Check that all image files are correctly deleted.  Commented out since
+        right now we don't really care about it.
+        """
+        self.create_size_sets()
+        cd1 = self.get_test_image()
+
+        paths = [cd1.image.path]
+        for image in cd1.add_size_set(slug='facebook'):
+            image.render()
+            image.save()
+            paths.append(image.image.path)
+
+        # Check that the paths are unique
+        self.assertEquals(len(paths), len(set(paths)))
+        for path in paths:
+            self.assert_(os.path.exists(path), "Image at %s does not exist!" % path)
+
+        cd1.delete()
+
+        for path in paths:
+            self.assert_(not os.path.exists(path), "Image at %s was not deleted!" % path)
+
+    def test_retina_image(self):
+        """
+        Tests that retina images are properly rendered when they can be.
+        """
+        cd1 = self.get_test_image()
+
+        size1 = CM.ImageSize(slug='thumbnail',
+                             width=128,
+                             height=128,
+                             retina=True)
+        size1.save()
+
+        img1 = cd1.new_derived_image()
+        img1.size = size1
+
+        img1.render()
+        img1.save()
+
+        # Retina images can't be handled directly, they only give a path.
+        self.assertEquals(img1.retina_path, 
+                          to_retina_path(img1.image.path))
+
+        retina = Image.open(img1.retina_path)
+        self.assertEquals(retina.size, (img1.width*2, img1.height*2))
+
 if __name__ == '__main__':
     unittest.main()

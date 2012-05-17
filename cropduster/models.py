@@ -16,6 +16,7 @@ except ImportError:
     CachingManager = models.Manager
 
 nearest_int = lambda a: int(round(a))
+to_retina_path = lambda p: '%s@2x%s' % os.path.splitext(p)
 class ImageSizeSet(CachingMixin, models.Model):
     class Meta:
         db_table = 'cropduster_sizeset'
@@ -184,6 +185,13 @@ class Image(CachingMixin, models.Model):
 
     width = models.PositiveIntegerField(null=True)
     height = models.PositiveIntegerField(null=True)
+    
+    @property
+    def retina_path(self):
+        """
+        Returns the path to the retina image if it exists.
+        """
+        return '%s@2x%s' % os.path.splitext(self.image.path)
 
     @property
     def aspect_ratio(self):
@@ -227,12 +235,17 @@ class Image(CachingMixin, models.Model):
         """
         return Image(original=self, **kwargs)
 
+    def _save_to_tmp(self, image):
+        path = self._get_tmp_img_path()
+        utils.save_image(image, path)
+        return path
+
     def render(self, force=False):
         if not force and self.is_original:
             raise ValidationError("Cannot render over an original image.  "\
                                   "Use render(force=True) to override.")
         # We really only want to do rescalings on derived images, but
-        # we don't prevent people from working wi
+        # we don't prevent people from it.
         image_path = self.original.image.path if self.original else self.image.path 
 
         if not (self.crop or self.size):
@@ -248,30 +261,53 @@ class Image(CachingMixin, models.Model):
         else:
             image = pil.open(image_path)
 
+        # If we are resizing the image.
         if self.size:
-            width, height = self.size.calc_dimensions(*image.size)
+            orig_width, orig_height = image.size
+            width, height = self.size.calc_dimensions(orig_width, orig_height)
+
+            if self.size.retina:
+                # If we are supposed to build a retina, make sure the 
+                # dimensions are large enough.  No stretching allowed
+                # for retina.
+                self._new_retina = None
+                if orig_width >= width*2 and orig_height >= height*2:
+                    retina = utils.rescale(image.copy(),
+                                           width*2,
+                                           height*2,
+                                           self.size.auto_crop)
+
+                    self._new_retina = self._save_to_tmp(retina)
+
+            # Calculate the main image
             image = utils.rescale(image,
                                   width,
                                   height,
                                   self.size.auto_crop)
 
         # Save the image in a temporary place
-        save_path = self._get_tmp_img_path()
-        utils.save_image(image, save_path)
-        self._new_image = save_path
+        self._new_image = self._save_to_tmp(image)
 
     def _get_tmp_img_path(self):
         """
         Returns a temporary image path.  We should probably be using the
         Storage objects, but this works for now.
 
+        Tries to it in CROPDUSTER_TMP_DIR if set, falls back to the current
+        directory of the image.
+
         @return: Temporary image location.
         @rtype:  "/path/to/file"
         """
-        dest_path, base = os.path.split(self.get_dest_img_path())
-        ext = os.path.splitext(base)[1]
+        dest_path = self.get_dest_img_path()
+        if hasattr(settings,'CROPDUSTER_TMP_DIR'):
+            tmp_path = settings.CROPDUSTER_TMP_DIR
+        else:
+            tmp_path = os.path.dirname(dest_path)
 
-        return os.path.join(dest_path, uuid.uuid4().hex+ext)
+        ext = os.path.splitext(dest_path)[1]
+            
+        return os.path.join(tmp_path, uuid.uuid4().hex+ext)
 
     def get_dest_img_path(self):
         """
@@ -326,13 +362,38 @@ class Image(CachingMixin, models.Model):
             self.image = path
             self._new_image = None
 
+            # Check for a new retina
+            if hasattr(self, '_new_retina'):
+                retina_path = to_retina_path(path)
+                if self._new_retina is None: 
+                    if os.path.exists(retina_path):
+                        # If the reina is now invalid, remove the previous one.
+                        os.unlink(retina_path)
+                else:
+                    os.rename(self._new_retina, retina_path)
+
+                del self._new_retina
+
         return super(Image, self).save(*args, **kwargs)
 
-    def delete(self, *args, **kwargs):
-        if self.size is not None:
-            if self.size.size_set is None:
-                self.size.delete()
+    def get_descendents(self):
+        """
+        Gets all descendants for the current image.
+        """
+        stack = [self]
+        while stack:
+            children = stack.pop().derived.all()
+            for c in children:
+                yield c
 
+            stack.extend(descendents)
+
+    def delete(self, *args, **kwargs):
+        # Delete manual image sizes.
+        if self.size is not None and self.size.size_set is None:
+            self.size.delete()
+
+        # All crops are unique to the image.
         if self.crop is not None:
             self.crop.delete()
 
