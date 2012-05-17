@@ -52,7 +52,8 @@ class ImageSize(CachingMixin, models.Model):
 
     name = models.CharField(max_length=255, db_index=True)
     
-    slug = models.SlugField(max_length=50, null=False)
+    slug = models.SlugField(max_length=50, 
+                            default=lambda: uuid.uuid4().hex)
     
     height = models.PositiveIntegerField(null=True)
     
@@ -154,10 +155,19 @@ class Crop(CachingMixin, models.Model):
     crop_h = models.PositiveIntegerField(default=0, blank=True, null=True)
     
     def __unicode__(self):
-        return u"Crop: (%i, %i)(%i, %i) " % ( self.crop_x,
-                                              self.crop_y,
-                                              self.crop_x + self.crop_w,
-                                              self.crop_y + self.crop_h)
+        return u"Crop: (%i, %i),(%i, %i) " % ( self.crop_x,
+                                               self.crop_y,
+                                               self.crop_x + self.crop_w,
+                                               self.crop_y + self.crop_h)
+
+class ImageMetadata(CachingMixin, models.Model):
+    class Meta:
+        db_table = "cropduster_image_meta"
+    
+    # Attribution details.
+    attribution = models.CharField(max_length=255, blank=True, null=True)
+    attribution_link = models.CharField(max_length=255, blank=True, null=True)
+    caption = models.CharField(max_length=255, blank=True, null=True)
 
 class Image(CachingMixin, models.Model):
     
@@ -187,11 +197,10 @@ class Image(CachingMixin, models.Model):
     # Image can have 0:N size-sets
     size_sets = models.ManyToManyField(ImageSizeSet, null=True)
 
-    date_modified = models.DateTimeField(auto_now=True)
+    # Single set of attributions
+    metadata = models.ForeignKey('ImageMetadata', null=True)
 
-    # Attribution details.
-    attribution = models.CharField(max_length=255, blank=True, null=True)
-    caption = models.CharField(max_length=255, blank=True, null=True)
+    date_modified = models.DateTimeField(auto_now=True)
 
     width = models.PositiveIntegerField(null=True)
     height = models.PositiveIntegerField(null=True)
@@ -243,7 +252,25 @@ class Image(CachingMixin, models.Model):
         @return: new Image
         @rtype: Image
         """
-        return Image(original=self, **kwargs)
+        return Image(original=self, metadata=self.metadata, **kwargs)
+
+    def set_manual_size(self, **kwargs):
+        """
+        Sets a manual size on the image.
+
+        @return: New Size object, unsaved
+        @rtype: @{ImageSize}
+        """
+        # If we don't have a size or we have a size from a size set,
+        # we need to create a new Size object.
+        if self.size is None or self.size.size_set is not None:
+            self.size = ImageSize(**kwargs)
+        else:
+            # Otherwise, update the values
+            for k,v in kwargs.iteritems():
+                setattr(self.size, k, v)
+
+        return self.size
 
     def _save_to_tmp(self, image):
         """
@@ -252,8 +279,8 @@ class Image(CachingMixin, models.Model):
         @param image: Image to save.
         @type  image: 
 
-        @return: 
-        @rtype: 
+        @return: Temporary path where the image is saved.
+        @rtype:  /path/to/file
         """
         path = self._get_tmp_img_path()
         utils.save_image(image, path)
@@ -316,11 +343,10 @@ class Image(CachingMixin, models.Model):
 
             if self.size.retina:
                 # If we are supposed to build a retina, make sure the 
-                # dimensions are large enough.  No stretching allowed
-                # for retina.
+                # dimensions are large enough.  No stretching allowed!
                 self._new_retina = None
                 if orig_width >= width*2 and orig_height >= height*2:
-                    retina = utils.rescale(image.copy(),
+                    retina = utils.rescale(utils.copy_image(image),
                                            width*2,
                                            height*2,
                                            self.size.auto_crop)
@@ -417,7 +443,21 @@ class Image(CachingMixin, models.Model):
         """
         return os.path.join(settings.STATIC_URL, self.image.url)
 
+    def __init__(self, *args, **kwargs):
+        if 'metadata' not in kwargs:
+            kwargs['metadata'] = ImageMetadata()
+
+        return super(Image, self).__init__(*args, **kwargs)
+
     def save(self, *args, **kwargs):
+        # Make sure our original image is saved
+        if self.original and not self.original.pk:
+            self.original.save()
+
+        # Make sure we've saved our metadata
+        if not self.metadata.pk:
+            self.metadata.save()
+
         # Do we have a new image?  If so, we need to move it over.
         if getattr(self, '_new_image', None) is not None:
             path = self.get_dest_img_path()

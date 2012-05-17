@@ -89,9 +89,10 @@ class TestCropduster(unittest.TestCase):
 
         splash.save()
 
-    def get_test_image(self):
-        cd1 = CM.Image()
-        cd1.image = TEST_IMAGE
+    def get_test_image(self, image=TEST_IMAGE):
+        cd1 = CM.Image(image=image)
+        cd1.metadata.attribution = "AP",
+        cd1.metadata.caption = 'This is a galaxy'
         cd1.save()
         return cd1
 
@@ -444,6 +445,45 @@ class TestCropduster(unittest.TestCase):
         size.save()
 
         self.assertEquals(size.aspect_ratio, 12)
+
+    def test_bad_mimetype(self):
+        """
+        Tests that we can handle incorrectly extensioned images.
+        """
+        NEW_TEST_IMAGE = TEST_IMAGE + '.gif.1'
+        shutil.copyfile(TEST_IMAGE, NEW_TEST_IMAGE)
+
+        cd1 = self.get_test_image(NEW_TEST_IMAGE)
+
+        img = cd1.new_derived_image()
+        size = CM.ImageSize(slug='thumbnail',
+                            width=128,
+                            height=128,
+                            retina=True)
+        size.save()
+
+        img.size = size
+        # Since the the extension is clearly incorrect (should be jpeg), it should still
+        # save it as jpeg
+        img.render()
+        img.save()
+
+    def test_attribution_cascade(self):
+        """
+        Tests that attribution is correctly propagated through from originals
+        to children.
+        """
+        cd1 = self.get_test_image()
+        
+        img = cd1.new_derived_image()
+
+        img.set_manual_size(width=100, height=100).save()
+        img.render()
+
+        img.save()
+
+        self.assertEquals(img.metadata.attribution, cd1.metadata.attribution)
+        self.assertEquals(img.metadata.caption, cd1.metadata.caption)
 
 if __name__ == '__main__':
     unittest.main()
