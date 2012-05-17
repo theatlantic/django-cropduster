@@ -1,4 +1,5 @@
 from PIL import Image
+import os
 
 
 def rescale(img, w=0, h=0, crop=True, **kwargs):
@@ -82,3 +83,22 @@ def rescale_signal(sender, instance, created, max_height=None, max_width=None, *
 		im.thumbnail(size, Image.ANTIALIAS)
 		
 		im.save(instance.image.path)
+
+def save_image(image, path):
+    """
+    Saves an image to the provided path.
+    @param image: PIL image to save
+    @type  image: PIL image
+    
+    @param path: Absolute path to the save location.
+    @type  path: /path/to/image
+    """
+    assert os.path.isabs(path)
+    dirpath, name = os.path.split(path)
+    if not os.path.exists(dirpath):
+        os.makedirs(dirpath)
+
+    tmp_path = os.path.join(dirpath, 'tmp.'+name)
+    image.save(tmp_path)
+    os.rename(tmp_path, path)
+

@@ -196,5 +196,148 @@ class TestCropduster(unittest.TestCase):
             new_image_hash
         )
 
+    def test_delete(self):
+        """
+        Tests that deletion cascades from the root to all derived images.
+        """
+        self.create_size_sets()
+
+        cd1 = self.get_test_image()
+
+        for image in cd1.add_size_set(slug='facebook'):
+            image.render()
+            image.save()
+
+        for image in image.add_size_set(slug='facebook'):
+            image.render()
+            image.save()
+
+        self.assertEquals(CM.Image.objects.count(), 5)
+
+        cd1.delete()
+
+        self.assertEquals(CM.Image.objects.count(), 0)
+
+    def test_manual_derive(self):
+        """
+        Tests that we can do one-off derived images.
+        """
+        self.create_size_sets()
+        cd1 = self.get_test_image()
+
+        img = cd1.new_derived_image()
+
+        size = CM.ImageSize.objects.create(slug='testing',
+                                           width=100,
+                                           height=100,
+                                           auto_crop=True,
+                                           retina=True)
+
+        # Test the manual size exists
+        self.assertEquals(CM.ImageSize.objects.count(), 4)
+
+        self.assertEquals( cd1.has_size('testing'), False )
+        img.size = size
+
+        # Check that the crop is deleted as well
+        img.set_crop(0, 0, 200, 200).save()
+        self.assertEquals(CM.Crop.objects.count(), 1)
+
+        img.render()
+        img.save()
+
+        self.assertEquals( cd1.has_size('testing'), True )
+
+        self.assertEquals(img.width, 100)
+        self.assertEquals(img.height, 100)
+
+        # Test that the manual size is deleted with the image.
+        img.delete()
+
+        self.assertEquals(CM.ImageSize.objects.count(), 3)
+        self.assertEquals(CM.ImageSize.objects.filter(pk=size.id).count(), 0)
+        self.assertEquals(CM.Crop.objects.count(), 0)
+
+        # No more derived images.
+        self.assertEquals(cd1.derived.count(), 0)
+
+    def test_crop(self):
+        cd1 = self.get_test_image()
+
+        img = cd1.new_derived_image()
+        img.set_crop(100,100,300,300).save()
+
+        img.render()
+        img.save()
+
+        self.assertEquals(img.width, 300)
+        self.assertEquals(img.height, 300)
+
+    def test_no_modify_original(self):
+        """
+        Makes sure that a derived image cannot overwrite an original.
+        """
+        cd1 = self.get_test_image()
+
+        orig_hash = hashfile(cd1.image.path)
+
+        img = cd1.new_derived_image()
+
+        img.set_crop(100, 100, 300, 300).save()
+
+        img.render()
+        img.save()
+
+        self.assertEquals(orig_hash, hashfile(cd1.image.path))
+        self.assertNotEquals(orig_hash, hashfile(img.image.path))
+
+    def test_calc_sizes(self):
+        """
+        Tests that omitted dimension details are correctly calculated.
+        """
+
+        size = CM.ImageSize(slug='1', width=100, aspect_ratio=1.6)
+        self.assertEquals(size.get_height(), round(100/1.6))
+
+        size2 = CM.ImageSize(slug='2', height=100, aspect_ratio=2)
+        self.assertEquals(size2.get_width(), 200)
+
+        size3 = CM.ImageSize(slug='3', height=3, width=4)
+        self.assertEquals(size3.get_aspect_ratio(), 1.33)
+
+    def test_variable_sizes(self):
+        """
+        Tests that variable sizes work correctly.
+        """
+        cd1 = self.get_test_image()
+
+        img = cd1.new_derived_image()
+        size = CM.ImageSize(slug='variable', width=100, aspect_ratio=1.6)
+        size.save()
+
+        img.size = size
+        img.render()
+        img.save()
+
+        self.assertEquals(size.get_height(), img.height)
+
+        # Only width or only height
+        size = CM.ImageSize(slug='width_only', width=100)
+        img.size = size
+        img.render()
+        img.save()
+
+        self.assertEquals(img.width, 100)
+        self.assertEquals(int(round(100/cd1.aspect_ratio)), img.height)
+        self.assertEquals(cd1.aspect_ratio, img.aspect_ratio)
+
+        size = CM.ImageSize(slug='height_only', height=100)
+        img.size = size
+        img.render()
+        img.save()
+
+        self.assertEquals(img.height, 100)
+        self.assertEquals(int(round(100 * cd1.aspect_ratio)), img.width)
+        self.assertEquals(cd1.aspect_ratio, img.aspect_ratio)
 if __name__ == '__main__':
     unittest.main()

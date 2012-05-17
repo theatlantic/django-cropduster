@@ -15,6 +15,7 @@ except ImportError:
         pass
     CachingManager = models.Manager
 
+nearest_int = lambda a: int(round(a))
 class ImageSizeSet(CachingMixin, models.Model):
     class Meta:
         db_table = 'cropduster_sizeset'
@@ -40,6 +41,9 @@ class ImageSizeSet(CachingMixin, models.Model):
             
 class ImageSize(CachingMixin, models.Model):
     
+    class Meta:
+        db_table = "cropduster_size"
+    
     # An ImageSize not associated with a set is a 'one off'
     size_set = models.ForeignKey(ImageSizeSet, null=True)
     
@@ -53,7 +57,7 @@ class ImageSize(CachingMixin, models.Model):
     
     width = models.PositiveIntegerField(null=True)
     
-    aspect_ratio = models.FloatField(default=1, null=True)
+    aspect_ratio = models.FloatField(null=True)
 
     auto_crop = models.BooleanField(default=False)
 
@@ -61,13 +65,13 @@ class ImageSize(CachingMixin, models.Model):
 
     def get_height(self):
         if self.height is None and self.width and self.aspect_ratio:
-            return int(self.width / self.aspect_ratio)
+            return nearest_int(self.width / self.aspect_ratio)
 
         return self.height
 
     def get_width(self):
         if self.width is None and self.height and self.aspect_ratio:
-            return int(self.height * self.aspect_ratio)
+            return nearest_int(self.height * self.aspect_ratio)
         
         return self.width
 
@@ -78,7 +82,37 @@ class ImageSize(CachingMixin, models.Model):
         return self.aspect_ratio
 
     def get_dimensions(self):
-        return (self.get_width(), self.get_height(), self.aspect_ratio())
+        return (self.get_width(), self.get_height(), self.aspect_ratio)
+
+    def calc_dimensions(self, width, height):
+        """
+        From a given set of dimensions, calculates the rendered size.
+
+        @param width: Starting width
+        @type  width: Positive int
+        
+        @param height: Starting height
+        @type  height: Positive int
+
+        @return: rendered width, rendered height
+        @rtype: (Width, Height)
+        """
+        w, h, a = self.get_dimensions()
+        # Explicit dimension give explicit answers
+        if w and h:
+            return w, h
+
+        # Empty sizes are basically useless.
+        if not (w or h):
+            return width, height
+
+        aspect_ratio = round(width/float(height), 2)
+        if w: 
+            h = nearest_int(w / aspect_ratio)
+        else:
+            w = nearest_int(h * aspect_ratio)
+
+        return w, h
 
     def get_retina(self):
         w, h, a = self.get_dimensions()
@@ -93,9 +127,6 @@ class ImageSize(CachingMixin, models.Model):
             self.aspect_ratio = round(self.width/float(self.height), 2)
 
         super(ImageSize, self).save(*args, **kwargs)
-    
-    class Meta:
-        db_table = "cropduster_size"
     
     def __unicode__(self):
         return u"%s: %sx%s" % (self.name, self.width, self.height)
@@ -153,6 +184,12 @@ class Image(CachingMixin, models.Model):
 
     width = models.PositiveIntegerField(null=True)
     height = models.PositiveIntegerField(null=True)
+
+    @property
+    def aspect_ratio(self):
+        if self.width and self.height:
+            return round(self.width / float(self.height), 2)
+        return None
     
     @property
     def is_original(self):
@@ -203,18 +240,19 @@ class Image(CachingMixin, models.Model):
             return
 
         if self.crop:
-            image = util.create_cropped_image(image_path,
-                                              self.crop.crop_x,
-                                              self.crop.crop_y,
-                                              self.crop_w,
-                                              self.crop_h)
+            image = utils.create_cropped_image(image_path,
+                                               self.crop.crop_x,
+                                               self.crop.crop_y,
+                                               self.crop.crop_w,
+                                               self.crop.crop_h)
         else:
             image = pil.open(image_path)
 
         if self.size:
+            width, height = self.size.calc_dimensions(*image.size)
             image = utils.rescale(image,
-                                  self.size.width,
-                                  self.size.height,
+                                  width,
+                                  height,
                                   self.size.auto_crop)
 
         # Save the image in a temporary place
@@ -249,46 +287,30 @@ class Image(CachingMixin, models.Model):
         # Calculate it from the size slug if possible.
         orig_path = self.original.image.path
         if self.size:
-            # Remove the extension
-            path, ext = os.path.splitext(orig_path)
-            return os.path.join(path, self.size.slug) + ext
+            slug = self.size.slug
 
-        # Guess we have to use the original path.
-        return orig_path
-        
-    @property
-    def extension(self):
-        _file_root, extension = os.path.splitext(self.image.path)
-        return extension
-        
-    @property
-    def folder_path(self):
-        file_path, file = os.path.split(self.image.path)
-        file_root, extension = os.path.splitext(file)
-        return u"%s" % os.path.join(file_path, file_root)
-        
-    def thumbnail_path(self, size):
-        file_path, file = os.path.split(self.image.path)
-        file_root, extension = os.path.splitext(file)
-        return u"%s" % os.path.join(file_path, file_root, size.slug) + extension
-        
-    @property
-    def folder_url(self):
-        file_path, file = os.path.split(self.image.url)
-        file_root, extension = os.path.splitext(file)
-        return u"%s" % os.path.join(file_path, file_root)
-        
-    def thumbnail_url(self, size_slug):
-        file_path, file = os.path.split(self.image.url)
-        file_root, extension = os.path.splitext(file)
-        return u"%s" % os.path.join(file_path, file_root, size_slug) + extension
+        elif self.crop:
+            slug = os.path.splitext(os.path.basename(orig_path))[0]
+        else:
+            # Guess we have to return the original path
+            return orig_path
+
+        # Remove the extension
+        path, ext = os.path.splitext(orig_path)
+        return os.path.join(path, slug) + ext
         
     def has_size(self, size_slug):
-        try:
-            size = self.size_set.size_set.get(slug=size_slug)
-            return True
-        except Size.DoesNotExist:
-            return False
+        return self.derived.filter(size__slug=size_slug).count() > 0
+
+    def set_crop(self, x, y, width, height):
+        if self.crop is None:
+            self.crop = Crop()
+
+        self.crop.crop_x = x
+        self.crop.crop_y = y
+        self.crop.crop_w = width
+        self.crop.crop_h = height
+        return self.crop
 
     def __unicode__(self):
         return unicode(self.image.url) if self.image else u""
@@ -304,11 +326,20 @@ class Image(CachingMixin, models.Model):
             self.image = path
             self._new_image = None
 
-        super(Image, self).save(*args, **kwargs)
+        return super(Image, self).save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.size is not None:
+            if self.size.size_set is None:
+                self.size.delete()
+
+        if self.crop is not None:
+            self.crop.delete()
+
+        return super(Image, self).delete(*args, **kwargs)
 
 class CropDusterField(models.ForeignKey):
     pass    
-
 
 try:
     from south.modelsinspector import add_introspection_rules
