@@ -65,24 +65,48 @@ class ImageSize(CachingMixin, models.Model):
     retina = models.BooleanField(default=False)
 
     def get_height(self):
+        """
+        Return calculated height, if possible.
+
+        @return: Height
+        @rtype: positive int
+        """
         if self.height is None and self.width and self.aspect_ratio:
             return nearest_int(self.width / self.aspect_ratio)
 
         return self.height
 
     def get_width(self):
+        """
+        Returns calculate width, if possible.
+
+        @return: Width
+        @rtype: positive int
+        """
         if self.width is None and self.height and self.aspect_ratio:
             return nearest_int(self.height * self.aspect_ratio)
         
         return self.width
 
     def get_aspect_ratio(self):
+        """
+        Returns calculated aspect ratio, if possible.
+
+        @return: Aspect Ratio
+        @rtype:  float
+        """
         if self.aspect_ratio is None and self.height and self.width:
             return round(self.width / float(self.height), 2)
 
         return self.aspect_ratio
 
     def get_dimensions(self):
+        """
+        Returns all calculated dimensions for the size.
+
+        @return: width, height, aspect ratio
+        @rtype: (int > 0, int > 0, float > 0)
+        """
         return (self.get_width(), self.get_height(), self.aspect_ratio)
 
     def calc_dimensions(self, width, height):
@@ -115,20 +139,6 @@ class ImageSize(CachingMixin, models.Model):
 
         return w, h
 
-    def get_retina(self):
-        w, h, a = self.get_dimensions()
-        w = w if w is None else w * 2
-        h = h if h is None else h * 2
-        return w, h, a
-    
-    def save(self, *args, **kwargs):
-        if not(self.height and self.width):
-            self.aspect_ratio = 1
-        else:
-            self.aspect_ratio = round(self.width/float(self.height), 2)
-
-        super(ImageSize, self).save(*args, **kwargs)
-    
     def __unicode__(self):
         return u"%s: %sx%s" % (self.name, self.width, self.height)
 
@@ -236,11 +246,48 @@ class Image(CachingMixin, models.Model):
         return Image(original=self, **kwargs)
 
     def _save_to_tmp(self, image):
+        """
+        Saves an image to a tempfile.
+
+        @param image: Image to save.
+        @type  image: 
+
+        @return: 
+        @rtype: 
+        """
         path = self._get_tmp_img_path()
         utils.save_image(image, path)
         return path
 
     def render(self, force=False):
+        """
+        Renders an image according to its Crop and its Size.  If the size
+        also specifies a retina image, it will attempt to render that as well.
+        If a crop is set, it is applied to the image before any resizing happens.
+
+        By default, render will throw an error if an attempt is made to render 
+        an original image.
+
+        NOTE: While render will create a new image, it will be stored it in a 
+        temp file until the object is saved when it will overwrite the 
+        previously stored image.  There are a couple of reasons for this:
+        
+        1. If there's any sort of error, the previous image is preserved,
+           making re-renderings of images safe.
+
+        2. We have to resave the image anyways since 'width' and 'height' have
+           likely changed.
+
+        3. If for some reason we want to 'rollback' a change, we don't have
+           to do anything special.
+
+        The temporary images are saved in CROPDUSTER_TMP_DIR if available, or
+        falls back to the directory the image currently resides in.
+
+        @param force: If force is True, render will allow overwriting the 
+                      original image.
+        @type  force:  bool.
+        """
         if not force and self.is_original:
             raise ValidationError("Cannot render over an original image.  "\
                                   "Use render(force=True) to override.")
@@ -251,6 +298,7 @@ class Image(CachingMixin, models.Model):
         if not (self.crop or self.size):
             # Nothing to do.
             return
+
 
         if self.crop:
             image = utils.create_cropped_image(image_path,
@@ -339,6 +387,15 @@ class Image(CachingMixin, models.Model):
         return self.derived.filter(size__slug=size_slug).count() > 0
 
     def set_crop(self, x, y, width, height):
+        """
+        Sets the crop size for an image.  It should be noted that the crop
+        object is NOT saved by default, so should be saved manually.
+
+        Adds a croping ruling from top-left (x,y) to bottom-right (x+width, y+width).
+
+        @return: The unsaved crop object.
+        @rtype: {Crop}
+        """
         if self.crop is None:
             self.crop = Crop()
 
@@ -352,7 +409,13 @@ class Image(CachingMixin, models.Model):
         return unicode(self.image.url) if self.image else u""
             
     def get_absolute_url(self):
-        return settings.STATIC_URL + self.image
+        """
+        Returns the abolute url to the image.
+
+        @return: 
+        @rtype: 
+        """
+        return os.path.join(settings.STATIC_URL, self.image.url)
 
     def save(self, *args, **kwargs):
         # Do we have a new image?  If so, we need to move it over.
@@ -360,7 +423,7 @@ class Image(CachingMixin, models.Model):
             path = self.get_dest_img_path()
             os.rename(self._new_image, path)
             self.image = path
-            self._new_image = None
+            del self._new_image
 
             # Check for a new retina
             if hasattr(self, '_new_retina'):

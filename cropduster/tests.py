@@ -20,8 +20,7 @@ def save_all(objs):
         o.save()
 
 def delete_all(model):
-    i = -1
-    for i, o in enumerate(model.objects.all()):
+    for o in model.objects.all():
         o.delete()
 
 def hashfile(path):
@@ -422,6 +421,29 @@ class TestCropduster(unittest.TestCase):
 
         retina = Image.open(img1.retina_path)
         self.assertEquals(retina.size, (img1.width*2, img1.height*2))
+
+        # Check that the retina is removed if the retina would be too large.
+        size1.width  = cd1.width - 20
+        size1.height = cd1.height - 20
+        size1.save()
+
+        img1.render()
+
+        # Check we don't prematurely delete the retina
+        self.assert_(os.path.isfile(img1.retina_path))
+
+        img1.save()
+
+        self.assert_(not os.path.isfile(img1.retina_path))
+
+    def test_size_aspect_ratio(self):
+        """
+        Tests that a bug in setting of aspect ratio is fixed.
+        """
+        size = CM.ImageSize(slug='test', width=100, aspect_ratio=12)
+        size.save()
+
+        self.assertEquals(size.aspect_ratio, 12)
 
 if __name__ == '__main__':
     unittest.main()
