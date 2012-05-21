@@ -36,19 +36,16 @@
 	{% endif %}
 
 	<form method="post" action="" enctype="multipart/form-data">
-		<input type="hidden" name="aspect_ratio_id" value="{{ aspect_ratio_id }}" />
-		
-	{% if aspect_ratio_id == 0 %}
-		{{ formset.management_form }}
-		{% for form in formset %}
-			<p id="row_{{ form.auto_id }}">
-				<label for="{{ form.auto_id }}">{{ form.label }}</label>
-				<span id="{{ form.auto_id }}" class="form_field">{{ form }}</span>
-			</p>
-		{% endfor %}
-	{% endif %}
-	
-	
+        {% if not image.image %}
+            {{ formset.management_form }}
+            {% for form in formset %}
+                <p id="row_{{ form.auto_id }}">
+                    <label for="{{ form.auto_id }}">{{ form.label }}</label>
+                    <span id="{{ form.auto_id }}" class="form_field">{{ form }}</span>
+                </p>
+            {% endfor %}
+        {% endif %}
+
 	{% if image.image and not formset.errors.values %}
 	<input type="hidden" name="image_id" value="{{ image.id }}" />
 	<div id="cropbox">
@@ -56,18 +53,27 @@
 	</div>
 	{% endif %}
 	
-	{% if crop_w %}
-	
-	
+{% if image.image %}
+Sizes found:
+<ul>
+    {% for size in sizes %}
+    <li>{{ size.0 }} x {{ size.1 }} ({{ size.2 }})
+    {% endfor %}
+</ul>
+
+{% for ar, w, h in crops.items %}
+	<img data-aspect_ratio="ar" 
+         data-min_width="w" 
+         data-min_height="h" 
+         src="{{image|safe}}"
+         style="max-width:{{ browser_width }}px" />
+{% endfor %}
+
 <script type="text/javascript">	
 (function($){
 
-	{% if image_exists %}
-	image_width = {{ image.image.width }};
-	{% else %}
-	image_width = 0;
-	{% endif %}
-	max_width = {{ browser_width }};
+	var image_width = {{ image.width }};
+	var max_width = {{ browser_width }};
 
 	function scale(val, ratio){
 		if (image_width > max_width){
