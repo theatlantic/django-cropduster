@@ -43,8 +43,8 @@ class TestCropduster(unittest.TestCase):
     def tearDown(self):
         # Delete all objects
         delete_all( CM.Image )
-        delete_all( CM.ImageSizeSet )
-        delete_all( CM.ImageSize )
+        delete_all( CM.SizeSet )
+        delete_all( CM.Size )
         delete_all( CM.Crop )
 
         if os.path.exists(TEST_IMAGE):
@@ -56,10 +56,10 @@ class TestCropduster(unittest.TestCase):
             shutil.rmtree(TEST_DIR)
 
     def create_size_sets(self):
-        iss = CM.ImageSizeSet(name='Facebook', slug='facebook')
+        iss = CM.SizeSet(name='Facebook', slug='facebook')
         iss.save()
 
-        thumb = CM.ImageSize(name='Thumbnail',
+        thumb = CM.Size(name='Thumbnail',
                              slug='thumb',
                              width=60,
                              height=60,
@@ -68,7 +68,7 @@ class TestCropduster(unittest.TestCase):
                              size_set=iss)
         thumb.save()
 
-        banner = CM.ImageSize(name='Banner',
+        banner = CM.Size(name='Banner',
                               slug='banner',
                               width=1024,
                               aspect_ratio=1.3,
@@ -76,10 +76,10 @@ class TestCropduster(unittest.TestCase):
                                 
         banner.save()
 
-        iss2 = CM.ImageSizeSet(name='Mobile', slug='mobile')
+        iss2 = CM.SizeSet(name='Mobile', slug='mobile')
         iss2.save()
 
-        splash = CM.ImageSize(name='Headline',
+        splash = CM.Size(name='Headline',
                               slug='headline',
                               width=500,
                               height=400,
@@ -147,7 +147,7 @@ class TestCropduster(unittest.TestCase):
         Tests that we can render the original image.
         """
         cd1 = self.get_test_image()
-        size = CM.ImageSize(name='test', slug='test', width=50,
+        size = CM.Size(name='test', slug='test', width=50,
                             height=50, auto_crop=True, retina=False)
         size.save()
         cd1.size = size
@@ -194,7 +194,7 @@ class TestCropduster(unittest.TestCase):
 
         # Change the original image, and check that the derived image
         # also changes when re-rendered.
-        cd1.size = CM.ImageSize.objects.get(slug='thumb')
+        cd1.size = CM.Size.objects.get(slug='thumb')
         cd1.render(force=True)
         cd1.save()
 
@@ -237,7 +237,7 @@ class TestCropduster(unittest.TestCase):
 
         stack = [cd1]
         for i,image in enumerate(stack):
-            for size_set in CM.ImageSizeSet.objects.all():
+            for size_set in CM.SizeSet.objects.all():
                 for new_image in image.add_size_set(size_set):
                     new_image.render()
                     new_image.save()
@@ -261,14 +261,14 @@ class TestCropduster(unittest.TestCase):
 
         img = cd1.new_derived_image()
 
-        size = CM.ImageSize.objects.create(slug='testing',
+        size = CM.Size.objects.create(slug='testing',
                                            width=100,
                                            height=100,
                                            auto_crop=True,
                                            retina=True)
 
         # Test the manual size exists
-        self.assertEquals(CM.ImageSize.objects.count(), 4)
+        self.assertEquals(CM.Size.objects.count(), 4)
 
         self.assertEquals( cd1.has_size('testing'), False )
         img.size = size
@@ -288,8 +288,8 @@ class TestCropduster(unittest.TestCase):
         # Test that the manual size is deleted with the image.
         img.delete()
 
-        self.assertEquals(CM.ImageSize.objects.count(), 3)
-        self.assertEquals(CM.ImageSize.objects.filter(pk=size.id).count(), 0)
+        self.assertEquals(CM.Size.objects.count(), 3)
+        self.assertEquals(CM.Size.objects.filter(pk=size.id).count(), 0)
         self.assertEquals(CM.Crop.objects.count(), 0)
 
         # No more derived images.
@@ -330,13 +330,13 @@ class TestCropduster(unittest.TestCase):
         Tests that omitted dimension details are correctly calculated.
         """
 
-        size = CM.ImageSize(slug='1', width=100, aspect_ratio=1.6)
+        size = CM.Size(slug='1', width=100, aspect_ratio=1.6)
         self.assertEquals(size.get_height(), round(100/1.6))
 
-        size2 = CM.ImageSize(slug='2', height=100, aspect_ratio=2)
+        size2 = CM.Size(slug='2', height=100, aspect_ratio=2)
         self.assertEquals(size2.get_width(), 200)
 
-        size3 = CM.ImageSize(slug='3', height=3, width=4)
+        size3 = CM.Size(slug='3', height=3, width=4)
         self.assertEquals(size3.get_aspect_ratio(), 1.33)
 
     def test_variable_sizes(self):
@@ -346,7 +346,7 @@ class TestCropduster(unittest.TestCase):
         cd1 = self.get_test_image()
 
         img = cd1.new_derived_image()
-        size = CM.ImageSize(slug='variable', width=100, aspect_ratio=1.6)
+        size = CM.Size(slug='variable', width=100, aspect_ratio=1.6)
         size.save()
 
         img.size = size
@@ -356,7 +356,7 @@ class TestCropduster(unittest.TestCase):
         self.assertEquals(size.get_height(), img.height)
 
         # Only width or only height
-        size = CM.ImageSize(slug='width_only', width=100)
+        size = CM.Size(slug='width_only', width=100)
         img.size = size
         img.render()
         img.save()
@@ -365,7 +365,7 @@ class TestCropduster(unittest.TestCase):
         self.assertEquals(int(round(100/cd1.aspect_ratio)), img.height)
         self.assertEquals(cd1.aspect_ratio, img.aspect_ratio)
 
-        size = CM.ImageSize(slug='height_only', height=100)
+        size = CM.Size(slug='height_only', height=100)
         img.size = size
         img.render()
         img.save()
@@ -382,7 +382,7 @@ class TestCropduster(unittest.TestCase):
         self.create_size_sets()
         cd1 = self.get_test_image()
 
-        paths = [cd1.image.path]
+        paths = []
         for image in cd1.add_size_set(slug='facebook'):
             image.render()
             image.save()
@@ -404,7 +404,7 @@ class TestCropduster(unittest.TestCase):
         """
         cd1 = self.get_test_image()
 
-        size1 = CM.ImageSize(slug='thumbnail',
+        size1 = CM.Size(slug='thumbnail',
                              width=128,
                              height=128,
                              retina=True)
@@ -441,7 +441,7 @@ class TestCropduster(unittest.TestCase):
         """
         Tests that a bug in setting of aspect ratio is fixed.
         """
-        size = CM.ImageSize(slug='test', width=100, aspect_ratio=12)
+        size = CM.Size(slug='test', width=100, aspect_ratio=12)
         size.save()
 
         self.assertEquals(size.aspect_ratio, 12)
@@ -456,7 +456,7 @@ class TestCropduster(unittest.TestCase):
         cd1 = self.get_test_image(NEW_TEST_IMAGE)
 
         img = cd1.new_derived_image()
-        size = CM.ImageSize(slug='thumbnail',
+        size = CM.Size(slug='thumbnail',
                             width=128,
                             height=128,
                             retina=True)
@@ -482,8 +482,45 @@ class TestCropduster(unittest.TestCase):
 
         img.save()
 
-        self.assertEquals(img.metadata.attribution, cd1.metadata.attribution)
-        self.assertEquals(img.metadata.caption, cd1.metadata.caption)
+        self.assertEquals(img.metadata.attribution,
+                          cd1.metadata.attribution)
+        self.assertEquals(img.metadata.caption,
+                          cd1.metadata.caption)
+
+    def test_recursive_save(self):
+        """
+        Tests that we recursively save all root and intermediate images 
+        when saving a leaf image, if they have not been saved.
+        """
+        cd1 = CM.Image(image=TEST_IMAGE)
+        d1 = cd1.new_derived_image()
+        d2 = d1.new_derived_image()
+        d3 = d2.new_derived_image()
+        d4 = d3.new_derived_image()
+
+        # Nothing's been saved, so nothing should have an id.
+        images = (cd1, d1, d2, d3)
+        for i in images:
+            self.assertEquals(i.pk, None)
+
+        # Save partway
+        d2.save()
+
+        # Check that the ancestors were saved.
+        last = None
+        for i in (cd1, d1, d2):
+            self.assert_(i.pk > last)
+            last = i.pk
+
+        # Check that the descendents are NOT saved
+        for i in (d3,d4):
+            self.assertEquals(i.pk, None)
+
+        d4.save()
+        last = None
+        for i in images:
+            self.assert_(i.pk > last) 
+            last = i.pk
 
 if __name__ == '__main__':
     unittest.main()

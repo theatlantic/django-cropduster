@@ -17,7 +17,7 @@ except ImportError:
 
 nearest_int = lambda a: int(round(a))
 to_retina_path = lambda p: '%s@2x%s' % os.path.splitext(p)
-class ImageSizeSet(CachingMixin, models.Model):
+class SizeSet(CachingMixin, models.Model):
     class Meta:
         db_table = 'cropduster_sizeset'
 
@@ -33,20 +33,20 @@ class ImageSizeSet(CachingMixin, models.Model):
         rather than show every possible thumbnail
         """
         
-        size_query = Size.objects.all().filter(size_set__id=self.id)
+        size_query = Size.objects.filter(size_set__id=self.id)
         size_query.query.group_by = ["aspect_ratio"]
         try:
             return size_query
         except ValueError:
             return None
             
-class ImageSize(CachingMixin, models.Model):
+class Size(CachingMixin, models.Model):
     
     class Meta:
         db_table = "cropduster_size"
     
-    # An ImageSize not associated with a set is a 'one off'
-    size_set = models.ForeignKey(ImageSizeSet, null=True)
+    # An Size not associated with a set is a 'one off'
+    size_set = models.ForeignKey(SizeSet, null=True)
     
     date_modified = models.DateTimeField(auto_now=True)
 
@@ -108,7 +108,7 @@ class ImageSize(CachingMixin, models.Model):
         @return: width, height, aspect ratio
         @rtype: (int > 0, int > 0, float > 0)
         """
-        return (self.get_width(), self.get_height(), self.aspect_ratio)
+        return (self.get_width(), self.get_height(), self.get_aspect_ratio())
 
     def calc_dimensions(self, width, height):
         """
@@ -126,11 +126,11 @@ class ImageSize(CachingMixin, models.Model):
         w, h, a = self.get_dimensions()
         # Explicit dimension give explicit answers
         if w and h:
-            return w, h
+            return w, h, a
 
         # Empty sizes are basically useless.
         if not (w or h):
-            return width, height
+            return width, height, None
 
         aspect_ratio = round(width/float(height), 2)
         if w: 
@@ -138,7 +138,7 @@ class ImageSize(CachingMixin, models.Model):
         else:
             w = nearest_int(h * aspect_ratio)
 
-        return w, h
+        return w, h, round(w/float(h),2)
 
     def __unicode__(self):
         return u"%s: %sx%s" % (self.name, self.width, self.height)
@@ -161,12 +161,13 @@ class Crop(CachingMixin, models.Model):
                                                self.crop_y + self.crop_h)
 
 class ImageMetadata(CachingMixin, models.Model):
+    objects = CachingManager()
     class Meta:
         db_table = "cropduster_image_meta"
     
     # Attribution details.
     attribution = models.CharField(max_length=255, blank=True, null=True)
-    attribution_link = models.CharField(max_length=255, blank=True, null=True)
+    attribution_link = models.URLField(max_length=255, blank=True, null=True)
     caption = models.CharField(max_length=255, blank=True, null=True)
 
 class Image(CachingMixin, models.Model):
@@ -191,14 +192,14 @@ class Image(CachingMixin, models.Model):
 
     # An image doesn't need to have a size associated with it, only
     # if we want to transform it.
-    size = models.ForeignKey(ImageSize, null=True)
-    crop = models.ForeignKey(Crop, null=True)
+    size = models.ForeignKey(Size, null=True)
+    crop = models.OneToOneField(Crop, null=True)
 
     # Image can have 0:N size-sets
-    size_sets = models.ManyToManyField(ImageSizeSet, null=True)
+    size_sets = models.ManyToManyField(SizeSet, null=True)
 
     # Single set of attributions
-    metadata = models.ForeignKey('ImageMetadata', null=True)
+    metadata = models.ForeignKey(ImageMetadata, null=True)
 
     date_modified = models.DateTimeField(auto_now=True)
 
@@ -232,7 +233,7 @@ class Image(CachingMixin, models.Model):
         @rtype:  [Image1, ...]
         """
         if size_set is None:
-            size_set = ImageSizeSet.objects.get(**kwargs)
+            size_set = SizeSet.objects.get(**kwargs)
 
         self.size_sets.add( size_set )
 
@@ -242,7 +243,7 @@ class Image(CachingMixin, models.Model):
 
         # Create new derived images from the size set
         return [self.new_derived_image(size=size) 
-                    for size in size_set.imagesize_set.all()
+                    for size in size_set.size_set.all()
                         if size.id not in d_ids]
 
     def new_derived_image(self, **kwargs):
@@ -259,12 +260,12 @@ class Image(CachingMixin, models.Model):
         Sets a manual size on the image.
 
         @return: New Size object, unsaved
-        @rtype: @{ImageSize}
+        @rtype: @{Size}
         """
         # If we don't have a size or we have a size from a size set,
         # we need to create a new Size object.
         if self.size is None or self.size.size_set is not None:
-            self.size = ImageSize(**kwargs)
+            self.size = Size(**kwargs)
         else:
             # Otherwise, update the values
             for k,v in kwargs.iteritems():
@@ -339,7 +340,7 @@ class Image(CachingMixin, models.Model):
         # If we are resizing the image.
         if self.size:
             orig_width, orig_height = image.size
-            width, height = self.size.calc_dimensions(orig_width, orig_height)
+            width, height = self.size.calc_dimensions(orig_width, orig_height)[:2]
 
             if self.size.retina:
                 # If we are supposed to build a retina, make sure the 
@@ -455,8 +456,12 @@ class Image(CachingMixin, models.Model):
             self.original.save()
 
         # Make sure we've saved our metadata
-        if not self.metadata.pk:
+        metadata = self.metadata
+        if not self.metadata.id:
             self.metadata.save()
+
+            # Bug #8892, not updating the 'metadata_id' field.
+            self.metadata = self.metadata
 
         # Do we have a new image?  If so, we need to move it over.
         if getattr(self, '_new_image', None) is not None:
@@ -479,9 +484,14 @@ class Image(CachingMixin, models.Model):
 
         return super(Image, self).save(*args, **kwargs)
 
-    def get_descendents(self):
+    @property
+    def descendants(self):
         """
-        Gets all descendants for the current image.
+        Gets all descendants for the current image, starting at the highest
+        levels and recursing down.
+
+        @returns set of descendants
+        @rtype  <Image1, ...>
         """
         stack = [self]
         while stack:
@@ -489,9 +499,27 @@ class Image(CachingMixin, models.Model):
             for c in children:
                 yield c
 
-            stack.extend(descendents)
+            stack.extend(children)
 
-    def delete(self, *args, **kwargs):
+    @property
+    def ancestors(self):
+        """
+        Returns the set of ancestors associated with an Image
+        """
+        current = self
+        while current.original:
+            yield current.original
+            curren = current.original
+
+    def delete(self, remove_images=True, *args, **kwargs):
+        """
+        Deletes an image, attempting to clean up foreign keys as well.
+
+        @param remove_images: If True, performs a bulk delete and then
+                              deletes all derived images.  It does not,
+                              however, remove the directories. 
+        @type  remove_images: bool
+        """
         # Delete manual image sizes.
         if self.size is not None and self.size.size_set is None:
             self.size.delete()
