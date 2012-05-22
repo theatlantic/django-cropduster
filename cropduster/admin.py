@@ -20,8 +20,6 @@ class SizeInline(admin.TabularInline):
 			)
 		}),
 	)
-	readonly_fields = ('aspect_ratio',)
-
 
 class SizeSetAdmin(admin.ModelAdmin):
 	prepopulated_fields = {"slug" : ('name',)}

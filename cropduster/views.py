@@ -161,16 +161,36 @@ def categorize(iterator, key=None):
 
     return d
 
-def upload_image(request):
-    size_set = SizeSet.objects.get(id=request.GET["size_set"])
-    image = get_image(request)
+def min_size(size_set):
+    """
+    Calculates the minimum dimensions from a size_set
+    """
+    width, height = 0, 0
+    for s in size_set.size_set.all():
+        w,h,a = s.get_dimensions()
+        width = max(width, w)
+        height= max(height, h)
 
-    image_form = ImageForm(instance=image)
-    metadata_form = MetadataForm()
-    context = {'formset': image_form,
+    return width, height
+
+def upload_image(request, image_form=None, metadata_form=None):
+    size_set = SizeSet.objects.get(id=request.GET["size_set"])
+    if image_form is None:
+        image = get_image(request)
+        image_form = ImageForm(instance=image)
+    else:
+        image = image_form.instance
+
+    if metadata_form is None:
+        metadata_form = MetadataForm(instance=image.metadata)
+
+    m_width, m_height = min_size(size_set)
+    context = {'image_form': image_form,
                'metadata_form': metadata_form,
                'image': image,
                'size_set': size_set,
+               'm_width': m_width,
+               'm_height': m_height,
                'next_stage': 'crop_images',
                'current_stage': 'upload'}
     
@@ -185,11 +205,13 @@ def upload_crop_images(request):
     # enough.
     post = request.POST.copy()
     post['size_set'] = size_set
-    formset = ImageForm(post, request.FILES, instance=image)
-    if formset.is_valid():
-        image = formset.save()
+    image_form = ImageForm(post, request.FILES, instance=image)
+    metadata_form = MetadataForm(post, instance=image.metadata)
+    if image_form.is_valid() and metadata_form.is_valid():
+        metadata_form.save()
+        image = image_form.save()
         sizes = apply_size_set(image, size_set)
-        context = {'formset': formset,
+        context = {'formset': image_form,
             "browser_width": BROWSER_WIDTH,
             "image_element_id": request.GET['image_element_id'],
             'image': image,
@@ -203,16 +225,17 @@ def upload_crop_images(request):
         return render_to_response("admin/crop_images.html", context)
 
     else:
-        errors = formset.errors.values()[0]
+        return upload_image(request, image_form, metadata_form)
+        #errors = 
         context = {
             "errors": errors,
-            "formset": formset,
+            "image_form": image_form,
+            "metadata_form": metadata_form,
             "image_element_id": request.GET['image_element_id'],
         }
 
-    context = RequestContext(request, context)
-
-    return render_to_response("admin/upload.html", context)
+        context = RequestContext(request, context)
+        return render_to_response("admin/upload.html", context)
 
 def get_ids(request, index):
     return (int(i) for i in request.POST['crop_ids_%i'%index].split(','))
@@ -225,11 +248,23 @@ def get_crops_from_post(request):
         cf = CropForm(request.POST, prefix=`i`)
         if cf.is_valid():
             for image_id in get_ids(request, i):
-                crop_mapping[image_id] = copy.copy(cf.instance)
+                crop_mapping[image_id] = cf.instance
         else:
             # Right now, just blow up
             raise Exception(cf.errors.values())
     return crop_mapping
+
+def update_crop(der_image, crop):
+    if der_image.crop is not None:
+        der_image.crop.crop_x = crop.crop_x
+        der_image.crop.crop_y = crop.crop_y
+        der_image.crop.crop_w = crop.crop_w
+        der_image.crop.crop_w = crop.crop_h
+    else:
+        der_image.crop = copy.copy(crop)
+    
+    der_image.crop.save()
+    der_image.crop = der_image.crop
 
 def apply_sizes(request):
     # Get each crop and validate it
@@ -240,14 +275,16 @@ def apply_sizes(request):
 
     # Copy each crop into each image, render, and get the thumbnail.
     thumbs = []
-    for der_image in image.derived.filter(id__in=crop_mapping.keys()):
-        der_image.crop = crop_mapping[der_image.id]
-        der_image.crop.save()
+    for der_image in image.derived.all():
+        if der_image.id in crop_mapping:
+            update_crop(der_image, crop_mapping[der_image.id])
 
         # Render the thumbnail...
         der_image.render()
         der_image.save()
-        thumbs.append(der_image.image.url)
+        # Only show cropped images in the admin.
+        if der_image.id in crop_mapping:
+            thumbs.append(der_image.image.url)
 
     context = {
         "image": image,

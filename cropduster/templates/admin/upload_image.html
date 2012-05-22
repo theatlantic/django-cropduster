@@ -11,7 +11,7 @@
 {% block breadcrumbs %}{% endblock %}
 
 {% block content %}
-<h1 id="step-header">Upload, Crop, and Generate Thumbnails {% if min_w or min_h %}({{ min_w }} x {{ min_h }}){% endif %}</h1>
+<h1 id="step-header">Upload, Crop, and Generate Thumbnails {% if m_height %}({{ m_width }} x {{ m_height }}){% endif %}</h1>
 <div id="content-main">
 
 	{% if errors %}
@@ -25,14 +25,12 @@
 	<form method="post" action="" enctype="multipart/form-data">
         <input name="next_stage" type="hidden" value="{{next_stage}}" />
         <input name="current_stage" type="hidden" value="{{current_stage}}" />
-        {{ formset.management_form }}
-        {% for form in formset %}
-            <p id="row_{{ form.auto_id }}">
-                <label for="{{ form.auto_id }}">{{ form.label }}</label>
-                <span id="{{ form.auto_id }}" class="form_field">{{ form }}</span>
-            </p>
-        {% endfor %}
+        {{ image_form.management_form }}
+        {{ image_form.as_p }}
         <input type="hidden" name="size_set_id" value={{ size_set.id }} />
+        <h3>Image Metadata</h3>
+        {{ metadata_form.management_form }}
+        {{ metadata_form.as_p }}
 
 	<div class="module footer" id="upload-footer">
 			<ul class="submit-row">

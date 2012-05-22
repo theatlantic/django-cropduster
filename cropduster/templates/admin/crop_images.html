@@ -21,9 +21,9 @@
         <input type="hidden" name="total_crops" value="{{crops|length}}" />
         {% for ids, ar, crop in crops %}
             <input type="hidden" name="crop_ids_{{forloop.counter0}}" value="{{ ids }}" />
-            {% for field in crop %}
-            {{ field }}
-            {% endfor %}
+            <div style="display: none">
+            {% for field in crop %} {{ field }} {% endfor %}
+            </div>
             <img data-aspect_ratio="{{ar}}" 
                  data-min_width="{{crop.crop_w.value}}" 
                  data-min_height="{{crop.crop_h.value}}" 

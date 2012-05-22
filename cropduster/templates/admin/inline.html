@@ -53,7 +53,7 @@ function toggle_delete(obj){
 
 	<div class="cropduster_thumbs">
 	{% if image %}
-		{% for image in image.derived.all() %}
+		{% for image in image.derived.filter(size__size_set=size_set, size__auto_crop=False) %}
 		<img src="{{ image|safe }}" />
 		{% endfor %}
 	{% endif %}

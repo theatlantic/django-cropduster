@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist as DNE
 import uuid
 import os
 from cropduster import utils
@@ -18,10 +19,10 @@ except ImportError:
 nearest_int = lambda a: int(round(a))
 to_retina_path = lambda p: '%s@2x%s' % os.path.splitext(p)
 class SizeSet(CachingMixin, models.Model):
+    objects = CachingManager()
     class Meta:
         db_table = 'cropduster_sizeset'
 
-    objects = CachingManager()
     name = models.CharField(max_length=255, db_index=True)
     slug = models.SlugField(max_length=50, null=False, unique=True)
     
@@ -41,7 +42,8 @@ class SizeSet(CachingMixin, models.Model):
             return None
             
 class Size(CachingMixin, models.Model):
-    
+    objects = CachingManager()
+
     class Meta:
         db_table = "cropduster_size"
     
@@ -58,7 +60,7 @@ class Size(CachingMixin, models.Model):
     
     width = models.PositiveIntegerField(null=True, blank=True)
     
-    aspect_ratio = models.FloatField(null=True)
+    aspect_ratio = models.FloatField(null=True, blank=True)
 
     auto_crop = models.BooleanField(default=False)
 
@@ -145,6 +147,10 @@ class Size(CachingMixin, models.Model):
     def save(self, *args, **kwargs):
         if self.slug is None:
             self.slug = uuid.uuid4().hex
+        w,h,a = self.get_dimensions()
+        self.width = w 
+        self.height = h 
+        self.aspect_ratio = a
         super(Size, self).save(*args, **kwargs)
 
 class Crop(CachingMixin, models.Model):
@@ -250,6 +256,11 @@ class Image(CachingMixin, models.Model):
                     for size in size_set.size_set.all()
                         if size.id not in d_ids]
 
+    def get_metadata(self):
+        if self.metadata is None:
+            self.metadata = ImageMetadata()
+        return self.metadata
+
     def new_derived_image(self, **kwargs):
         """
         Creates a new derived image from the current image.
@@ -257,7 +268,7 @@ class Image(CachingMixin, models.Model):
         @return: new Image
         @rtype: Image
         """
-        return Image(original=self, metadata=self.metadata, **kwargs)
+        return Image(original=self, metadata=self.get_metadata(), **kwargs)
 
     def set_manual_size(self, **kwargs):
         """
@@ -455,6 +466,29 @@ class Image(CachingMixin, models.Model):
         """
         return os.path.join(settings.STATIC_URL, self.image.url)
 
+    def get_thumbnail(self, slug, size_set=None):
+        """
+        Returns the derived image for the Image or None if it does not exist.
+
+        @param slug: Name of the image slug.
+        @type  slug: basestring
+        
+        @param size_set: Size Set object to filter by, if available.
+        @type  size_set: SizeSet.
+
+        @return: Image or None
+        @rtype: Image or None
+        """
+        try:
+            if size_set:
+                return self.derived.get(size__size_set=size_set, size__slug=slug)
+            else:
+                return self.derived.filter(size__slug=slug)[0]
+        except IndexError:
+            return None
+        except DNE:
+            return None
+
     def __init__(self, *args, **kwargs):
         if 'metadata' not in kwargs and 'metadata_id' not in kwargs:
             kwargs['metadata'] = ImageMetadata()
@@ -467,16 +501,19 @@ class Image(CachingMixin, models.Model):
             self.original.save()
 
         # Make sure we've saved our metadata
-        metadata = self.metadata
-        if not self.metadata.id:
-            self.metadata.save()
+        metadata = self.get_metadata()
+        if not metadata.id:
+            metadata.save()
 
             # Bug #8892, not updating the 'metadata_id' field.
-            self.metadata = self.metadata
+            self.metadata = metadata
 
         # Do we have a new image?  If so, we need to move it over.
         if getattr(self, '_new_image', None) is not None:
             name = self.get_dest_img_name()
+            # Since we only store relative paths in here, but want to get
+            # the correct absolute path, we have to set the image name first 
+            # before we set the image directly (which will)
             self.image.name = name
             os.rename(self._new_image, self.image.path)
             self.image = name
