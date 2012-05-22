@@ -52,12 +52,11 @@ class Size(CachingMixin, models.Model):
 
     name = models.CharField(max_length=255, db_index=True)
     
-    slug = models.SlugField(max_length=50, 
-                            default=lambda: uuid.uuid4().hex)
+    slug = models.SlugField(max_length=50, null=False)
     
-    height = models.PositiveIntegerField(null=True)
+    height = models.PositiveIntegerField(null=True, blank=True)
     
-    width = models.PositiveIntegerField(null=True)
+    width = models.PositiveIntegerField(null=True, blank=True)
     
     aspect_ratio = models.FloatField(null=True)
 
@@ -142,6 +141,11 @@ class Size(CachingMixin, models.Model):
 
     def __unicode__(self):
         return u"%s: %sx%s" % (self.name, self.width, self.height)
+
+    def save(self, *args, **kwargs):
+        if self.slug is None:
+            self.slug = uuid.uuid4().hex
+        super(Size, self).save(*args, **kwargs)
 
 class Crop(CachingMixin, models.Model):
     class Meta:
@@ -395,19 +399,26 @@ class Image(CachingMixin, models.Model):
         if self.image:
             return self.image.path
             
+        return self.get_dest_img_from_base(self.original.image.path)
+
+    def get_dest_img_name(self):
+        if self.image:
+            return self.image.name
+        return self.get_dest_img_from_base(self.original.image.name)
+
+    def get_dest_img_from_base(self, base):
         # Calculate it from the size slug if possible.
-        orig_path = self.original.image.path
         if self.size:
             slug = self.size.slug
 
         elif self.crop:
-            slug = os.path.splitext(os.path.basename(orig_path))[0]
+            slug = os.path.splitext(os.path.basename(base))[0]
         else:
             # Guess we have to return the original path
             return orig_path
 
         # Remove the extension
-        path, ext = os.path.splitext(orig_path)
+        path, ext = os.path.splitext(base)
         return os.path.join(path, slug) + ext
         
     def has_size(self, size_slug):
@@ -445,7 +456,7 @@ class Image(CachingMixin, models.Model):
         return os.path.join(settings.STATIC_URL, self.image.url)
 
     def __init__(self, *args, **kwargs):
-        if 'metadata' not in kwargs:
+        if 'metadata' not in kwargs and 'metadata_id' not in kwargs:
             kwargs['metadata'] = ImageMetadata()
 
         return super(Image, self).__init__(*args, **kwargs)
@@ -465,14 +476,16 @@ class Image(CachingMixin, models.Model):
 
         # Do we have a new image?  If so, we need to move it over.
         if getattr(self, '_new_image', None) is not None:
-            path = self.get_dest_img_path()
-            os.rename(self._new_image, path)
-            self.image = path
+            name = self.get_dest_img_name()
+            self.image.name = name
+            os.rename(self._new_image, self.image.path)
+            self.image = name
+
             del self._new_image
 
             # Check for a new retina
             if hasattr(self, '_new_retina'):
-                retina_path = to_retina_path(path)
+                retina_path = to_retina_path(self.image.path)
                 if self._new_retina is None: 
                     if os.path.exists(retina_path):
                         # If the reina is now invalid, remove the previous one.

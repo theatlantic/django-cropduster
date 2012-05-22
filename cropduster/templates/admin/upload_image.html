@@ -1,0 +1,47 @@
+{% extends "admin/base.html" %}
+
+<!-- LOADING -->
+{% load i18n adminmedia cropdustermedia %}
+
+<!-- Get rid of nav -->
+{% block nav-global %}{% endblock %}
+
+{% block content-class %}content-flexible{% endblock %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<h1 id="step-header">Upload, Crop, and Generate Thumbnails {% if min_w or min_h %}({{ min_w }} x {{ min_h }}){% endif %}</h1>
+<div id="content-main">
+
+	{% if errors %}
+	<ul class="error-container errorlist">
+		{% for error in errors %}
+		<li>{{ error }}</li>
+		{% endfor %}
+	</ul>
+	{% endif %}
+
+	<form method="post" action="" enctype="multipart/form-data">
+        <input name="next_stage" type="hidden" value="{{next_stage}}" />
+        <input name="current_stage" type="hidden" value="{{current_stage}}" />
+        {{ formset.management_form }}
+        {% for form in formset %}
+            <p id="row_{{ form.auto_id }}">
+                <label for="{{ form.auto_id }}">{{ form.label }}</label>
+                <span id="{{ form.auto_id }}" class="form_field">{{ form }}</span>
+            </p>
+        {% endfor %}
+        <input type="hidden" name="size_set_id" value={{ size_set.id }} />
+
+	<div class="module footer" id="upload-footer">
+			<ul class="submit-row">
+				<li class="submit-button-container">
+					<input id="upload-button" class="default" type="submit" name="_save" value='Save' />
+				</li>
+			</ul>
+		</div>
+	</form>
+	
+</div>
+{% endblock %}

@@ -1,0 +1,150 @@
+{% extends "admin/upload.html" %}
+
+{% block content %}
+<h1 id="step-header">Crop Image</h1>
+<div id="content-main">
+
+	{% if errors %}
+	<ul class="error-container errorlist">
+		{% for error in errors %}
+		<li>{{ error }}</li>
+		{% endfor %}
+	</ul>
+	{% endif %}
+
+	<form method="post" action="" enctype="multipart/form-data">
+        <input name="next_stage" type="hidden" value="{{next_stage}}" />
+        <input name="current_stage" type="hidden" value="{{current_stage}}" />
+        
+        <input type="hidden" name="image_id" value="{{ image.id }}" />
+        <h2>Please crop the images to the desired proportions</h2>
+        <input type="hidden" name="total_crops" value="{{crops|length}}" />
+        {% for ids, ar, crop in crops %}
+            <input type="hidden" name="crop_ids_{{forloop.counter0}}" value="{{ ids }}" />
+            {% for field in crop %}
+            {{ field }}
+            {% endfor %}
+            <img data-aspect_ratio="{{ar}}" 
+                 data-min_width="{{crop.crop_w.value}}" 
+                 data-min_height="{{crop.crop_h.value}}" 
+                 src="{{image|safe}}"
+                 style="max-width:{{ browser_width }}px" />
+            <br/>
+        {% endfor %}
+
+<script type="text/javascript">	
+(function($){
+
+	var image_width = {{ image.width }};
+	var max_width = {{ browser_width }};
+
+    var scale = (function() {
+        if(image_width > max_width) {
+            return function (val, ratio){
+                return Math.round(val * ratio);
+            } 
+        } else{
+            return function(val, ratio) {
+                return val;
+            }
+        }
+    })();
+
+	function scale_up(val){
+		return Math.round(scale(val, image_width/max_width));
+	}
+	function scale_down(val){
+		return Math.round(scale(val, max_width/image_width));
+	}
+	
+    function updateCrop(index) {
+        return function (c) {
+            $('#id_'+index+'-crop_x').val(scale_up(c.x))
+            $('#id_'+index+'-crop_y').val(scale_up(c.y))
+            $('#id_'+index+'-crop_w').val(scale_up(c.w))
+            $('#id_'+index+'-crop_h').val(scale_up(c.h))
+        }
+    }
+    function get_int(t, a) {
+        return parseInt(t.getAttribute(a));
+    }
+
+    function get_dimensions(aspect_ratio, x, y) {
+        var dims = {};
+        var scale_x = scale_down(x);
+        var scale_y = scale_down(x);
+        if(aspect_ratio >1) {
+            dims.y = scale_y;
+            dims.x = Math.round(scale_x*aspect_ratio);
+        } else {
+            dims.x = scale_x;
+            dims.y = Math.round(scale_y*aspect_ratio);
+        }
+        return dims;
+    }
+
+	$(document).ready(function(){
+        
+        $("form img").each(function(i) {
+            var min_width = get_int(this, 'data-min_width');
+            var min_height = get_int(this, 'data-min_height');
+
+            var aspect_ratio = parseFloat(
+                this.getAttribute('data-aspect_ratio')
+            );
+            var dims = get_dimensions(aspect_ratio,{{image.width}}, {{image.height}});
+            $(this).Jcrop({
+                "setSelect":   [ 
+                    scale_down(0), 
+                    scale_down(0), 
+                    scale_down(dims.x),
+                    scale_down(dims.y)
+                ],
+                "minSize":[scale_down(min_width), scale_down(min_height)],
+                "aspectRatio": aspect_ratio,
+                "onChange": updateCrop(i)
+            });
+        });
+    {% for ar, w, h in commented_out_crops %}
+		$($images[ {{loop.index0}} ]).Jcrop({
+			"setSelect":   [ 
+				scale_down(0), 
+				scale_down(0), 
+				scale_down({{w}}), 
+				scale_down({{h}})
+			],
+			"minSize":[scale_down({{ w }}), scale_down({{ h }})],
+			"aspectRatio": {{ ar }},
+			"onChange": function(c){}
+		});
+    {% endfor %}
+		
+    });
+}(window.django && django.jQuery ?django.jQuery : $));
+</script>
+	
+
+	<div id="crop_formset">
+	{{ crop_formset.management_form }}
+	{% for form in crop_formset %}
+		<p>
+			{{ form }}
+		</p>
+	{% endfor %}
+   
+	</div>
+     
+     
+
+	<div class="module footer" id="upload-footer">
+			<ul class="submit-row">
+				<li class="submit-button-container">
+					<input id="upload-button" class="default" type="submit" name="_save" value='Save' />
+				</li>
+			</ul>
+		</div>
+	</form>
+	
+</div>
+{% endblock %}
+

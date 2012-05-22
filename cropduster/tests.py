@@ -206,6 +206,9 @@ class TestCropduster(unittest.TestCase):
             new_image_hash
         )
 
+        # Check that the images are relative
+        self.assert_(not os.path.isabs(cd1.image.name))
+
     def test_delete(self):
         """
         Tests that deletion cascades from the root to all derived images.
