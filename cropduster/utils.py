@@ -1,17 +1,20 @@
-from PIL import Image
 import os
+from PIL import Image
 
 
 def rescale(img, w=0, h=0, crop=True, **kwargs):
-    """Rescale the given image, optionally cropping it to make sure the result image has the specified width and height."""
+    """
+    Rescale the given image, optionally cropping it to make sure the result
+    image has the specified width and height.
+    """
 
     if w <= 0 and h <= 0:
         raise ValueError("Width and height must be greater than zero")
-        
+
     if w <= 0:
-        w = float(img.size[0] * h) /float(img.size[1])
+        w = float(img.size[0] * h) / float(img.size[1])
     if h <= 0:
-        h = float(img.size[1] * w) /float(img.size[0])
+        h = float(img.size[1] * w) / float(img.size[0])
 
     max_width = w
     max_height = h
@@ -35,15 +38,16 @@ def rescale(img, w=0, h=0, crop=True, **kwargs):
             y_offset = float(src_height - crop_height) / 2
 
         img = img.crop((
-            int(x_offset), 
-            int(y_offset), 
-            int(x_offset+crop_width), 
-            int(y_offset+crop_height)
+            int(x_offset),
+            int(y_offset),
+            int(x_offset + crop_width),
+            int(y_offset + crop_height),
         ))
     new_img = img.resize((int(dst_width), int(dst_height)), Image.ANTIALIAS)
     new_img.format = img_format
 
     return new_img
+
 
 def create_cropped_image(path=None, x=0, y=0, w=0, h=0):
     if path is None:
@@ -61,32 +65,34 @@ def create_cropped_image(path=None, x=0, y=0, w=0, h=0):
 
 
 def rescale_signal(sender, instance, created, max_height=None, max_width=None, **kwargs):
-    """ Simplified image resizer meant to work with post-save/pre-save tasks """
+    """
+    Simplified image resizer meant to work with post-save/pre-save tasks
+    """
 
     max_width = max_width
     max_height = max_height
-    
+
     if not max_width and not max_height:
         raise ValueError("Either max width or max height must be defined")
-        
+
     if max_width and max_height:
-        raise ValueError("To avoid improper scaling, only define a width or a height, not both")
+        raise ValueError("To avoid improper scaling, only define a width or "
+                         "a height, not both")
 
     if instance.image:
-
         im = Image.open(instance.image.path)
-        
+
         if max_width:
-            height = instance.image.height * max_width/instance.image.width
+            height = instance.image.height * max_width / instance.image.width
             size = max_width, height
-            
+
         if max_height:
-            width = instance.image.width * max_height/instance.image.height
+            width = instance.image.width * max_height / instance.image.height
             size = width, max_height
-        
+
         im.thumbnail(size, Image.ANTIALIAS)
-        
         im.save(instance.image.path)
+
 
 def save_image(image, path):
     """
@@ -96,7 +102,7 @@ def save_image(image, path):
 
     @param image: PIL image to save
     @type  image: PIL image
-    
+
     @param path: Absolute path to the save location.
     @type  path: /path/to/image
 
@@ -108,7 +114,7 @@ def save_image(image, path):
     if not os.path.exists(dirpath):
         os.makedirs(dirpath)
 
-    tmp_path = os.path.join(dirpath, 'tmp.'+name)
+    tmp_path = os.path.join(dirpath, 'tmp.' + name)
 
     # Since people upload images with garbage extensions,
     # preserve the decoder format.  You will note that we pass
@@ -117,6 +123,7 @@ def save_image(image, path):
     os.rename(tmp_path, path)
 
     return path
+
 
 def copy_image(image):
     """
