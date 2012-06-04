@@ -1,13 +1,12 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
-from django.core.exceptions import ObjectDoesNotExist as DNE
 import uuid
 import os
 from cropduster import utils
 from PIL import Image as pil
 
-IMAGE_SAVE_PARAMS =  {"quality" :95}
+IMAGE_SAVE_PARAMS = {"quality": 95}
 
 try:
     from caching.base import CachingMixin, CachingManager
@@ -18,48 +17,54 @@ except ImportError:
 
 nearest_int = lambda a: int(round(a))
 to_retina_path = lambda p: '%s@2x%s' % os.path.splitext(p)
+
+
 class SizeSet(CachingMixin, models.Model):
+
     objects = CachingManager()
+
     class Meta:
         db_table = 'cropduster_sizeset'
 
     name = models.CharField(max_length=255, db_index=True)
     slug = models.SlugField(max_length=50, null=False, unique=True)
-    
+
     def __unicode__(self):
         return u"%s" % self.name
-        
+
     def get_size_by_ratio(self):
-        """ Shorthand to get all the unique ratios for display in the admin, 
+        """ Shorthand to get all the unique ratios for display in the admin,
         rather than show every possible thumbnail
         """
-        
+
         size_query = Size.objects.filter(size_set__id=self.id)
         size_query.query.group_by = ["aspect_ratio"]
         try:
             return size_query
         except ValueError:
             return None
-            
+
+
 class Size(CachingMixin, models.Model):
+
     objects = CachingManager()
 
     class Meta:
         db_table = "cropduster_size"
-    
+
     # An Size not associated with a set is a 'one off'
     size_set = models.ForeignKey(SizeSet, null=True)
     
     date_modified = models.DateTimeField(auto_now=True, null=True)
 
     name = models.CharField(max_length=255, db_index=True)
-    
+
     slug = models.SlugField(max_length=50, null=False)
-    
+
     height = models.PositiveIntegerField(null=True, blank=True)
-    
+
     width = models.PositiveIntegerField(null=True, blank=True)
-    
+
     aspect_ratio = models.FloatField(null=True, blank=True)
 
     auto_crop = models.BooleanField(default=False)
@@ -87,7 +92,7 @@ class Size(CachingMixin, models.Model):
         """
         if self.width is None and self.height and self.aspect_ratio:
             return nearest_int(self.height * self.aspect_ratio)
-        
+
         return self.width
 
     def get_aspect_ratio(self):
@@ -117,7 +122,7 @@ class Size(CachingMixin, models.Model):
 
         @param width: Starting width
         @type  width: Positive int
-        
+
         @param height: Starting height
         @type  height: Positive int
 
@@ -133,13 +138,13 @@ class Size(CachingMixin, models.Model):
         if not (w or h):
             return width, height, None
 
-        aspect_ratio = round(width/float(height), 2)
-        if w: 
+        aspect_ratio = round(width / float(height), 2)
+        if w:
             h = nearest_int(w / aspect_ratio)
         else:
             w = nearest_int(h * aspect_ratio)
 
-        return w, h, round(w/float(h),2)
+        return w, h, round(w / float(h), 2)
 
     def __unicode__(self):
         return u"%s: %sx%s" % (self.name, self.width, self.height)
@@ -147,41 +152,49 @@ class Size(CachingMixin, models.Model):
     def save(self, *args, **kwargs):
         if self.slug is None:
             self.slug = uuid.uuid4().hex
-        w,h,a = self.get_dimensions()
-        self.width = w 
-        self.height = h 
+        w, h, a = self.get_dimensions()
+        self.width = w
+        self.height = h
         self.aspect_ratio = a
         super(Size, self).save(*args, **kwargs)
 
+
 class Crop(CachingMixin, models.Model):
+
     class Meta:
         db_table = "cropduster_crop"
-        
+
     objects = CachingManager()
-        
+
     crop_x = models.PositiveIntegerField(default=0, blank=True, null=True)
     crop_y = models.PositiveIntegerField(default=0, blank=True, null=True)
     crop_w = models.PositiveIntegerField(default=0, blank=True, null=True)
     crop_h = models.PositiveIntegerField(default=0, blank=True, null=True)
-    
+
     def __unicode__(self):
-        return u"Crop: (%i, %i),(%i, %i) " % ( self.crop_x,
-                                               self.crop_y,
-                                               self.crop_x + self.crop_w,
-                                               self.crop_y + self.crop_h)
+        return u"Crop: (%i, %i),(%i, %i) " % (
+            self.crop_x,
+            self.crop_y,
+            self.crop_x + self.crop_w,
+            self.crop_y + self.crop_h,
+        )
+
 
 class ImageMetadata(CachingMixin, models.Model):
+
     objects = CachingManager()
+
     class Meta:
         db_table = "cropduster_image_meta"
-    
+
     # Attribution details.
     attribution = models.CharField(max_length=255, blank=True, null=True)
     attribution_link = models.URLField(max_length=255, blank=True, null=True)
     caption = models.CharField(max_length=255, blank=True, null=True)
 
+
 class Image(CachingMixin, models.Model):
-    
+
     objects = CachingManager()
 
     class Meta:
@@ -195,7 +208,7 @@ class Image(CachingMixin, models.Model):
                                  null=True)
 
     image = models.ImageField(
-        upload_to=settings.CROPDUSTER_UPLOAD_PATH + "%Y/%m/%d", 
+        upload_to=settings.CROPDUSTER_UPLOAD_PATH + "%Y/%m/%d",
         width_field='width',
         height_field='height',
         max_length=255)
@@ -215,7 +228,7 @@ class Image(CachingMixin, models.Model):
 
     width = models.PositiveIntegerField(null=True)
     height = models.PositiveIntegerField(null=True)
-    
+
     @property
     def retina_path(self):
         """
@@ -228,7 +241,7 @@ class Image(CachingMixin, models.Model):
         if self.width and self.height:
             return round(self.width / float(self.height), 2)
         return None
-    
+
     @property
     def is_original(self):
         return self.original is None
@@ -239,20 +252,20 @@ class Image(CachingMixin, models.Model):
         is provided, will add that otherwise it will query
         all size sets that match the **kwarg criteria
 
-        @return: Newly created derived images from size set. 
+        @return: Newly created derived images from size set.
         @rtype:  [Image1, ...]
         """
         if size_set is None:
             size_set = SizeSet.objects.get(**kwargs)
 
-        self.size_sets.add( size_set )
+        self.size_sets.add(size_set)
 
         # Do not duplicate images which are already in the
         # derived set.
         d_ids = set(d.size.id for d in self.derived.all())
 
         # Create new derived images from the size set
-        return [self.new_derived_image(size=size) 
+        return [self.new_derived_image(size=size)
                     for size in size_set.size_set.all()
                         if size.id not in d_ids]
 
@@ -283,7 +296,7 @@ class Image(CachingMixin, models.Model):
             self.size = Size(**kwargs)
         else:
             # Otherwise, update the values
-            for k,v in kwargs.iteritems():
+            for k, v in kwargs.iteritems():
                 setattr(self.size, k, v)
 
         return self.size
@@ -293,7 +306,7 @@ class Image(CachingMixin, models.Model):
         Saves an image to a tempfile.
 
         @param image: Image to save.
-        @type  image: 
+        @type  image:
 
         @return: Temporary path where the image is saved.
         @rtype:  /path/to/file
@@ -304,17 +317,17 @@ class Image(CachingMixin, models.Model):
 
     def render(self, force=False):
         """
-        Renders an image according to its Crop and its Size.  If the size
-        also specifies a retina image, it will attempt to render that as well.
-        If a crop is set, it is applied to the image before any resizing happens.
+        Renders an image according to its Crop and its Size.  If the size also
+        specifies a retina image, it will attempt to render that as well. If a
+        crop is set, it is applied to the image before any resizing happens.
 
-        By default, render will throw an error if an attempt is made to render 
+        By default, render will throw an error if an attempt is made to render
         an original image.
 
-        NOTE: While render will create a new image, it will be stored it in a 
-        temp file until the object is saved when it will overwrite the 
+        NOTE: While render will create a new image, it will be stored it in a
+        temp file until the object is saved when it will overwrite the
         previously stored image.  There are a couple of reasons for this:
-        
+
         1. If there's any sort of error, the previous image is preserved,
            making re-renderings of images safe.
 
@@ -327,7 +340,7 @@ class Image(CachingMixin, models.Model):
         The temporary images are saved in CROPDUSTER_TMP_DIR if available, or
         falls back to the directory the image currently resides in.
 
-        @param force: If force is True, render will allow overwriting the 
+        @param force: If force is True, render will allow overwriting the
                       original image.
         @type  force:  bool.
         """
@@ -336,7 +349,10 @@ class Image(CachingMixin, models.Model):
                                   "Use render(force=True) to override.")
         # We really only want to do rescalings on derived images, but
         # we don't prevent people from it.
-        image_path = self.original.image.path if self.original else self.image.path 
+        if self.original:
+            image_path = self.original.image.path
+        else:
+            image_path = self.image.path
 
         if not (self.crop or self.size):
             # Nothing to do.
@@ -345,35 +361,30 @@ class Image(CachingMixin, models.Model):
 
         if self.crop:
             image = utils.create_cropped_image(image_path,
-                                               self.crop.crop_x,
-                                               self.crop.crop_y,
-                                               self.crop.crop_w,
-                                               self.crop.crop_h)
+                self.crop.crop_x,
+                self.crop.crop_y,
+                self.crop.crop_w,
+                self.crop.crop_h)
         else:
             image = pil.open(image_path)
 
         # If we are resizing the image.
         if self.size:
+            size = self.size
             orig_width, orig_height = image.size
-            width, height = self.size.calc_dimensions(orig_width, orig_height)[:2]
+            width, height = size.calc_dimensions(orig_width, orig_height)[:2]
 
-            if self.size.retina:
-                # If we are supposed to build a retina, make sure the 
+            if size.retina:
+                # If we are supposed to build a retina, make sure the
                 # dimensions are large enough.  No stretching allowed!
                 self._new_retina = None
-                if orig_width >= width*2 and orig_height >= height*2:
+                if orig_width >= (width * 2) and orig_height >= (height * 2):
                     retina = utils.rescale(utils.copy_image(image),
-                                           width*2,
-                                           height*2,
-                                           self.size.auto_crop)
-
+                        width * 2, height * 2, size.auto_crop)
                     self._new_retina = self._save_to_tmp(retina)
 
             # Calculate the main image
-            image = utils.rescale(image,
-                                  width,
-                                  height,
-                                  self.size.auto_crop)
+            image = utils.rescale(image, width, height, size.auto_crop)
 
         # Save the image in a temporary place
         self._new_image = self._save_to_tmp(image)
@@ -390,14 +401,14 @@ class Image(CachingMixin, models.Model):
         @rtype:  "/path/to/file"
         """
         dest_path = self.get_dest_img_path()
-        if hasattr(settings,'CROPDUSTER_TMP_DIR'):
+        if hasattr(settings, 'CROPDUSTER_TMP_DIR'):
             tmp_path = settings.CROPDUSTER_TMP_DIR
         else:
             tmp_path = os.path.dirname(dest_path)
 
         ext = os.path.splitext(dest_path)[1]
-            
-        return os.path.join(tmp_path, uuid.uuid4().hex+ext)
+
+        return os.path.join(tmp_path, uuid.uuid4().hex + ext)
 
     def get_dest_img_path(self):
         """
@@ -409,7 +420,7 @@ class Image(CachingMixin, models.Model):
         # If we have a path already, reuse it.
         if self.image:
             return self.image.path
-            
+
         return self.get_dest_img_from_base(self.original.image.path)
 
     def get_dest_img_name(self):
@@ -421,17 +432,12 @@ class Image(CachingMixin, models.Model):
         # Calculate it from the size slug if possible.
         if self.size:
             slug = self.size.slug
-
         elif self.crop:
             slug = os.path.splitext(os.path.basename(base))[0]
         else:
             # Guess we have to return the original path
-            return orig_path
+            return base
 
-        # Remove the extension
-        path, ext = os.path.splitext(base)
-        return os.path.join(path, slug) + ext
-        
     def has_size(self, size_slug):
         return self.derived.filter(size__slug=size_slug).count() > 0
 
@@ -440,7 +446,7 @@ class Image(CachingMixin, models.Model):
         Sets the crop size for an image.  It should be noted that the crop
         object is NOT saved by default, so should be saved manually.
 
-        Adds a croping ruling from top-left (x,y) to bottom-right (x+width, y+width).
+        Adds a crop from top-left (x,y) to bottom-right (x+width, y+width).
 
         @return: The unsaved crop object.
         @rtype: {Crop}
@@ -456,13 +462,13 @@ class Image(CachingMixin, models.Model):
 
     def __unicode__(self):
         return unicode(self.image.url) if self.image else u""
-            
+
     def get_absolute_url(self):
         """
         Returns the abolute url to the image.
 
-        @return: 
-        @rtype: 
+        @return:
+        @rtype:
         """
         return os.path.join(settings.STATIC_URL, self.image.url)
 
@@ -472,7 +478,7 @@ class Image(CachingMixin, models.Model):
 
         @param slug: Name of the image slug.
         @type  slug: basestring
-        
+
         @param size_set: Size Set object to filter by, if available.
         @type  size_set: SizeSet.
 
@@ -486,7 +492,7 @@ class Image(CachingMixin, models.Model):
                 return self.derived.filter(size__slug=slug)[0]
         except IndexError:
             return None
-        except DNE:
+        except Image.DoesNotExist:
             return None
 
     def __init__(self, *args, **kwargs):
@@ -512,7 +518,7 @@ class Image(CachingMixin, models.Model):
         if getattr(self, '_new_image', None) is not None:
             name = self.get_dest_img_name()
             # Since we only store relative paths in here, but want to get
-            # the correct absolute path, we have to set the image name first 
+            # the correct absolute path, we have to set the image name first
             # before we set the image directly (which will)
             self.image.name = name
             os.rename(self._new_image, self.image.path)
@@ -523,7 +529,7 @@ class Image(CachingMixin, models.Model):
             # Check for a new retina
             if hasattr(self, '_new_retina'):
                 retina_path = to_retina_path(self.image.path)
-                if self._new_retina is None: 
+                if self._new_retina is None:
                     if os.path.exists(retina_path):
                         # If the reina is now invalid, remove the previous one.
                         os.unlink(retina_path)
@@ -559,7 +565,7 @@ class Image(CachingMixin, models.Model):
         current = self
         while current.original:
             yield current.original
-            curren = current.original
+            current = current.original
 
     def delete(self, remove_images=True, *args, **kwargs):
         """
@@ -567,7 +573,7 @@ class Image(CachingMixin, models.Model):
 
         @param remove_images: If True, performs a bulk delete and then
                               deletes all derived images.  It does not,
-                              however, remove the directories. 
+                              however, remove the directories.
         @type  remove_images: bool
         """
         # Delete manual image sizes.
@@ -580,8 +586,10 @@ class Image(CachingMixin, models.Model):
 
         return super(Image, self).delete(*args, **kwargs)
 
+
 class CropDusterField(models.ForeignKey):
-    pass    
+    pass
+
 
 try:
     from south.modelsinspector import add_introspection_rules
