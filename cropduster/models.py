@@ -50,7 +50,7 @@ class Size(CachingMixin, models.Model):
     # An Size not associated with a set is a 'one off'
     size_set = models.ForeignKey(SizeSet, null=True)
     
-    date_modified = models.DateTimeField(auto_now=True)
+    date_modified = models.DateTimeField(auto_now=True, null=True)
 
     name = models.CharField(max_length=255, db_index=True)
     
@@ -211,7 +211,7 @@ class Image(CachingMixin, models.Model):
     # Single set of attributions
     metadata = models.ForeignKey(ImageMetadata, null=True)
 
-    date_modified = models.DateTimeField(auto_now=True)
+    date_modified = models.DateTimeField(auto_now=True, null=True)
 
     width = models.PositiveIntegerField(null=True)
     height = models.PositiveIntegerField(null=True)
