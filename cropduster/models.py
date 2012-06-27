@@ -436,7 +436,11 @@ class Image(CachingMixin, models.Model):
             slug = os.path.splitext(os.path.basename(base))[0]
         else:
             # Guess we have to return the original path
+            print "Base:", base
             return base
+
+        path, ext = os.path.splitext(base)
+        return os.path.join(path, slug) + ext
 
     def has_size(self, size_slug):
         return self.derived.filter(size__slug=size_slug).count() > 0
