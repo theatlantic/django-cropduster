@@ -220,7 +220,7 @@ def upload(request):
 
 	# No more cropping to be done, close out
 	else :
-		image_thumbs = [image.thumbnail_url(size.slug) for size in image.size_set.get_sizes_by_ratio()] 
+		image_thumbs = [image.thumbnail_url(size.slug) for size in image.size_set.get_unique_ratios()] 
 	
 		context = {
 			"image": image,
