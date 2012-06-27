@@ -2,6 +2,8 @@ from PIL import Image
 from decimal import Decimal
 
 def aspect_ratio(width, height):
+	""" Defines aspect ratio from two sizes with consistent rounding method """
+	
 	if not height or not width:
 		return 1
 	else:
@@ -9,10 +11,16 @@ def aspect_ratio(width, height):
 
 
 def rescale(img, width=0, height=0, auto_crop=True, **kwargs):
-	"""Rescale the given image, optionally cropping it to make sure the result image has the specified width and height."""
+	""" 
+		Rescale the given image.  If one size is not given, image is scaled down at current aspect ratio
+		img -- a PIL image object
+
+		Auto-crop option does a dumb crop that chops the image to the needed size  
+	"""
 		
 	if width <= 0:
 		width = float(img.size[0] * height) /float(img.size[1])
+		
 	if height <= 0:
 		height = float(img.size[1] * width) /float(img.size[0])
 
@@ -61,6 +69,10 @@ def rescale(img, width=0, height=0, auto_crop=True, **kwargs):
 	return img
 
 def create_cropped_image(path=None, x=0, y=0, width=0, height=0):
+	""" 
+		Crop image given a starting (x, y) position and a width and height of the cropped area 
+	"""
+	
 	if path is None:
 		raise ValueError("A path must be specified")
 
@@ -69,33 +81,6 @@ def create_cropped_image(path=None, x=0, y=0, width=0, height=0):
 	img.load()
 	img = img.crop((x, y, x + width, y + height))
 	img.load()
+	
 	return img
 
-
-def rescale_signal(sender, instance, created, max_height=None, max_width=None, **kwargs):
-	""" Simplified image resizer meant to work with post-save/pre-save tasks """
-
-	max_width = max_width
-	max_height = max_height
-	
-	if not max_width and not max_height:
-		raise ValueError("Either max width or max height must be defined")
-		
-	if max_width and max_height:
-		raise ValueError("To avoid improper scaling, only define a width or a height, not both")
-
-	if instance.image:
-
-		im = Image.open(instance.image.path)
-		
-		if max_width:
-			height = instance.image.height * max_width/instance.image.width
-			size = max_width, height
-			
-		if max_height:
-			width = instance.image.width * max_height/instance.image.height
-			size = width, max_height
-		
-		im.thumbnail(size, Image.ANTIALIAS)
-		
-		im.save(instance.image.path)

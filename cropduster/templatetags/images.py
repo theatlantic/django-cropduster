@@ -31,7 +31,7 @@ def get_image(image, size_name=None, template_name="image.html", **kwargs):
 					size = image.size_set.size_set.get(slug=size_name)
 				except Size.DoesNotExist:
 					return ""
-				image.create_individual_thumbnail(size)
+				image.create_thumbnail(size, force_crop=True)
 		
 		image_url = image.thumbnail_url(size_name)
 		

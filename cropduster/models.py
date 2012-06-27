@@ -34,16 +34,13 @@ class SizeSet(CachingMixin, models.Model):
 	def __unicode__(self):
 		return u"%s" % self.name
 		
-	def get_size_by_ratio(self, created=False):
-		""" Shorthand to get all the unique ratios for display in the admin, 
-		rather than show every possible thumbnail
+	def get_unique_ratios(self, created=True):
+		""" 
+			Shorthand to get all the unique ratios rather than show every possible thumbnail
 		"""
+		create_on_request =  not created
 		
-		size_query = Size.objects.all().filter(size_set__id=self.id)
-		
-		# Whether to only get the image sizes that have been created
-		if created:
-			size_query = size_query.filter(create_on_request=False)
+		size_query = Size.objects.all().filter(size_set__id=self.id, create_on_request=create_on_request)
 		
 		size_query.query.group_by = ["aspect_ratio"]
 		try:
@@ -54,7 +51,8 @@ class SizeSet(CachingMixin, models.Model):
 
 class SizeManager(CachingManager):
 	def get_size_by_ratio(self, size_set, aspect_ratio_id):
-	
+		""" Gets the largest image of a certain ratio in this size set """
+		
 		size_query = Size.objects.all().only("aspect_ratio").filter(size_set=size_set, auto_size=0).order_by("-aspect_ratio")
 		
 		size_query.query.group_by = ["aspect_ratio"]
@@ -106,6 +104,8 @@ class Size(CachingMixin, models.Model):
 	
 	def __unicode__(self):
 		return u"%s: %sx%s" % (self.name, self.width, self.height)
+		
+
 
 class Crop(CachingMixin, models.Model):
 	class Meta:
@@ -148,7 +148,7 @@ class Crop(CachingMixin, models.Model):
 			if sizes:
 				# create the cropped image 
 				cropped_image = utils.create_cropped_image(
-					self.image.image.path, 
+					self.image.path, 
 					self.crop_x, 
 					self.crop_y, 
 					self.crop_w, 
@@ -157,12 +157,7 @@ class Crop(CachingMixin, models.Model):
 				
 				# loop through the other sizes of the same aspect ratio, and create those crops
 				for size in sizes:
-					thumbnail = utils.rescale(cropped_image, size.width, size.height, crop=size.auto_size)
-	
-					if not os.path.exists(self.image.folder_path):
-						os.makedirs(self.image.folder_path)
-					
-					thumbnail.save(self.image.thumbnail_path(size.slug), **IMAGE_SAVE_PARAMS)
+					self.image.rescale(cropped_image, size=size)
 
 
 class Image(CachingMixin, models.Model):
@@ -183,55 +178,25 @@ class Image(CachingMixin, models.Model):
 	
 	caption = models.CharField(max_length=255, blank=True, null=True)
 
-	def save(self, *args, **kwargs):
-
-		super(Image, self).save(*args, **kwargs)
-		
-		# get all the auto sized thumbnails and create them
-		sizes = self.size_set.size_set.all().filter(
-			auto_size__in=[1,2], 
-			create_on_request=False
-		)
-		for size in sizes:
-			self.create_individual_thumbnail(size)
-			
-	def create_individual_thumbnail(self, size):
-	
-		auto_crop = True if size.auto_size == 1 else False
-	
-		if size.auto_size == 0:
-			try:
-				crop = Crop.objects.get(size=size, image=self)
-				cropped_image = utils.create_cropped_image(
-					self.image.path, 
-					crop.crop_x, 
-					crop.crop_y, 
-					crop.crop_w, 
-					crop.crop_h
-				)
-			except Crop.DoesNotExist:
-				# auto-crop if no crop is defined
-				cropped_image = pil.open(self.image.path)
-				auto_crop = True
-		else:
-			cropped_image = pil.open(self.image.path)
-			
-		thumbnail = utils.rescale(cropped_image, size.width, size.height, crop=auto_crop)
-		
-		if not os.path.exists(self.folder_path):
-			os.makedirs(self.folder_path)
-
-		thumbnail.save(self.thumbnail_path(size.slug), **IMAGE_SAVE_PARAMS)
-
 	class Meta:
 		db_table = "cropduster_image"
 		verbose_name = "Image"
 		verbose_name_plural = "Image"
+		
+	def __unicode__(self):
+		if self.image:
+			return u"%s" % self.image.url
+		else:
+			return ""
 
 	@property
 	def extension(self):
 		file_root, extension = os.path.splitext(self.image.path)
 		return extension
+		
+	@property
+	def path(self):
+		return self.image.path
 		
 	@property
 	def folder_path(self):
@@ -261,16 +226,61 @@ class Image(CachingMixin, models.Model):
 			return True
 		except Size.DoesNotExist:
 			return False
-
-	def __unicode__(self):
-		if self.image:
-			return u"%s" % self.image.url
-		else:
-			return ""
 			
 	def get_absolute_url(self):
 		return settings.STATIC_URL + self.image
+		
+
+	def get_crop(self, size):
+		"""  Gets the crop for this image and size based on size set and aspect ratio """		
+		return Crop.objects.get(size__size_set=size.size_set, size__aspect_ratio=size.aspect_ratio, image=self)
+
+
+	def save(self, *args, **kwargs):
+
+		super(Image, self).save(*args, **kwargs)
+		
+		# get all the auto sized thumbnails and create them
+		sizes = self.size_set.size_set.all().filter(
+			auto_size__in=[1,2], 
+			create_on_request=False
+		)
+		for size in sizes:
+			self.create_thumbnail(size)
+			
+	def rescale(self, cropped_image, size, force_crop=False):
+		""" Resizes and saves the image to other sizes of the same aspect ratio from a given cropped image"""
+		if force_crop or not size.create_on_request:
+			thumbnail = utils.rescale(cropped_image, size.width, size.height, crop=size.auto_size)
+		
+			if not os.path.exists(self.folder_path):
+				os.makedirs(self.folder_path)
+			
+			thumbnail.save(self.thumbnail_path(size.slug), **IMAGE_SAVE_PARAMS)
+			
+	def create_thumbnail(self, size, force_crop=False):
+		""" Creates a thumbnail for an image at the specified size """
 	
+		if size.auto_size == 0:
+			try:
+				crop = self.get_crop(size)
+				
+				cropped_image = utils.create_cropped_image(
+					self.image.path, 
+					crop.crop_x, 
+					crop.crop_y, 
+					crop.crop_w, 
+					crop.crop_h
+				)
+			except Crop.DoesNotExist:
+				# auto-crop if no crop is defined
+				cropped_image = pil.open(self.image.path)
+		else:
+			cropped_image = pil.open(self.image.path)
+		
+		self.rescale(cropped_image=cropped_image, size=size, force_crop=force_crop)
+
+
 
 class CropDusterField(models.ForeignKey):
 	pass	
