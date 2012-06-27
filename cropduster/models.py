@@ -143,7 +143,6 @@ class Crop(CachingMixin, models.Model):
 				aspect_ratio=self.size.aspect_ratio, 
 				size_set=self.size.size_set,
 				auto_size=0,
-				create_on_request=False
 			).order_by("-width")
 			
 			if sizes:
@@ -158,7 +157,6 @@ class Crop(CachingMixin, models.Model):
 				
 				# loop through the other sizes of the same aspect ratio, and create those crops
 				for size in sizes:
-					
 					thumbnail = utils.rescale(cropped_image, size.width, size.height, crop=size.auto_size)
 	
 					if not os.path.exists(self.image.folder_path):
