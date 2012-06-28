@@ -8,7 +8,7 @@ class AdminCropdusterWidget(HiddenInput):
 	def __init__(self, size_set_slug, template="admin/inline.html", *args, **kwargs):
 		try:
 			self.size_set = SizeSet.objects.get(slug=size_set_slug)
-		except:
+		except SizeSet.DoesNotExist:
 			self.size_set = None
 		self.template = template
 		super(AdminCropdusterWidget, self).__init__(*args, **kwargs)
@@ -23,7 +23,7 @@ class AdminCropdusterWidget(HiddenInput):
 		
 		try:
 			image = CropDusterImage.objects.get(id=value)
-		except:
+		except CropDusterImage.DoesNotExist:
 			image = None
 		
 		

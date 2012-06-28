@@ -18,24 +18,24 @@ class mytest(test):
         # test.run(self, *args, **kwargs)
 
 setup(
-    name='django-cropduster',
-    version='1',
-    author='Llewellyn Hinkes',
-    author_email='ortsed@gmail.com',
-    url='http://github.com/theatlantic/cropduster',
-    description = 'Image uploader and cropping tool',
+    name="django-cropduster",
+    version="1",
+    author="Llewellyn Hinkes",
+    author_email="ortsed@gmail.com",
+    url="http://github.com/ortsed/cropduster",
+    description = "Image uploader and cropping tool",
     packages=find_packages(),
     zip_safe=False,
     install_requires=[
-        'PIL',
+        "PIL",
     ],
     include_package_data=True,
     cmdclass={"test": mytest},
     classifiers=[
-        'Framework :: Django',
-        'Intended Audience :: Developers',
-        'Intended Audience :: System Administrators',
-        'Operating System :: OS Independent',
-        'Topic :: Software Development'
+        "Framework :: Django",
+        "Intended Audience :: Developers",
+        "Intended Audience :: System Administrators",
+        "Operating System :: OS Independent",
+        "Topic :: Software Development"
     ],
 )

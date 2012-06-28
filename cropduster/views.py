@@ -43,7 +43,7 @@ class ImageForm(ModelForm):
 				raise ValidationError("Unable to open image file")
 				
 			for size in size_set.size_set.all():
-				if (size.width > pil_image.size[0] or size.height > pil_image.size[1]):
+				if size.width > pil_image.size[0] or size.height > pil_image.size[1]:
 					raise ValidationError("Uploaded image (%s x %s) is smaller than a required thumbnail size: %s" % (pil_image.size[0], pil_image.size[1], size))
 		return self.cleaned_data
 		
@@ -136,7 +136,7 @@ def upload(request):
 					
 			#If its the first frame, get the image formset and save it (for attribution)
 			
-			if aspect_ratio_id == 0:
+			if not aspect_ratio_id:
 				formset = ImageForm(request.POST, instance=image)
 				if formset.is_valid():
 					formset.save()

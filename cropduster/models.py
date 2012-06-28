@@ -62,7 +62,7 @@ class SizeManager(CachingManager):
 			
 			# get the largest size with this aspect ratio
 			return Size.objects.all().filter(size_set=size_set, aspect_ratio=size.aspect_ratio, auto_size=0).order_by("-width")[0]
-		except:
+		except IndexError:
 			return None
 
 class Size(CachingMixin, models.Model):
@@ -88,11 +88,10 @@ class Size(CachingMixin, models.Model):
 	def clean(self):
 		if not (self.width or self.height):
 			raise ValidationError("Size requires either a width, a height, or both")
+			
 		elif GENERATION_CHOICES[self.auto_size][1] == "Auto-Crop" and not (self.width and self.height):
-			"""
-			Raise a validation error if one of the sizes is not set for cropping.
-			Auto-size is the only one that can take a missing size.
-			"""
+			# Raise a validation error if one of the sizes is not set for cropping.
+			# Auto-size is the only one that can take a missing size.
 			raise ValidationError("Auto-crop requires both sizes be specified")
 	
 	def save(self, *args, **kwargs):
@@ -221,11 +220,7 @@ class Image(CachingMixin, models.Model):
 		return u"%s" % os.path.join(file_path, file_root, size_slug) + extension
 		
 	def has_size(self, size_slug):
-		try:
-			size = self.size_set.size_set.get(slug=size_slug)
-			return True
-		except Size.DoesNotExist:
-			return False
+		return self.size_set.size_set.filter(slug=size_slug).exists()
 			
 	def get_absolute_url(self):
 		return settings.STATIC_URL + self.image
@@ -261,7 +256,7 @@ class Image(CachingMixin, models.Model):
 	def create_thumbnail(self, size, force_crop=False):
 		""" Creates a thumbnail for an image at the specified size """
 	
-		if size.auto_size == 0:
+		if not size.auto_size:
 			try:
 				crop = self.get_crop(size)
 				

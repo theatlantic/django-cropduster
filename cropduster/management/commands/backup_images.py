@@ -24,14 +24,11 @@ class Command(BaseCommand):
         make_option('--only_originals',
                     action="store_true",
                     dest='only_origs',
-                    help="Indicates whether or not to include derived thumbnails."\
-                         " If provided, will exclude all derived images.  This "\
-                         "would make it necessary to run regenerate_thumbs."),
+                    help="Indicates whether or not to include derived thumbnails. If provided, will exclude all derived images.  This would make it necessary to run regenerate_thumbs."),
         make_option('--query_set',
                     dest    = "query_set",
                     default = "all()",
-                    help    = "Queryset to use.  Default uses all().  This "\
-                              "option makes it possible to do iterative backups"),
+                    help    = "Queryset to use.  Default uses all().  This option makes it possible to do iterative backups"),
         
         make_option('--backup_file',
                     dest="backup_file",
