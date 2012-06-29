@@ -239,14 +239,11 @@ class Image(CachingMixin, models.Model):
 		format = u"%s%s"
 		if retina:
 			format = u"%s" + RETINA_POSTFIX + "%s"
-		return format % os.path.join(self.folder_url, size_slug) + self.extension
+		return format % (os.path.join(self.folder_url, size_slug), self.extension)
 		
 	def retina_thumbnail_url(self, size_slug):
-		# Check for retina thumb existence, otherwise regular thumb
-		if os.path.exists(self.thumbnail_path(size_slug, retina=True)):
-			return self.thumbnail_url(size_slug, retina=True)
-		else:
-			return self.thumbnail_url(size_slug)
+		return self.thumbnail_url(size_slug, retina=True)
+		
 			
 	def has_size(self, size_slug):
 		return self.size_set.size_set.filter(slug=size_slug).exists()
