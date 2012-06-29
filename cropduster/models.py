@@ -1,13 +1,13 @@
 from django.db import models
 from django.conf import settings
-import os
+import os, copy
 from cropduster import utils
 from PIL import Image as pil
 from south.modelsinspector import add_introspection_rules
 from django.core.exceptions import ValidationError
 
 
-CROPDUSTER_UPLOAD_PATH = getattr(settings, 'CROPDUSTER_UPLOAD_PATH', "")
+CROPDUSTER_UPLOAD_PATH = getattr(settings, "CROPDUSTER_UPLOAD_PATH", settings.MEDIA_ROOT)
 
 IMAGE_SAVE_PARAMS =  {"quality" :95}
 
@@ -85,6 +85,8 @@ class Size(CachingMixin, models.Model):
 	
 	create_on_request = models.BooleanField("Crop on request", default=False)
 	
+	retina = models.BooleanField("Auto-create retina thumb", default=False,)
+	
 	def clean(self):
 		if not (self.width or self.height):
 			raise ValidationError("Size requires either a width, a height, or both")
@@ -103,8 +105,21 @@ class Size(CachingMixin, models.Model):
 	
 	def __unicode__(self):
 		return u"%s: %sx%s" % (self.name, self.width, self.height)
-		
 
+	def greater_than_image_size(self, image_width, image_height):
+		""" Checks that image dimensions arent smaller than the required dimensions for resizing """
+		if self.width < image_width or self.height < image_height:
+			return False
+		else:
+			return True
+	
+	@property
+	def retina_size(self):
+		retina_size = copy.copy(self)
+		retina_size.width = retina_size.width * 2
+		retina_size.height = retina_size.height * 2
+		retina_size.slug = u"%s%s" % (retina_size.slug, "x2")
+		return retina_size
 
 class Crop(CachingMixin, models.Model):
 	class Meta:
@@ -176,7 +191,7 @@ class Image(CachingMixin, models.Model):
 	attribution = models.CharField(max_length=255, blank=True, null=True)
 	
 	caption = models.CharField(max_length=255, blank=True, null=True)
-
+	
 	class Meta:
 		db_table = "cropduster_image"
 		verbose_name = "Image"
@@ -203,10 +218,14 @@ class Image(CachingMixin, models.Model):
 		file_root, extension = os.path.splitext(file)
 		return u"%s" % os.path.join(file_path, file_root)
 		
-	def thumbnail_path(self, size_slug):
-		file_path, file = os.path.split(self.image.path)
-		file_root, extension = os.path.splitext(file)
-		return u"%s" % os.path.join(file_path, file_root, size_slug) + extension
+	def thumbnail_path(self, size_slug, retina=False):
+		format = u"%s%s"
+		if retina:
+			format = u"%s@2x%s"
+		return format % (os.path.join(self.folder_path, size_slug), self.extension)
+
+	def retina_thumbnail_path(self, size_slug):
+		return self.thumbnail_path(size_slug, retina=True)
 		
 	@property
 	def folder_url(self):
@@ -214,10 +233,14 @@ class Image(CachingMixin, models.Model):
 		file_root, extension = os.path.splitext(file)
 		return u"%s" % os.path.join(file_path, file_root)
 		
-	def thumbnail_url(self, size_slug):
-		file_path, file = os.path.split(self.image.url)
-		file_root, extension = os.path.splitext(file)
-		return u"%s" % os.path.join(file_path, file_root, size_slug) + extension
+	def thumbnail_url(self, size_slug, retina=False):
+		format = u"%s%s"
+		if retina:
+			format = u"%s@2x%s"
+		return u"%s" % os.path.join(self.folder_url, size_slug) + self.extension
+		
+	def retina_thumbnail_url(self, size_slug):
+		return self.thumbnail_url(size_slug, retina=True)
 		
 	def has_size(self, size_slug):
 		return self.size_set.size_set.filter(slug=size_slug).exists()
@@ -243,15 +266,7 @@ class Image(CachingMixin, models.Model):
 		for size in sizes:
 			self.create_thumbnail(size)
 			
-	def rescale(self, cropped_image, size, force_crop=False):
-		""" Resizes and saves the image to other sizes of the same aspect ratio from a given cropped image"""
-		if force_crop or not size.create_on_request:
-			thumbnail = utils.rescale(cropped_image, size.width, size.height, crop=size.auto_size)
-		
-			if not os.path.exists(self.folder_path):
-				os.makedirs(self.folder_path)
 			
-			thumbnail.save(self.thumbnail_path(size.slug), **IMAGE_SAVE_PARAMS)
 			
 	def create_thumbnail(self, size, force_crop=False):
 		""" Creates a thumbnail for an image at the specified size """
@@ -274,6 +289,31 @@ class Image(CachingMixin, models.Model):
 			cropped_image = pil.open(self.image.path)
 		
 		self.rescale(cropped_image=cropped_image, size=size, force_crop=force_crop)
+
+
+			
+	def rescale(self, cropped_image, size, force_crop=False):
+		""" Resizes and saves the image to other sizes of the same aspect ratio from a given cropped image"""
+		if force_crop or not size.create_on_request:
+			thumbnail = utils.rescale(cropped_image, size.width, size.height, crop=size.auto_size)
+		
+			if not os.path.exists(self.folder_path):
+				os.makedirs(self.folder_path)
+			
+			thumbnail.save(self.thumbnail_path(size.slug), **IMAGE_SAVE_PARAMS)
+			
+			# Create retina image
+			if size.retina:
+				retina_size = size.retina_size
+				
+				# Only create retina image if cropped image is large enough
+				# If retina size is required, make a separate size
+				if not retina_size.greater_than_image_size(cropped_image.size[0], cropped_image.size[1]):
+					retina_thumbnail = utils.rescale(cropped_image, retina_size.width, retina_size.height, crop=retina_size.auto_size)
+					retina_thumbnail.save(self.thumbnail_path(retina_size.slug), **IMAGE_SAVE_PARAMS)
+			
+
+
 
 
 
