@@ -17,6 +17,7 @@ class SizeInline(admin.TabularInline):
 				"size_set", 
 				"aspect_ratio",
 				"create_on_request",
+				"retina",
 			)
 		}),
 	)
