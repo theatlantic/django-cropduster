@@ -14,7 +14,7 @@ Installation
 
 The recommended way to install from source is with pip:
 
-    $ pip install -e git+git://github.com/theatlantic/django-cropduster.git#egg=django-cropduster
+    $ pip install -e git+git://github.com/ortsed/django-cropduster.git#egg=django-cropduster
 
 If the source is already checked out, use setuptools:
 
