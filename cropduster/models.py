@@ -14,8 +14,10 @@ IMAGE_SAVE_PARAMS =  {"quality" :95}
 GENERATION_CHOICES = (
 	(0, "Manually Crop"),
 	(1, "Auto-Crop"),
-	(2, "Auto-Size"),
+	(2, "Auto-Size"), 
 )
+
+RETINA_POSTFIX = "@2x"
 
 try:
 	from caching.base import CachingMixin, CachingManager
@@ -118,7 +120,7 @@ class Size(CachingMixin, models.Model):
 		retina_size = copy.copy(self)
 		retina_size.width = retina_size.width * 2
 		retina_size.height = retina_size.height * 2
-		retina_size.slug = u"%s%s" % (retina_size.slug, "x2")
+		retina_size.slug = u"%s%s" % (retina_size.slug, RETINA_POSTFIX)
 		return retina_size
 
 class Crop(CachingMixin, models.Model):
@@ -221,7 +223,7 @@ class Image(CachingMixin, models.Model):
 	def thumbnail_path(self, size_slug, retina=False):
 		format = u"%s%s"
 		if retina:
-			format = u"%s@2x%s"
+			format = u"%s" + RETINA_POSTFIX + "%s"
 		return format % (os.path.join(self.folder_path, size_slug), self.extension)
 
 	def retina_thumbnail_path(self, size_slug):
@@ -236,12 +238,16 @@ class Image(CachingMixin, models.Model):
 	def thumbnail_url(self, size_slug, retina=False):
 		format = u"%s%s"
 		if retina:
-			format = u"%s@2x%s"
-		return u"%s" % os.path.join(self.folder_url, size_slug) + self.extension
+			format = u"%s" + RETINA_POSTFIX + "%s"
+		return format % os.path.join(self.folder_url, size_slug) + self.extension
 		
 	def retina_thumbnail_url(self, size_slug):
-		return self.thumbnail_url(size_slug, retina=True)
-		
+		# Check for retina thumb existence, otherwise regular thumb
+		if os.path.exists(self.thumbnail_path(size_slug, retina=True)):
+			return self.thumbnail_url(size_slug, retina=True)
+		else:
+			return self.thumbnail_url(size_slug)
+			
 	def has_size(self, size_slug):
 		return self.size_set.size_set.filter(slug=size_slug).exists()
 			
