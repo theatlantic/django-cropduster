@@ -21,11 +21,12 @@ class AdminCropdusterWidget(HiddenInput):
 	
 		input = super(HiddenInput, self).render(name, value, attrs)
 		
-		try:
-			image = CropDusterImage.objects.get(id=value)
-		except CropDusterImage.DoesNotExist:
-			image = None
-		
+		image = None
+		if value:
+			try:
+				image = CropDusterImage.objects.get(id=value)
+			except CropDusterImage.DoesNotExist:
+				pass	
 		
 		template = loader.get_template(self.template)
 		context = Context({
