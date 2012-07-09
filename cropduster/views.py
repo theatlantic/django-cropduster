@@ -1,12 +1,14 @@
-import os
+import os, io
 from django.http import HttpResponse
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.forms import TextInput
 from django.views.decorators.csrf import csrf_exempt
 
+
 from cropduster.models import Image as CropDusterImage, Crop, Size, SizeSet
-from utils import aspect_ratio
+from cropduster.exif import process_file
+from cropduster.utils import aspect_ratio
 import json
 
 from PIL import Image as pil
@@ -15,7 +17,7 @@ from PIL import Image as pil
 from django.forms import ModelForm, ValidationError
 
 BROWSER_WIDTH = 800
-
+CROPDUSTER_EXIF_DATA = getattr(settings, "CROPDUSTER_EXIF_DATA", True)
 
 def get_ratio(request): 
 	return HttpResponse(json.dumps(
@@ -114,6 +116,17 @@ def upload(request):
 			formset = ImageForm(request.POST, request.FILES, instance=image)
 			
 			if formset.is_valid():
+				
+				if CROPDUSTER_EXIF_DATA:
+					# Check for exif data and use it to populate caption/attribution
+					exif_data = process_file(io.BytesIO(b"%s" % formset.cleaned_data["image"].file.getvalue()))
+					
+					if not formset.cleaned_data["caption"]:
+						formset.data["caption"] = exif_data["Image ImageDescription"].__str__()
+					if not formset.cleaned_data["attribution"]:
+						formset.data["attribution"] = exif_data["EXIF UserComment"].__str__()
+				
+				
 				image = formset.save()
 				crop.image = image
 				crop_formset = CropForm(instance=crop)
