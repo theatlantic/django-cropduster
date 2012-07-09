@@ -121,6 +121,7 @@ class Size(CachingMixin, models.Model):
 		retina_size.width = retina_size.width * 2
 		retina_size.height = retina_size.height * 2
 		retina_size.slug = u"%s%s" % (retina_size.slug, RETINA_POSTFIX)
+
 		return retina_size
 
 class Crop(CachingMixin, models.Model):
@@ -224,6 +225,7 @@ class Image(CachingMixin, models.Model):
 		format = u"%s%s"
 		if retina:
 			format = u"%s" + RETINA_POSTFIX + "%s"
+
 		return format % (os.path.join(self.folder_path, size_slug), self.extension)
 
 	def retina_thumbnail_path(self, size_slug):
@@ -240,6 +242,7 @@ class Image(CachingMixin, models.Model):
 		if retina:
 			format = u"%s" + RETINA_POSTFIX + "%s"
 		return format % (os.path.join(self.folder_url, size_slug), self.extension)
+
 		
 	def retina_thumbnail_url(self, size_slug):
 		return self.thumbnail_url(size_slug, retina=True)
