@@ -121,9 +121,9 @@ def upload(request):
 					# Check for exif data and use it to populate caption/attribution
 					exif_data = process_file(io.BytesIO(b"%s" % formset.cleaned_data["image"].file.getvalue()))
 					
-					if not formset.cleaned_data["caption"]:
+					if not formset.cleaned_data["caption"] and "Image ImageDescription" in exif_data:
 						formset.data["caption"] = exif_data["Image ImageDescription"].__str__()
-					if not formset.cleaned_data["attribution"]:
+					if not formset.cleaned_data["attribution"] and "EXIF UserComment" in exif_data:
 						formset.data["attribution"] = exif_data["EXIF UserComment"].__str__()
 				
 				
