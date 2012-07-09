@@ -16,7 +16,7 @@ for size in Size.objects.all():
 
 
 @register.object
-def get_image(image, size_name=None, template_name="image.html", **kwargs):
+def get_image(image, size_name=None, template_name="image.html", retina=False, **kwargs):
 	""" Templatetag to get the HTML for an image from a cropduster image object """
 
 	if image:
@@ -33,10 +33,14 @@ def get_image(image, size_name=None, template_name="image.html", **kwargs):
 					return ""
 				image.create_thumbnail(size, force_crop=True)
 		
-		image_url = image.thumbnail_url(size_name)
+		if retina:	
+			image_url = image.thumbnail_url(size_name)
+		else:
+			image_url = image.retina_url(size_name)
 		
 		if not image_url:
 			return ""
+			
 		try:
 			image_size = IMAGE_SIZE_MAP[(image.size_set_id, size_name)]
 		except KeyError:
