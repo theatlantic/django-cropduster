@@ -5,7 +5,7 @@ from django.template import RequestContext
 from django.forms import TextInput
 from django.views.decorators.csrf import csrf_exempt
 
-
+from django.conf import settings
 from cropduster.models import Image as CropDusterImage, Crop, Size, SizeSet
 from cropduster.exif import process_file
 from cropduster.utils import aspect_ratio
