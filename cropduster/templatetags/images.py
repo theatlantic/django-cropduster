@@ -3,6 +3,7 @@ from coffin.template.loader import get_template
 register = template.Library()
 from django.conf import settings
 from cropduster.models import Size
+from cropduster.models import AUTO_SIZE
 from os.path import exists
 
 CROPDUSTER_CROP_ONLOAD = getattr(settings, "CROPDUSTER_CROP_ONLOAD", True)
@@ -49,10 +50,10 @@ def get_image(image, size_name=None, template_name="image.html", retina=False, *
 		# Set all the args that get passed to the template
 		
 		kwargs["image_url"] = image_url
-			
-		kwargs["width"] = image_size.width if hasattr(image_size, "width") else ""
-		
-		kwargs["height"] = image_size.height if hasattr(image_size, "height") else ""
+
+		if hasattr(image_size, "auto_size") and image_size.auto_size != AUTO_SIZE:
+			kwargs["width"] = image_size.width if hasattr(image_size, "width") else ""
+			kwargs["height"] = image_size.height if hasattr(image_size, "height") else ""
 		
 		
 		if CROPDUSTER_KITTY_MODE:
