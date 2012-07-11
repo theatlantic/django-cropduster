@@ -35,9 +35,10 @@ def get_image(image, size_name=None, template_name="image.html", retina=False, *
 				image.create_thumbnail(size, force_crop=True)
 		
 		if retina:	
-			image_url = image.thumbnail_url(size_name)
-		else:
 			image_url = image.retina_thumbnail_url(size_name)
+		else:
+			image_url = image.thumbnail_url(size_name)
+			
 		
 		if not image_url:
 			return ""
