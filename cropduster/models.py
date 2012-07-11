@@ -11,10 +11,14 @@ CROPDUSTER_UPLOAD_PATH = getattr(settings, "CROPDUSTER_UPLOAD_PATH", settings.ME
 
 IMAGE_SAVE_PARAMS =  {"quality" :95}
 
+MANUALLY_CROP = 0
+AUTO_CROP = 1
+AUTO_SIZE = 2
+
 GENERATION_CHOICES = (
-	(0, "Manually Crop"),
-	(1, "Auto-Crop"),
-	(2, "Auto-Size"), 
+	(MANUALLY_CROP, "Manually Crop"),
+	(AUTO_CROP, "Auto-Crop"),
+	(AUTO_SIZE, "Auto-Size"),
 )
 
 RETINA_POSTFIX = "@2x"
@@ -301,7 +305,8 @@ class Image(CachingMixin, models.Model):
 	def rescale(self, cropped_image, size, force_crop=False):
 		""" Resizes and saves the image to other sizes of the same aspect ratio from a given cropped image"""
 		if force_crop or not size.create_on_request:
-			thumbnail = utils.rescale(cropped_image, size.width, size.height, crop=size.auto_size)
+			auto_crop = (size.auto_size == AUTO_CROP)
+			thumbnail = utils.rescale(cropped_image, size.width, size.height, auto_crop=auto_crop)
 		
 			if not os.path.exists(self.folder_path):
 				os.makedirs(self.folder_path)

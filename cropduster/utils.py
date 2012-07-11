@@ -57,12 +57,12 @@ def rescale(img, width=0, height=0, auto_crop=True, **kwargs):
 
 	# if not cropping, don't squish, use w/h as max values to resize on
 	else:
-		if (src_ratio * width) > height:
+		if (width / src_ratio) > height:
 			dst_width = src_ratio * height
 			dst_height = height
 		else:
 			dst_width = width
-			dst_height = width/src_ratio
+			dst_height = width / src_ratio
 		
 	img = img.resize((int(dst_width), int(dst_height)), Image.ANTIALIAS)
 
