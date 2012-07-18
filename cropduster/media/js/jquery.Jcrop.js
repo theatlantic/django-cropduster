@@ -1692,4 +1692,4 @@
   };
 
   // }}}
-}(jQuery));
+}((typeof window.django != 'undefined') ? django.jQuery : jQuery));
