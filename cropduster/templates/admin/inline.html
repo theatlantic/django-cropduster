@@ -1,5 +1,4 @@
 
-
 <style type="text/css">
 .cropduster_thumbs img {
 	display: block;
@@ -26,9 +25,11 @@ function cropduster_pop(id, size_set_id, image_id){
 	return false;
 }
 
-function toggle_delete(obj){
+(function($) {
+  window.toggle_delete = function(obj){
 	var container = $(obj).parent().parent().parent().parent();
 	
+
 	
 	$(container).toggleClass("predelete");
 	
@@ -40,7 +41,8 @@ function toggle_delete(obj){
 	$(container).find("input.cropduster").attr("title", tempValue);
 
 	return false;
-}
+  };
+})((typeof window.django == 'object') ? django.jQuery : jQuery);
 
 </script>
 
