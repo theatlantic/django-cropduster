@@ -212,9 +212,11 @@ class Image(CachingMixin, models.Model):
 
 	@property
 	def extension(self):
-		file_root, extension = os.path.splitext(self.image.path)
-		return extension
-		
+		if hasattr(self.image, "url"):
+			file_root, extension = os.path.splitext(self.image.path)
+			return extension
+		else:
+			return ""
 	@property
 	def path(self):
 		return self.image.path
@@ -237,9 +239,12 @@ class Image(CachingMixin, models.Model):
 		
 	@property
 	def folder_url(self):
-		file_path, file = os.path.split(self.image.url)
-		file_root, extension = os.path.splitext(file)
-		return u"%s" % os.path.join(file_path, file_root)
+		if hasattr(self.image, "url"):
+			file_path, file = os.path.split(self.image.url)
+			file_root, extension = os.path.splitext(file)
+			return u"%s" % os.path.join(file_path, file_root)
+		else:
+			return ""
 		
 	def thumbnail_url(self, size_slug, retina=False):
 		format = u"%s%s"
