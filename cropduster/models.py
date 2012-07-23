@@ -114,10 +114,10 @@ class Size(CachingMixin, models.Model):
 
 	def greater_than_image_size(self, image_width, image_height):
 		""" Checks that image dimensions arent smaller than the required dimensions for resizing """
-		if self.width < image_width or self.height < image_height:
-			return False
-		else:
+		if self.width > image_width or self.height > image_height:
 			return True
+		else:
+			return False
 	
 	@property
 	def retina_size(self):
