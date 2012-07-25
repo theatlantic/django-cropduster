@@ -592,7 +592,10 @@ class Image(CachingMixin, models.Model):
 
 
 class CropDusterField(models.ForeignKey):
-    pass
+    def __init__(self, *args, **kwargs):
+        if not args and 'to' not in kwargs:
+            args = (Image, )
+        super(CropDusterField, self).__init__(*args, **kwargs)
 
 
 try:
