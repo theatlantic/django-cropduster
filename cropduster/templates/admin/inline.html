@@ -2,11 +2,29 @@
 <style type="text/css">
 .cropduster_thumbs {
 	overflow: hidden;
+    padding: 15px;
 }
 .cropduster_thumbs img {
 	display: block;
 	float: left;
-	margin-right: 10px;
+    border:1px solid black;
+    box-shadow: 0 0 3px 3px #888;
+    max-width: 100%;
+}
+
+.cropduster_thumbs img.original {
+    float:none;
+    max-width: 100%;
+    margin: 0;
+}
+.cropduster_thumbs a {
+    float:left;
+    display: block;
+    width: auto;
+    max-width:20%;
+    margin-top:10px;
+    margin-right: 15px;
+    margin-bottom: 15px;
 }
 </style>
 
@@ -43,6 +61,15 @@ function cropduster_pop(id, size_set_id, image_id){
 
 	return false;
   };
+  $(function() {
+      $('a.cd_show').click(function(e) {
+        e.preventDefault();
+        cropduster_pop('{{ attrs["id"] }}', 
+                        {{ size_set.id }}
+                        {% if image %}, {{ image.id }}{% endif %});
+        return false;
+      });
+  });
 })((typeof window.django == 'object') ? django.jQuery : jQuery);
 
 </script>
@@ -52,13 +79,27 @@ function cropduster_pop(id, size_set_id, image_id){
 
 </div>
 
-<p><a href="#" onclick="cropduster_pop('{{ attrs["id"] }}', {{ size_set.id }}{% if image %}, {{ image.id }}{% endif %});return false" class="cd_show"><img src="{{ media_url }}/img/cropduster_icon_upload_select.png" alt=""></a></p>
+<p><a href="#" class="cd_show"><img src="{{ media_url }}/img/cropduster_icon_upload_select.png" alt=""></a></p>
 
 	<div class="cropduster_thumbs">
 	{% if image %}
-		{% for image in image.derived.filter(size__size_set=size_set, size__auto_crop=False) %}
-		<img src="{{ image|safe }}" />
-		{% endfor %}
+        <h4>Original Image</h4>
+        <hr />
+        <a title="Original image" alt="Original Image" href="{{image|safe}}" target="_blank">
+            <img class="original" src="{{ image|safe }}"/>
+        </a>
+        <div style="clear:both;height:10px;"></div>
+        <h4>Manually Cropped</h4>
+        <hr />
+        {% for image in image.derived.filter(size__size_set=size_set, size__auto_crop=False) %}
+            <a href="{{image|safe}}"><img src="{{ image|safe }}" /></a>
+        {% endfor %}
+        <div style="clear:both;height:10px;"></div>
+        <h4>Auto Cropped</h4>
+        <hr />
+        {% for image in image.derived.filter(size__size_set=size_set, size__auto_crop=True) %}
+            <a href="{{image|safe}}"><img src="{{ image|safe }}" /></a>
+        {% endfor %}
 	{% endif %}
 	</div>
 <div id="cropduster_input_{{ attrs["id"] }}">

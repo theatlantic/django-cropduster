@@ -134,8 +134,6 @@
    
 	</div>
      
-     
-
 	<div class="module footer" id="upload-footer">
 			<ul class="submit-row">
 				<li class="submit-button-container">
@@ -144,6 +142,11 @@
 			</ul>
 		</div>
 	</form>
+    {% if not crops %}
+        <script type="text/javascript">
+        document.forms[0].submit();
+        </script>
+    {% endif %}
 	
 </div>
 {% endblock %}

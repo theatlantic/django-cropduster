@@ -224,6 +224,7 @@ def upload_crop_images(request):
         metadata_form.save()
         image = image_form.save()
         sizes = apply_size_set(image, size_set)
+
         context = {
             'formset': image_form,
             'browser_width': BROWSER_WIDTH,
