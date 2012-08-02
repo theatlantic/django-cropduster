@@ -89,17 +89,15 @@ function cropduster_pop(id, size_set_id, image_id){
             <img class="original" src="{{ image|safe }}"/>
         </a>
         <div style="clear:both;height:10px;"></div>
-        <h4>Manually Cropped</h4>
-        <hr />
-        {% for image in image.derived.filter(size__size_set=size_set, size__auto_crop=False) %}
-            <a href="{{image|safe}}"><img src="{{ image|safe }}" /></a>
-        {% endfor %}
-        <div style="clear:both;height:10px;"></div>
-        <h4>Auto Cropped</h4>
-        <hr />
-        {% for image in image.derived.filter(size__size_set=size_set, size__auto_crop=True) %}
-            <a href="{{image|safe}}"><img src="{{ image|safe }}" /></a>
-        {% endfor %}
+        {% set manual = image.derived.filter(size__size_set=size_set, size__auto_crop=False) %}
+        {% if manual|length > 0 %}
+            <h4>Manually Cropped</h4>
+            <hr />
+            {% for image in manual %}
+                <a target="_blank" href="{{image|safe}}"><img src="{{ image|safe }}" /></a>
+            {% endfor %}
+            <div style="clear:both;height:10px;"></div>
+        {% endif %}
 	{% endif %}
 	</div>
 <div id="cropduster_input_{{ attrs["id"] }}">
