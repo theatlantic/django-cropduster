@@ -29,25 +29,7 @@ def get_ratio(request):
 class ImageForm(ModelForm):
 	class Meta:
 		model = CropDusterImage
-	def clean(self):
-		size_set = self.cleaned_data.get("size_set") or self.instance.size_set
 
-		image = self.cleaned_data.get("image")
-	
-		if image:
-		
-			if os.path.splitext(image.name)[1] == '':
-				raise ValidationError("Please make sure images have file extensions before uploading")
-		
-			try:
-				pil_image = pil.open(image)
-			except:
-				raise ValidationError("Unable to open image file")
-				
-			for size in size_set.size_set.all():
-				if size.greater_than_image_size(pil_image.size[0], pil_image.size[1]):
-					raise ValidationError("Uploaded image (%s x %s) is smaller than a required thumbnail size: %s" % (pil_image.size[0], pil_image.size[1], size))
-		return self.cleaned_data
 		
 		
 class CropForm(ModelForm):

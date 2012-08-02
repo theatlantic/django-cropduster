@@ -112,12 +112,6 @@ class Size(CachingMixin, models.Model):
 	def __unicode__(self):
 		return u"%s: %sx%s" % (self.name, self.width, self.height)
 
-	def greater_than_image_size(self, image_width, image_height):
-		""" Checks that image dimensions arent smaller than the required dimensions for resizing """
-		if self.width > image_width or self.height > image_height:
-			return True
-		else:
-			return False
 	
 	@property
 	def retina_size(self):
@@ -281,7 +275,22 @@ class Image(CachingMixin, models.Model):
 		for size in sizes:
 			self.create_thumbnail(size)
 			
-			
+	def clean(self):
+	
+		if self.image:
+		
+			if os.path.splitext(self.image.name)[1] == '':
+				raise ValidationError("Please make sure images have file extensions before uploading")
+		
+			try:
+				pil_image = pil.open(self.image)
+			except:
+				raise ValidationError("Unable to open image file")
+				
+			for size in self.size_set.size_set.all():
+				if self.size.width > pil_image.size[0] or self.size.height > pil_image.size[1]:
+					raise ValidationError("Uploaded image (%s x %s) is smaller than a required thumbnail size: %s" % (pil_image.size[0], pil_image.size[1], size))
+		return self.cleaned_data
 			
 	def create_thumbnail(self, size, force_crop=False):
 		""" Creates a thumbnail for an image at the specified size """
