@@ -296,7 +296,7 @@ class Image(CachingMixin, models.Model):
 				raise ValidationError("Unable to open image file")
 			
 			if self.validate_image_size:
-				for size in self.size_set.size_set.all():
+				for size in self.size_set.size_set.all().order_by("-width"):
 					if size.width > pil_image.size[0] or size.height > pil_image.size[1]:
 						raise ValidationError("Uploaded image (%s x %s) is smaller than a required thumbnail size: %s" % (pil_image.size[0], pil_image.size[1], size))
 		return super(Image, self).clean()
