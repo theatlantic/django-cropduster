@@ -1,5 +1,6 @@
 import os
 import copy
+from itertools import count
 
 from PIL import Image as pil
 
@@ -9,6 +10,7 @@ from django.shortcuts import render_to_response
 from django.template import RequestContext
 
 from cropduster.models import Image, Crop, Size, SizeSet, ImageMetadata
+from collections import namedtuple
 
 BROWSER_WIDTH = 800
 
@@ -66,7 +68,7 @@ class CropForm(ModelForm):
         model = Crop
 
     def _clean(self):
-        #print 'Raw crop:', self.data
+        print 'Raw crop:', self.data
         if not('crop_x' in self.data and 'crop_y' in self.data):
             self._errors.clear()
             raise ValidationError("Missing crop values")
@@ -75,8 +77,11 @@ class CropForm(ModelForm):
             self._errors.clear()
             raise ValidationError("Crop positions must be non-negative")
 
-        return self.cleaned_data
+        if int(self.data['crop_w']) < 1 or int(self.data['crop_h']) < 1:
+            self._errors.clear()
+            raise ValidationError("Crop must have a height and width of at least one pixel")
 
+        return self.cleaned_data
 
 def get_image(request):
     image_id = request.GET.get('image_id') or request.POST.get('image_id')
@@ -106,9 +111,12 @@ def apply_size_set(image, size_set):
     return images
 
 
+Dimensions = namedtuple('Dimensions', 'width,height,ar')
 def get_inherited_dims(image):
     o = image.original
-    return image.size.get_width(), image.size.get_height(), image.size.get_aspect_ratio()
+    return Dimensions(image.size.get_width(),
+                      image.size.get_height(),
+                      image.size.get_aspect_ratio())
 
 def get_inherited_ar(image):
     return get_inherited_dims(image)[2]
@@ -122,11 +130,19 @@ def calc_linked_crop(images, prefix):
     dims = [get_inherited_dims(i) for i in images]
     max_dim = max(dims)
     ids = ','.join(str(i.id) for i in images)
-    return (ids, max_dim[2],
-            CropForm(instance=Crop(crop_x=0,
-                                   crop_y=0,
-                                   crop_w=max_dim[0],
-                                   crop_h=max_dim[1]),
+
+    if images[0].crop is not None:
+        # Start from the current crop if it exists.
+        c = images[0].crop
+        crop = Crop(crop_x=c.crop_x,
+                    crop_y=c.crop_y,
+                    crop_w=c.crop_w,
+                    crop_h=c.crop_h)
+    else:
+        crop = Crop(0, 0, 0, 0)
+
+    return (ids, max_dim,
+            CropForm(instance=crop,
                      prefix=prefix))
 
 
@@ -148,9 +164,15 @@ def get_crops(images):
     """
     # group sizes by aspect ratio
     crops = []
-    for i, (aspect_ratio, imageset) in enumerate(categorize(images, get_inherited_ar).iteritems()):
-        #print aspect_ratio, imageset
-        crops.append(calc_linked_crop(imageset, `i`))
+    counter = count(0)
+    for aspect_ratio, imageset in categorize(images, get_inherited_ar).iteritems():
+        print aspect_ratio, imageset
+        if aspect_ratio is None:
+            # We have an unbound dimension in this case, add them individually
+            for img in imageset:
+                crops.append(calc_linked_crop([img], `next(counter)`))
+        else:
+            crops.append(calc_linked_crop(imageset, `next(counter)`))
 
     return crops
 
@@ -242,7 +264,6 @@ def upload_crop_images(request):
 def get_ids(request, index):
     return (int(i) for i in request.POST['crop_ids_%i' % index].split(','))
 
-
 def get_crops_from_post(request):
     total_crops = int(request.POST['total_crops'])
     crop_mapping = {}
@@ -250,7 +271,7 @@ def get_crops_from_post(request):
         # Build a crop form
         cf = CropForm(request.POST, prefix=`i`)
         if cf.is_valid():
-            #print "Found Crop:", cf.instance
+            print "Found Crop:", cf.instance
             for image_id in get_ids(request, i):
                 crop_mapping[image_id] = cf.instance
         else:
@@ -258,7 +279,6 @@ def get_crops_from_post(request):
             raise Exception(cf.errors.values())
 
     return crop_mapping
-
 
 def update_crop(der_image, crop):
     der_image.set_crop(crop.crop_x, crop.crop_y, crop.crop_w, crop.crop_h).save()
@@ -300,10 +320,8 @@ STAGES = {
     'apply_sizes': apply_sizes,
 }
 
-
 def get_next_stage(request):
     return request.POST.get('next_stage', 'upload')
-
 
 def dispatch_stage(request):
     stage = get_next_stage(request)
@@ -312,7 +330,6 @@ def dispatch_stage(request):
 
     #Raise error
     return None
-
 
 @csrf_exempt
 def upload(request):
