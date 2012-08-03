@@ -179,6 +179,8 @@ class Image(CachingMixin, models.Model):
 	
 	objects = CachingManager()
 	
+	validate_image_size= True
+	
 	image = models.ImageField(
 		upload_to=settings.CROPDUSTER_UPLOAD_PATH + "%Y/%m/%d", 
 		max_length=255, 
@@ -197,6 +199,12 @@ class Image(CachingMixin, models.Model):
 		db_table = "cropduster_image"
 		verbose_name = "Image"
 		verbose_name_plural = "Image"
+	
+	def __init__(self, *args, **kwargs):
+		if "validate_image_size" in kwargs:
+			self.validate_image_size = kwargs["validate_image_size"]
+		super(Image, self).__init__(*args, **kwargs)
+		
 		
 	def __unicode__(self):
 		if self.image:
@@ -286,10 +294,11 @@ class Image(CachingMixin, models.Model):
 				pil_image = pil.open(self.image)
 			except:
 				raise ValidationError("Unable to open image file")
-				
-			for size in self.size_set.size_set.all():
-				if size.width > pil_image.size[0] or size.height > pil_image.size[1]:
-					raise ValidationError("Uploaded image (%s x %s) is smaller than a required thumbnail size: %s" % (pil_image.size[0], pil_image.size[1], size))
+			
+			if self.validate_image_size:
+				for size in self.size_set.size_set.all():
+					if size.width > pil_image.size[0] or size.height > pil_image.size[1]:
+						raise ValidationError("Uploaded image (%s x %s) is smaller than a required thumbnail size: %s" % (pil_image.size[0], pil_image.size[1], size))
 		return super(Image, self).clean()
 			
 	def create_thumbnail(self, size, force_crop=False):
