@@ -66,6 +66,7 @@ class CropForm(ModelForm):
         model = Crop
 
     def _clean(self):
+        #print 'Raw crop:', self.data
         if not('crop_x' in self.data and 'crop_y' in self.data):
             self._errors.clear()
             raise ValidationError("Missing crop values")
@@ -107,18 +108,15 @@ def apply_size_set(image, size_set):
 
 def get_inherited_dims(image):
     o = image.original
-    return image.size.calc_dimensions(o.width, o.height)
-
+    return image.size.get_width(), image.size.get_height(), image.size.get_aspect_ratio()
 
 def get_inherited_ar(image):
     return get_inherited_dims(image)[2]
-
 
 def calc_min_dims(images):
     widths, heights, ars = zip(get_inherited_dims(i) for i in images)
     assert(min(ars) == max(ars))
     return max(widths), max(heights)
-
 
 def calc_linked_crop(images, prefix):
     dims = [get_inherited_dims(i) for i in images]
@@ -151,10 +149,10 @@ def get_crops(images):
     # group sizes by aspect ratio
     crops = []
     for i, (aspect_ratio, imageset) in enumerate(categorize(images, get_inherited_ar).iteritems()):
+        #print aspect_ratio, imageset
         crops.append(calc_linked_crop(imageset, `i`))
 
     return crops
-
 
 def categorize(iterator, key=None):
     if callable(key):
@@ -169,7 +167,6 @@ def categorize(iterator, key=None):
 
     return d
 
-
 def min_size(size_set):
     """
     Calculates the minimum dimensions from a size_set
@@ -181,7 +178,6 @@ def min_size(size_set):
         height = max(height, h)
 
     return width, height
-
 
 def upload_image(request, image_form=None, metadata_form=None):
     size_set = SizeSet.objects.get(id=request.GET['size_set'])
@@ -254,26 +250,19 @@ def get_crops_from_post(request):
         # Build a crop form
         cf = CropForm(request.POST, prefix=`i`)
         if cf.is_valid():
+            #print "Found Crop:", cf.instance
             for image_id in get_ids(request, i):
                 crop_mapping[image_id] = cf.instance
         else:
             # Right now, just blow up
             raise Exception(cf.errors.values())
+
     return crop_mapping
 
 
 def update_crop(der_image, crop):
-    if der_image.crop is not None:
-        der_image.crop.crop_x = crop.crop_x
-        der_image.crop.crop_y = crop.crop_y
-        der_image.crop.crop_w = crop.crop_w
-        der_image.crop.crop_w = crop.crop_h
-    else:
-        der_image.crop = copy.copy(crop)
-
-    der_image.crop.save()
+    der_image.set_crop(crop.crop_x, crop.crop_y, crop.crop_w, crop.crop_h).save()
     der_image.crop = der_image.crop
-
 
 def apply_sizes(request):
     # Get each crop and validate it
@@ -291,6 +280,7 @@ def apply_sizes(request):
         # Render the thumbnail...
         der_image.render()
         der_image.save()
+
         # Only show cropped images in the admin.
         if der_image.id in crop_mapping:
             thumbs.append(der_image.image.url)
@@ -303,7 +293,6 @@ def apply_sizes(request):
 
     context = RequestContext(request, context)
     return render_to_response('admin/complete.html', context)
-
 
 STAGES = {
     'upload': upload_image,

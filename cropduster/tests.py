@@ -525,5 +525,35 @@ class TestCropduster(unittest.TestCase):
             self.assert_(i.pk > last) 
             last = i.pk
 
+    def test_variable_dimension(self):
+        """
+        Tests that variable dimensions work properly.
+        """
+        cd1 = self.get_test_image()
+
+        img = cd1.new_derived_image()
+        size = CM.Size(slug='thumbnail',
+                            width=128,
+                            retina=True)
+
+        size.save()
+        img.size = size
+
+        img.set_crop(100,100,400,400).save()
+
+        img.render()
+        img.save()
+
+        self.assertEquals(img.width, 128)
+        self.assertEquals(img.height, 128)
+
+        img.set_crop(1,1,128,256).save()
+
+        img.render()
+        img.save()
+
+        self.assertEquals(img.width, 128)
+        self.assertEquals(img.height, 256)
+
 if __name__ == '__main__':
     unittest.main()
