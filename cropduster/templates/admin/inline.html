@@ -32,12 +32,12 @@
 function cropduster_pop(id, size_set_id, image_id){
 
 
-	href = '{{ cropduster_url }}?pop=1&size_set=' + size_set_id + '&image_element_id=' + id;
+	var href = '{{ cropduster_url }}?pop=1&size_set=' + size_set_id + '&image_element_id=' + id;
 	if (django.jQuery("#cropduster_input_" + id + " input").val() != ''){
 		image_id = django.jQuery("#cropduster_input_" + id + " input").val();
 	}
 	
-	if (image_id){
+	if (image_id !== undefined){
 		href += '&image_id=' + image_id;
 	}
 
@@ -61,15 +61,18 @@ function cropduster_pop(id, size_set_id, image_id){
 
 	return false;
   };
-  $(function() {
-      $('a.cd_show').click(function(e) {
-        e.preventDefault();
-        cropduster_pop('{{ attrs["id"] }}', 
-                        {{ size_set.id }}
-                        {% if image %}, {{ image.id }}{% endif %});
-        return false;
-      });
-  });
+  window.show_cropduster = function(e) {
+      var attr_id = $(this).attr('data-attr_id');
+      var size_set_id = $(this).attr('data-size_set_id');
+      // Check to see if we have a root image
+      var orig_image= $('div[data-attr_id="'+attr_id+'"] img.original');
+      if(orig_image !== null) {
+          orig_image = orig_image.attr('data-image_id');
+      }
+      // Show the popup
+      cropduster_pop(attr_id, size_set_id, orig_image);
+      return false;
+  };
 })((typeof window.django == 'object') ? django.jQuery : jQuery);
 
 </script>
@@ -79,14 +82,14 @@ function cropduster_pop(id, size_set_id, image_id){
 
 </div>
 
-<p><a href="#" class="cd_show"><img src="{{ media_url }}/img/cropduster_icon_upload_select.png" alt=""></a></p>
+<p><a data-attr_id="{{ attrs["id"]}}" data-size_set_id="{{size_set.id}}" href="#" onclick="show_cropduster.call(this)" class="cd_show"><img src="{{ media_url }}/img/cropduster_icon_upload_select.png" alt=""></a></p>
 
-	<div class="cropduster_thumbs">
+	<div data-attr_id="{{ attrs["id"] }}" class="cropduster_thumbs">
 	{% if image %}
         <h4>Original Image</h4>
         <hr />
         <a title="Original image" alt="Original Image" href="{{image|safe}}" target="_blank">
-            <img class="original" src="{{ image|safe }}"/>
+            <img data-image_id="{{image.id}}" class="original" src="{{ image|safe }}"/>
         </a>
         <div style="clear:both;height:10px;"></div>
         {% set manual = image.derived.filter(size__size_set=size_set, size__auto_crop=False) %}
