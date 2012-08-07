@@ -342,7 +342,7 @@ class Image(CachingMixin, models.Model):
 				
 				# Only create retina image if cropped image is large enough
 				# If retina size is required, make a separate size
-				if not retina_size.greater_than_image_size(cropped_image.size[0], cropped_image.size[1]):
+				if retina_size.width <= cropped_image.size[0] and retina_size.height <= cropped_image.size[1]:
 					retina_thumbnail = utils.rescale(cropped_image, retina_size.width, retina_size.height, crop=retina_size.auto_size)
 					retina_thumbnail.save(self.thumbnail_path(retina_size.slug), **IMAGE_SAVE_PARAMS)
 			
