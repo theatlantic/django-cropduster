@@ -576,10 +576,21 @@ class TestCropduster(unittest.TestCase):
         Tests whether we can set a custom cropduster upload to path.
         """
         tm = TestModel()
-        image = tm._meta.get_field_by_name('image')[0](image=TEST_IMAGE)
+        # Get the proxy image class
+        image_cls = tm._meta.get_field_by_name('image')[0].rel.to 
+        image = image_cls()
+
+        # Mimic uploading img
+        cf = ContentFile(file(TEST_IMAGE).read())
+        basename = os.path.basename(TEST_IMAGE)
+        image.image.save(basename, cf)
+        image.save()
         tm.image = image
-        tm.image.save()
-        self.assert_('/test/' in tm.image.image.name)
+        tm.save()
+
+        import datetime
+        path = datetime.datetime.now().strftime('/test/%Y/%m/%d')
+        self.assert_(path in tm.image.image.name)
 
 class TestModel(models.Model):
     image = CM.CustomCropDusterField(upload_to='test/%Y/%m/%d')

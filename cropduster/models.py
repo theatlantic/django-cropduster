@@ -2,6 +2,7 @@ import uuid
 import os
 import datetime
 import hashlib
+import itertools
 
 from PIL import Image as pil
 
@@ -605,6 +606,7 @@ class CropDusterField(models.ForeignKey):
             args = (Image, )
         super(CropDusterField, self).__init__(*args, **kwargs)
 
+PROXY_COUNT = itertools.count(1)
 def CustomCropDusterField(*args, **kwargs):
     if 'upload_to' not in kwargs:
         return CropDusterField(*args, **kwargs)
@@ -623,15 +625,15 @@ def CustomCropDusterField(*args, **kwargs):
         upload_path = upload_to
         def upload_to(object, filename):
             return Image.cropduster_upload_to(filename, upload_path)
+
     elif not callable(upload_to):
         raise TypeError("'upload_to' needs to be either a callable or string")
 
-    # Ugly town?
-    class ProxyImage(base_cls):
-        class Meta:
-            proxy = True
-
-        cropduster_upload_to = upload_to
+    ProxyImage = type('ProxyImage%i' % next(PROXY_COUNT), 
+                      (base_cls,),
+                      {'Meta': type('Meta', (), {'proxy':True}),
+                       'cropduster_upload_to': upload_to,
+                       '__module__': Image.__module__})
 
     return CropDusterField(ProxyImage, *args, **kwargs)
 
@@ -639,10 +641,8 @@ class ImageRegistry(object):
     hashes = {}
     @classmethod
     def add(cls, model, field_name, Image):
-        print 'Attrs: ', model, field_name
         model_hash = hashlib.md5('%s:%s' % (model, field_name)).hexdigest()
         cls.hashes[model_hash] = Image
-        print 'hash: ', model_hash
         return model_hash
 
     @classmethod
