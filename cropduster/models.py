@@ -604,6 +604,8 @@ PROXY_COUNT = itertools.count(1)
 class CropDusterField(models.ForeignKey):
     def __init__(self, *args, **kwargs):
         if 'upload_to' not in kwargs:
+            if not args and 'to' not in kwargs:
+                args = (Image,)
             super(CropDusterField, self).__init__(*args, **kwargs)
             return
 

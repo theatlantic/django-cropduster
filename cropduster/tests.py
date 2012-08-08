@@ -594,6 +594,8 @@ class TestCropduster(unittest.TestCase):
 
 class TestModel(models.Model):
     image = CM.CropDusterField(upload_to='test/%Y/%m/%d')
+    image2 = CM.CropDusterField(null=True, related_name='image2')
+    image3 = CM.CropDusterField(to=CM.Image, null=True, related_name='image3')
 
 if __name__ == '__main__':
     unittest.main()
