@@ -7,6 +7,8 @@ from django.conf import settings
 PATH = os.path.split(__file__)[0]
 settings.MEDIA_ROOT = settings.STATIC_ROOT = settings.UPLOAD_PATH = PATH
 
+from django.db import models
+from django.core.files.base import ContentFile
 from django.core.exceptions import ObjectDoesNotExist as DNE, ValidationError
 import cropduster.models as CM
 
@@ -554,6 +556,33 @@ class TestCropduster(unittest.TestCase):
 
         self.assertEquals(img.width, 128)
         self.assertEquals(img.height, 256)
+
+    def test_from_stream(self):
+        """
+        Tests that streaming in data saves correctly, and into the correct location.
+        """
+        # Fake loading it from a stream.
+        cd1 = self.get_test_image(image=None)
+        cf = ContentFile(file(TEST_IMAGE).read())
+        basename = os.path.basename(TEST_IMAGE)
+        cd1.image.save(basename, cf)
+        cd1.save()
+
+        self.assert_(PATH in cd1.image.path)
+        self.assertEquals(cd1.image.width, 897)
+
+    def test_custom_upload_to(self):
+        """
+        Tests whether we can set a custom cropduster upload to path.
+        """
+        tm = TestModel()
+        image = tm._meta.get_field_by_name('image')[0](image=TEST_IMAGE)
+        tm.image = image
+        tm.image.save()
+        self.assert_('/test/' in tm.image.image.name)
+
+class TestModel(models.Model):
+    image = CM.CustomCropDusterField(upload_to='test/%Y/%m/%d')
 
 if __name__ == '__main__':
     unittest.main()

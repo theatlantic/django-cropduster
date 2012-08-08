@@ -1,10 +1,15 @@
+import uuid
+import os
+import datetime
+import hashlib
+
+from PIL import Image as pil
+
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
-import uuid
-import os
+
 from cropduster import utils
-from PIL import Image as pil
 
 IMAGE_SAVE_PARAMS = {"quality": 95}
 
@@ -192,7 +197,6 @@ class ImageMetadata(CachingMixin, models.Model):
     attribution_link = models.URLField(max_length=255, blank=True, null=True)
     caption = models.CharField(max_length=255, blank=True, null=True)
 
-
 class Image(CachingMixin, models.Model):
 
     objects = CachingManager()
@@ -208,7 +212,7 @@ class Image(CachingMixin, models.Model):
                                  null=True)
 
     image = models.ImageField(
-        upload_to=settings.CROPDUSTER_UPLOAD_PATH + "%Y/%m/%d",
+        upload_to=lambda obj, filename: obj.cropduster_upload_to(filename),
         width_field='width',
         height_field='height',
         max_length=255)
@@ -228,6 +232,11 @@ class Image(CachingMixin, models.Model):
 
     width = models.PositiveIntegerField(null=True)
     height = models.PositiveIntegerField(null=True)
+
+    @staticmethod
+    def cropduster_upload_to(filename, fmt="%Y/%m/%d"):
+        now = datetime.date.today()
+        return os.path.join(settings.CROPDUSTER_UPLOAD_PATH, now.strftime(fmt), filename)
 
     @property
     def retina_path(self):
@@ -590,13 +599,55 @@ class Image(CachingMixin, models.Model):
 
         return super(Image, self).delete(*args, **kwargs)
 
-
 class CropDusterField(models.ForeignKey):
     def __init__(self, *args, **kwargs):
         if not args and 'to' not in kwargs:
             args = (Image, )
         super(CropDusterField, self).__init__(*args, **kwargs)
 
+def CustomCropDusterField(*args, **kwargs):
+    if 'upload_to' not in kwargs:
+        return CropDusterField(*args, **kwargs)
+
+    # Figure out what we are inheriting from.
+    if args and issubclass(args[0], Image):
+        base_cls = args[0]
+        args = tuple(args[1:])
+    elif 'to' in kwargs and issubclass(kwargs.get('to'), Image): 
+        base_cls = kwargs.get('to')
+    else:
+        base_cls = Image
+
+    upload_to = kwargs.pop('upload_to')
+    if isinstance(upload_to, basestring):
+        upload_path = upload_to
+        def upload_to(object, filename):
+            return Image.cropduster_upload_to(filename, upload_path)
+    elif not callable(upload_to):
+        raise TypeError("'upload_to' needs to be either a callable or string")
+
+    # Ugly town?
+    class ProxyImage(base_cls):
+        class Meta:
+            proxy = True
+
+        cropduster_upload_to = upload_to
+
+    return CropDusterField(ProxyImage, *args, **kwargs)
+
+class ImageRegistry(object):
+    hashes = {}
+    @classmethod
+    def add(cls, model, field_name, Image):
+        print 'Attrs: ', model, field_name
+        model_hash = hashlib.md5('%s:%s' % (model, field_name)).hexdigest()
+        cls.hashes[model_hash] = Image
+        print 'hash: ', model_hash
+        return model_hash
+
+    @classmethod
+    def get(cls, image_hash):
+        return cls.hashes.get(image_hash, Image)
 
 try:
     from south.modelsinspector import add_introspection_rules

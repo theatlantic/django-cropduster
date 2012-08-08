@@ -9,17 +9,15 @@ from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 
-from cropduster.models import Image, Crop, Size, SizeSet, ImageMetadata
+from cropduster.models import Image, Crop, Size, SizeSet, ImageMetadata, ImageRegistry
 from collections import namedtuple
 
 BROWSER_WIDTH = 800
-
 
 class MetadataForm(ModelForm):
 
     class Meta:
         model = ImageMetadata
-
 
 # Create the form class.
 class ImageForm(ModelForm):
@@ -61,14 +59,12 @@ class ImageForm(ModelForm):
 
         return image
 
-
 class CropForm(ModelForm):
 
     class Meta:
         model = Crop
 
     def _clean(self):
-        print 'Raw crop:', self.data
         if not('crop_x' in self.data and 'crop_y' in self.data):
             self._errors.clear()
             raise ValidationError("Missing crop values")
@@ -85,13 +81,14 @@ class CropForm(ModelForm):
 
 def get_image(request):
     image_id = request.GET.get('image_id') or request.POST.get('image_id')
+    image_hash = request.GET.get('image_hash')
+    cls = ImageRegistry.get(image_hash)
     if image_id is not None:
-        image = Image.objects.get(id=image_id)
+        image = cls.objects.get(id=image_id)
     else:
-        image = Image()
+        image = cls()
 
     return image
-
 
 def apply_size_set(image, size_set):
     # Do we already have the image_set?
@@ -145,7 +142,6 @@ def calc_linked_crop(images, prefix):
             CropForm(instance=crop,
                      prefix=prefix))
 
-
 def get_crops(images):
     """
     Gets the crop objects for the thumbs.  It will group images by aspect ratio
@@ -166,7 +162,6 @@ def get_crops(images):
     crops = []
     counter = count(0)
     for aspect_ratio, imageset in categorize(images, get_inherited_ar).iteritems():
-        print aspect_ratio, imageset
         if aspect_ratio is None:
             # We have an unbound dimension in this case, add them individually
             for img in imageset:
@@ -226,7 +221,6 @@ def upload_image(request, image_form=None, metadata_form=None):
 
     return render_to_response('admin/upload_image.html', context)
 
-
 def upload_crop_images(request):
     size_set = SizeSet.objects.get(id=request.GET['size_set'])
     image = get_image(request)
@@ -271,7 +265,6 @@ def get_crops_from_post(request):
         # Build a crop form
         cf = CropForm(request.POST, prefix=`i`)
         if cf.is_valid():
-            print "Found Crop:", cf.instance
             for image_id in get_ids(request, i):
                 crop_mapping[image_id] = cf.instance
         else:

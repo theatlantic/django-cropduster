@@ -29,10 +29,11 @@
 </style>
 
 <script type="text/javascript">
-function cropduster_pop(id, size_set_id, image_id){
+function cropduster_pop(id, size_set_id, image_id, image_hash){
 
-
-	var href = '{{ cropduster_url }}?pop=1&size_set=' + size_set_id + '&image_element_id=' + id;
+	var href = '{{ cropduster_url }}?pop=1&size_set=' + size_set_id 
+                + '&image_element_id=' + id
+                + '&image_hash=' + image_hash;
 	if (django.jQuery("#cropduster_input_" + id + " input").val() != ''){
 		image_id = django.jQuery("#cropduster_input_" + id + " input").val();
 	}
@@ -69,8 +70,9 @@ function cropduster_pop(id, size_set_id, image_id){
       if(orig_image !== null) {
           orig_image = orig_image.attr('data-image_id');
       }
+      var image_hash = $(this).attr('data-image_hash');
       // Show the popup
-      cropduster_pop(attr_id, size_set_id, orig_image);
+      cropduster_pop(attr_id, size_set_id, orig_image, image_hash);
       return false;
   };
 })((typeof window.django == 'object') ? django.jQuery : jQuery);
@@ -82,7 +84,7 @@ function cropduster_pop(id, size_set_id, image_id){
 
 </div>
 
-<p><a data-attr_id="{{ attrs["id"]}}" data-size_set_id="{{size_set.id}}" href="#" onclick="show_cropduster.call(this)" class="cd_show"><img src="{{ media_url }}/img/cropduster_icon_upload_select.png" alt=""></a></p>
+<p><a data-image_hash="{{image_hash}}" data-attr_id="{{ attrs["id"]}}" data-size_set_id="{{size_set.id}}" href="#" onclick="show_cropduster.call(this)" class="cd_show"><img src="{{ media_url }}/img/cropduster_icon_upload_select.png" alt=""></a></p>
 
 	<div data-attr_id="{{ attrs["id"] }}" class="cropduster_thumbs">
 	{% if image %}
