@@ -54,15 +54,21 @@ not ask for a crop to be defined to create the thumbnail, but will simply be
 created automatically (cropping from 0x0 to the image size, and then sizing
 down).
 
-In the admin.py for your app, override the default widget for that field,
-and define which size set to use by the handle of the size set:
+In the admin.py for your app, to override the default widgets for that field,
+and define which size sets to use by the handle of the size set:
 
 ```python
 from cropduster.widgets import AdminCropdusterWidget
 from cropduster.models import CropDusterField
 
+class MyModelForm(forms.ModelForm):
+    class Meta:
+        model = MyModel
+        widgets = {
+            "cropduster_field": AdminCropdusterWidget(MyModel, "cropduster_field", "size-set-1"),
+            # Any additional ones followingh
+        }
+
 class MyModelAdmin(admin.ModelAdmin):
-    formfield_overrides = {
-        CropDusterField: {"widget": AdminCropdusterWidget("size-set-handle")}
-    }
+    form = TestForm
 ```
