@@ -600,44 +600,45 @@ class Image(CachingMixin, models.Model):
 
         return super(Image, self).delete(*args, **kwargs)
 
+PROXY_COUNT = itertools.count(1)
 class CropDusterField(models.ForeignKey):
     def __init__(self, *args, **kwargs):
-        if not args and 'to' not in kwargs:
-            args = (Image, )
-        super(CropDusterField, self).__init__(*args, **kwargs)
+        if 'upload_to' not in kwargs:
+            return CropDusterField(*args, **kwargs)
 
-PROXY_COUNT = itertools.count(1)
-def CustomCropDusterField(*args, **kwargs):
-    if 'upload_to' not in kwargs:
-        return CropDusterField(*args, **kwargs)
+        # Figure out what we are inheriting from.
+        if args and issubclass(args[0], Image):
+            base_cls = args[0]
+            args = tuple(args[1:])
+        elif 'to' in kwargs and issubclass(kwargs.get('to'), Image): 
+            base_cls = kwargs.get('to')
+        else:
+            base_cls = Image
 
-    # Figure out what we are inheriting from.
-    if args and issubclass(args[0], Image):
-        base_cls = args[0]
-        args = tuple(args[1:])
-    elif 'to' in kwargs and issubclass(kwargs.get('to'), Image): 
-        base_cls = kwargs.get('to')
-    else:
-        base_cls = Image
+        upload_to = kwargs.pop('upload_to')
+        if isinstance(upload_to, basestring):
+            upload_path = upload_to
+            def upload_to(object, filename):
+                return Image.cropduster_upload_to(filename, upload_path)
 
-    upload_to = kwargs.pop('upload_to')
-    if isinstance(upload_to, basestring):
-        upload_path = upload_to
-        def upload_to(object, filename):
-            return Image.cropduster_upload_to(filename, upload_path)
+        elif not callable(upload_to):
+            raise TypeError("'upload_to' needs to be either a callable or string")
 
-    elif not callable(upload_to):
-        raise TypeError("'upload_to' needs to be either a callable or string")
+        # We have to create a unique class name for each custom proxy image otherwise
+        # django likes to alias them together.
+        ProxyImage = type('ProxyImage%i' % next(PROXY_COUNT), 
+                          (base_cls,),
+                          {'Meta': type('Meta', (), {'proxy':True}),
+                           'cropduster_upload_to': upload_to,
+                           '__module__': Image.__module__})
 
-    ProxyImage = type('ProxyImage%i' % next(PROXY_COUNT), 
-                      (base_cls,),
-                      {'Meta': type('Meta', (), {'proxy':True}),
-                       'cropduster_upload_to': upload_to,
-                       '__module__': Image.__module__})
-
-    return CropDusterField(ProxyImage, *args, **kwargs)
+        return super(CropDusterField, self).__init__(ProxyImage, *args, **kwargs)
 
 class ImageRegistry(object):
+    """
+    Registers cropduster Images to a hash to make it reasonable to lookup
+    image directly from the admin.
+    """
     hashes = {}
     @classmethod
     def add(cls, model, field_name, Image):

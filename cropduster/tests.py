@@ -593,7 +593,7 @@ class TestCropduster(unittest.TestCase):
         self.assert_(path in tm.image.image.name)
 
 class TestModel(models.Model):
-    image = CM.CustomCropDusterField(upload_to='test/%Y/%m/%d')
+    image = CM.CropDusterField(upload_to='test/%Y/%m/%d')
 
 if __name__ == '__main__':
     unittest.main()
