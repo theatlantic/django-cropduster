@@ -10,6 +10,7 @@ from cropduster.models import Image as CropDusterImage, Crop, Size, SizeSet
 from cropduster.exif import process_file
 from cropduster.utils import aspect_ratio
 import json
+from cropduster.admin import ADMIN_MEDIA_PREFIX
 
 from PIL import Image as pil
 
@@ -206,6 +207,7 @@ def upload(request):
 			"image_exists": image.image and os.path.exists(image.image.path),
 			"min_w"  : size.width,
 			"min_h"  : size.height,
+			"ADMIN_MEDIA_PREFIX": ADMIN_MEDIA_PREFIX,
 
 		}
 		
@@ -220,7 +222,8 @@ def upload(request):
 		context = {
 			"image": image,
 			"image_thumbs": image_thumbs,
-			"image_element_id" : request.GET["image_element_id"]
+			"image_element_id" : request.GET["image_element_id"],
+			"ADMIN_MEDIA_PREFIX": ADMIN_MEDIA_PREFIX,
 		}
 		
 		context = RequestContext(request, context)
