@@ -71,6 +71,6 @@ class MyModelAdmin(admin.ModelAdmin):
 
 Optional Settings:
 
-	Define CROPDUSTER_UPLOAD_PATH in settings to set the upload_to attribute for file uploads.  Otherwise defaults to MEDIA_ROOT.
+	CROPDUSTER_UPLOAD_PATH -- Sets the upload_to attribute for file uploads.  Otherwise defaults to MEDIA_ROOT.
 
-	Cropduster import exif data for image attribution and caption.  This can be turned off with CROPDUSTER_EXIF_DATA = False
+	CROPDUSTER_EXIF_DATA -- Import embedded exif data for image attribution and caption.  Default = False.  Uses exif.py by Gene Cash / Thierry Bousch
