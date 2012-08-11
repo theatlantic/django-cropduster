@@ -1,17 +1,17 @@
 class CropDusterException(Exception):
-	pass
+    pass
 
 class CropDusterUrlException(CropDusterException):
-	pass
+    pass
 
 class CropDusterViewException(CropDusterException):
-	pass
+    pass
 
 class CropDusterModelException(CropDusterException):
-	pass
+    pass
 
 class CropDusterImageException(CropDusterException):
-	pass
+    pass
 
 class CropDusterFileException(CropDusterException):
-	pass
+    pass
