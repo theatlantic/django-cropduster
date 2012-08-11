@@ -1,3 +1,4 @@
-*.pyc
+*.py[co]
 .DS_Store
 build
+*.egg-info
