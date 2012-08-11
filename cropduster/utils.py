@@ -9,7 +9,7 @@ from cropduster.settings import *
 
 from decimal import *
 
-import Image
+import PIL.Image
 
 from django.template.defaultfilters import slugify 
 import simplejson
@@ -31,11 +31,11 @@ def get_image_extension(img):
 		# Our fallback is the PIL format name in lowercase,
 		# which is probably the file extension
 		fallback_ext = "." + img.format.lower()
-		if fallback_ext in Image.EXTENSION:
+		if fallback_ext in PIL.Image.EXTENSION:
 			return fallback_ext
 		exts = []
-		for ext in Image.EXTENSION:
-			if Image.EXTENSION[ext] == image.format:
+		for ext in PIL.Image.EXTENSION:
+			if PIL.Image.EXTENSION[ext] == image.format:
 				exts.append(ext)
 		if len(exts) > 0:
 			return exts[0]
@@ -207,7 +207,7 @@ def rescale(img, w=0, h=0, crop=True):
 			int(x_offset+crop_width), 
 			int(y_offset+crop_height)
 		))
-	img = img.resize((int(dst_width), int(dst_height)), Image.ANTIALIAS)
+	img = img.resize((int(dst_width), int(dst_height)), PIL.Image.ANTIALIAS)
 
 	return img
 
@@ -217,7 +217,7 @@ def create_cropped_image(path=None, x=0, y=0, w=0, h=0):
 	if w <= 0 or h <= 0:
 		raise ValueError("Width and height must be greater than zero")
 
-	img = Image.open(path)
+	img = PIL.Image.open(path)
 	img.copy()
 	img.load()
 	img = img.crop((x, y, x + w, y + h))

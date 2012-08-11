@@ -6,7 +6,7 @@ from django.contrib.contenttypes import generic
 from django.db import models
 from django.conf import settings
 
-import Image as pil
+import PIL.Image
 
 from cropduster.utils import relpath
 
@@ -159,7 +159,7 @@ class Image(models.Model):
 		if size_name is None:
 			# Get the original size
 			try:
-				img = pil.open(self.get_image_path())
+				img = PIL.Image.open(self.get_image_path())
 				return img.size
 			except:
 				pass
