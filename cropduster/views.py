@@ -15,7 +15,7 @@ from django.utils.datastructures import MultiValueDictKeyError
 from django.views.decorators.csrf import csrf_exempt
 from jsonutil import jsonutil
 
-import Image
+import PIL.Image
 
 from cropduster.handlers import UploadProgressCachedHandler
 from cropduster.utils import *
@@ -94,7 +94,7 @@ def upload(request):
                 # Remove double '/'s
                 preview_url = re.sub(r'(?<!:)/+', '/', preview_url)
                 context_data['image'] = preview_url
-                img = Image.open(os.path.join(settings.STATIC_ROOT, orig_image))
+                img = PIL.Image.open(os.path.join(settings.STATIC_ROOT, orig_image))
                 (orig_w, orig_h) = img.size
                 context_data['orig_w'] = orig_w
                 context_data['orig_h'] = orig_h
@@ -139,7 +139,7 @@ def upload(request):
                 destination.write(chunk)
             destination.close()
             
-            img = Image.open(tmp_file_path)
+            img = PIL.Image.open(tmp_file_path)
             
             (w, h) = img.size
             (orig_w, orig_h) = img.size
