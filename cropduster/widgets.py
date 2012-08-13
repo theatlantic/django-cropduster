@@ -4,6 +4,7 @@ from django.core.urlresolvers import reverse
 from cropduster.models import SizeSet, Image as CropDusterImage, ImageRegistry
 from django.contrib.contenttypes.models import ContentType
 
+
 class AdminCropdusterWidget(HiddenInput):
 
     def __init__(self, model, field, size_set_slug, template="admin/inline.html", *args, **kwargs):
@@ -36,10 +37,13 @@ class AdminCropdusterWidget(HiddenInput):
 
         input = super(HiddenInput, self).render(name, value, attrs)
 
-        try:
-            image = CropDusterImage.objects.get(id=value)
-        except CropDusterImage.DoesNotExist:
+        if not value:
             image = None
+        else:
+            try:
+                image = CropDusterImage.objects.get(id=value)
+            except CropDusterImage.DoesNotExist:
+                image = None
 
         t = loader.get_template(self.template)
         c = Context({
