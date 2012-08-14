@@ -1,3 +1,4 @@
+import time
 import uuid
 import os
 import datetime
@@ -21,9 +22,10 @@ except ImportError:
         pass
     CachingManager = models.Manager
 
+assert not settings.CROPDUSTER_UPLOAD_PATH.startswith('/')
+
 nearest_int = lambda a: int(round(a))
 to_retina_path = lambda p: '%s@2x%s' % os.path.splitext(p)
-
 
 class SizeSet(CachingMixin, models.Model):
 
@@ -49,7 +51,6 @@ class SizeSet(CachingMixin, models.Model):
             return size_query
         except ValueError:
             return None
-
 
 class Size(CachingMixin, models.Model):
 
@@ -357,17 +358,17 @@ class Image(CachingMixin, models.Model):
         if not force and self.is_original:
             raise ValidationError("Cannot render over an original image.  "\
                                   "Use render(force=True) to override.")
+
+        if not (self.crop or self.size):
+            # Nothing to do.
+            return
+
         # We really only want to do rescalings on derived images, but
         # we don't prevent people from it.
         if self.original:
             image_path = self.original.image.path
         else:
             image_path = self.image.path
-
-        if not (self.crop or self.size):
-            # Nothing to do.
-            return
-
 
         if self.crop:
             image = utils.create_cropped_image(image_path,
@@ -446,7 +447,6 @@ class Image(CachingMixin, models.Model):
             slug = os.path.splitext(os.path.basename(base))[0]
         else:
             # Guess we have to return the original path
-            print "Base:", base
             return base
 
         path, ext = os.path.splitext(base)
@@ -477,14 +477,22 @@ class Image(CachingMixin, models.Model):
     def __unicode__(self):
         return unicode(self.image.url) if self.image else u""
 
-    def get_absolute_url(self):
+    def get_absolute_url(self, date_hash=True):
         """
-        Returns the abolute url to the image.
+        Gets the absolute url for an image.
 
-        @return:
-        @rtype:
+        @param date_hash: If True, adds a GET param hex hash indicating
+                          the update date for the image.
+        @type  date_hash: bool
+
+        @return: Absolute path to the url
+        @rtype: basestring
         """
-        return os.path.join(settings.STATIC_URL, self.image.url)
+        path = os.path.join(settings.STATIC_URL, self.image.url)
+        if date_hash:
+            unix_time = int(time.mktime(self.date_modified.timetuple()))
+            path += '?' + format(unix_time, 'x')
+        return path
 
     def get_thumbnail(self, slug, size_set=None):
         """

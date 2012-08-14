@@ -1,3 +1,4 @@
+import datetime
 import unittest
 import os
 import hashlib
@@ -588,10 +589,47 @@ class TestCropduster(unittest.TestCase):
         tm.image = image
         tm.save()
 
-        import datetime
         path = datetime.datetime.now().strftime('/test/%Y/%m/%d')
         self.assert_(path in tm.image.image.name)
 
+    def test_absolute_url(self):
+        """
+        Tests whether absolute urls are created correctly.
+        """
+        cd1 = self.get_test_image()
+        cd1.save()
+
+        image_basename = os.path.basename(TEST_IMAGE)
+
+        # Test without hash
+        image_url = cd1.get_absolute_url(False)
+        self.assertEquals(image_url, os.path.join(settings.STATIC_URL, cd1.image.url))
+
+        # Test with hash
+        image_url_hash = cd1.get_absolute_url()
+        self.assert_('?' in image_url_hash, "Missing timestamp hash")
+
+        last_timestamp = None
+        for i in xrange(2):
+            # Re-save to update the date_modified timestamp
+            cd1.save()
+            # Check the timestamp changed
+            self.assertNotEquals(last_timestamp, cd1.date_modified)
+            last_timestamp = cd1.date_modified
+
+            raw_url, timestamp = image_url_hash.split('?')
+            self.assertEquals(raw_url, image_url)
+
+            # Convert the hex back to the original
+            hashed_time = datetime.datetime.fromtimestamp(int(timestamp, 16))
+
+            # No microseconds on hashes, giving us a hash granularity 
+            # of one second.
+            date_modified = cd1.date_modified - \
+                datetime.timedelta(microseconds = cd1.date_modified.microsecond)
+
+            self.assertEquals(date_modified, hashed_time)
+            
 class TestModel(models.Model):
     image = CM.CropDusterField(upload_to='test/%Y/%m/%d')
     image2 = CM.CropDusterField(null=True, related_name='image2')
