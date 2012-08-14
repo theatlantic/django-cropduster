@@ -1,3 +1,4 @@
+import shutil
 import time
 import uuid
 import os
@@ -10,6 +11,7 @@ from PIL import Image as pil
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
+from django.db.models.signals import post_save
 
 from cropduster import utils
 
@@ -237,8 +239,12 @@ class Image(CachingMixin, models.Model):
 
     @staticmethod
     def cropduster_upload_to(filename, fmt="%Y/%m/%d"):
-        now = datetime.date.today()
-        return os.path.join(settings.CROPDUSTER_UPLOAD_PATH, now.strftime(fmt), filename)
+        if fmt:
+            now = datetime.date.today()
+            fmt = now.strftime(fmt)
+        else:
+            fmt = ''
+        return os.path.join(settings.CROPDUSTER_UPLOAD_PATH, fmt, filename)
 
     @property
     def retina_path(self):
@@ -573,8 +579,10 @@ class Image(CachingMixin, models.Model):
         """
         stack = [self]
         while stack:
-            children = stack.pop().derived.all()
+            original = stack.pop()
+            children = original.derived.all()
             for c in children:
+                c.original = original
                 yield c
 
             stack.extend(children)
@@ -610,8 +618,9 @@ class Image(CachingMixin, models.Model):
 
 PROXY_COUNT = itertools.count(1)
 class CropDusterField(models.ForeignKey):
-    def __init__(self, *args, **kwargs):
-        if 'upload_to' not in kwargs:
+    dynamic_path = False
+    def __init__(self, upload_to=None,  dynamic_path=False, *args, **kwargs):
+        if upload_to is None:
             if not args and 'to' not in kwargs:
                 args = (Image,)
             super(CropDusterField, self).__init__(*args, **kwargs)
@@ -626,13 +635,22 @@ class CropDusterField(models.ForeignKey):
         else:
             base_cls = Image
 
-        upload_to = kwargs.pop('upload_to')
+        if callable(upload_to) and dynamic_path:
+            # we have a function and we want it to dynamically change
+            # based on the instance
+            self.dynamic_path = True
+
         if isinstance(upload_to, basestring):
             upload_path = upload_to
             def upload_to(object, filename):
                 return Image.cropduster_upload_to(filename, upload_path)
-
-        elif not callable(upload_to):
+        
+        elif callable(upload_to):
+            old_upload_to = upload_to
+            def upload_to(self, filename, instance=None):
+                new_path = old_upload_to(filename, instance)
+                return os.path.join(settings.CROPDUSTER_UPLOAD_PATH, new_path)
+        else:
             raise TypeError("'upload_to' needs to be either a callable or string")
 
         # We have to create a unique class name for each custom proxy image otherwise
@@ -644,6 +662,79 @@ class CropDusterField(models.ForeignKey):
                            '__module__': Image.__module__})
 
         return super(CropDusterField, self).__init__(ProxyImage, *args, **kwargs)
+
+    
+    def contribute_to_class(self, cls, name):
+        super(CropDusterField, self).contribute_to_class(cls, name)
+        
+        if self.dynamic_path: 
+            def post_signal(sender, instance, created, *args, **kwargs):
+                cdf = getattr(instance, name, None)
+                if cdf is not None:
+                    dynamic_path_save(instance, cdf)
+
+            post_save.connect(post_signal, sender=cls, weak=False)
+
+def dynamic_path_save(instance, cdf):
+    # Ok, try to move the fields.
+    if cdf is None:
+        # No image to check, move along.
+        return
+
+    # Check to see if the paths are the same
+    old_name = cdf.image.name
+    basename = os.path.basename(old_name)
+    new_name  = cdf.cropduster_upload_to(basename, instance=instance)
+    if new_name == old_name:
+        # Nothing to move, move along
+        return
+
+    old_to_new = {}
+    old_path = cdf.image.path
+    images = [cdf]
+    cdf.image.name = new_name
+    old_to_new[old_path] = cdf.image.path
+
+    # Iterate through all derived images, updating the paths
+    for derived in cdf.descendants:
+        old_path = derived.image.path
+        derived.image.name = derived.get_dest_img_from_base(derived.original.image.name)
+        old_to_new[old_path] = derived.image.path
+        images.append(derived)
+
+    # Copy the images... this is not cheap
+    for old_path, new_path in old_to_new.iteritems():
+
+        # Create the directory, if needed
+        dirname = os.path.dirname(new_path)
+        if not os.path.isdir(dirname):
+            if os.path.exists(dirname):
+                raise ValidationError("Cannot create new directory '%s'" % dirname)
+
+            os.makedirs(dirname)
+
+        # Copy the file, should blow up for all manner of things.
+        shutil.copy(old_path, new_path)
+
+        # Check existance
+        if not os.path.exists(new_path):
+            raise ValidationError("Could not copy image %s to %s" % (old_path, new_path))
+
+    # Save the images
+    for image in images:
+        image.save()
+
+    # Ok, we've made every reasonable attempt to preserve data... delete!
+    old_dirs = set()
+    for old_path in old_to_new:
+        os.unlink(old_path)
+        old_dirs.add( os.path.dirname(old_path) )
+
+    # Files are deleted, delete empty directories, except the upload path... 
+    # that would be bad
+    for path in sorted(old_dirs, key=lambda d: d.count('/')):
+        if not os.listdir(path) and path not in settings.UPLOAD_PATH:
+            os.removedirs(path)
 
 class ImageRegistry(object):
     """

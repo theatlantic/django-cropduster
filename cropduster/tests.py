@@ -3,10 +3,10 @@ import unittest
 import os
 import hashlib
 import shutil
+import uuid
 
 from django.conf import settings
 PATH = os.path.split(__file__)[0]
-settings.MEDIA_ROOT = settings.STATIC_ROOT = settings.UPLOAD_PATH = PATH
 
 from django.db import models
 from django.core.files.base import ContentFile
@@ -36,10 +36,13 @@ def hashfile(path):
 
     return md5.digest()
 
+settings.MEDIA_ROOT = settings.STATIC_ROOT = settings.UPLOAD_PATH = '/tmp/cd_test/%s' % uuid.uuid4().hex
 ORIG_IMAGE = abspath('testdata/img1.jpg')
-TEST_IMAGE = ORIG_IMAGE + '.test.jpg'
+TEST_IMAGE = settings.UPLOAD_PATH + '/' + os.path.basename(ORIG_IMAGE)
 class TestCropduster(unittest.TestCase):
     def setUp(self):
+        os.makedirs(settings.MEDIA_ROOT)
+        settings.CROPDUSTER_UPLOAD_PATH = 'cd'
         os.system('cp %s %s' % (ORIG_IMAGE, TEST_IMAGE))
         # Backup the image
 
@@ -50,13 +53,8 @@ class TestCropduster(unittest.TestCase):
         delete_all( CM.Size )
         delete_all( CM.Crop )
 
-        if os.path.exists(TEST_IMAGE):
-            os.unlink(TEST_IMAGE)
-
-        # If we have derived images, delete the tree
-        TEST_DIR = os.path.splitext(TEST_IMAGE)[0]
-        if TEST_DIR and os.path.isdir(TEST_DIR):
-            shutil.rmtree(TEST_DIR)
+        if os.path.exists(settings.UPLOAD_PATH):
+            os.system('rm -rf %s' % settings.UPLOAD_PATH)
 
     def create_size_sets(self):
         iss = CM.SizeSet(name='Facebook', slug='facebook')
@@ -569,7 +567,7 @@ class TestCropduster(unittest.TestCase):
         cd1.image.save(basename, cf)
         cd1.save()
 
-        self.assert_(PATH in cd1.image.path)
+        self.assert_(settings.UPLOAD_PATH in cd1.image.path)
         self.assertEquals(cd1.image.width, 897)
 
     def test_custom_upload_to(self):
@@ -591,6 +589,48 @@ class TestCropduster(unittest.TestCase):
 
         path = datetime.datetime.now().strftime('/test/%Y/%m/%d')
         self.assert_(path in tm.image.image.name)
+
+    def test_dynamic_path(self):
+        self.create_size_sets()
+        tm = TestModel2()
+
+        # Get the proxy image class
+        image_cls = tm._meta.get_field_by_name('image')[0].rel.to 
+        image = image_cls()
+
+        # Mimic uploading img
+        cf = ContentFile(file(TEST_IMAGE).read())
+        basename = os.path.basename(TEST_IMAGE)
+        image.image.save(basename, cf)
+        image.save()
+
+        # Setup the children
+        for derived in image.add_size_set(name='Facebook'):
+            derived.render()
+            derived.save()
+
+        # Base assert
+        self.assert_( image.image.name.endswith( '/1/%s' % basename ),
+                      "Path mismatch: %s, %s" % (image.image.name, basename) )
+        old_name = image.image.name
+
+        # Save the model
+        tm.image = image
+        tm.save()
+
+        self.assert_( image.image.name.endswith( '/2/%s' % basename ),
+                      "Path mismatch: %s, %s" % (image.image.name, basename) )
+
+        self.assert_(os.path.isfile(tm.image.image.path), "Path %s is missing" % tm.image.image.path)
+
+        tm.slug = 'foobar'
+        tm.save()
+
+        self.assert_( image.image.name.endswith( '/3/foobar/%s' % basename ),
+                      "Path mismatch: %s, %s" % (image.image.name, basename) )
+
+        # Everything should be different now...
+        self.assert_(os.path.isfile(tm.image.image.path), "Path %s is missing" % tm.image.image.path)
 
     def test_absolute_url(self):
         """
@@ -634,6 +674,21 @@ class TestModel(models.Model):
     image = CM.CropDusterField(upload_to='test/%Y/%m/%d')
     image2 = CM.CropDusterField(null=True, related_name='image2')
     image3 = CM.CropDusterField(to=CM.Image, null=True, related_name='image3')
+
+class Counter(object):
+    counter = 0
+    def  __call__(self, filename, instance=None):
+        self.counter += 1
+        counter = `self.counter`
+        if instance is None:
+            return '%s/%s' % (counter, filename)
+
+        return os.path.join(counter, instance.slug, filename)
+
+class TestModel2(models.Model):
+    slug = ""
+    image = CM.CropDusterField(upload_to=Counter(),
+                               dynamic_path=True)
 
 if __name__ == '__main__':
     unittest.main()
