@@ -24,6 +24,7 @@ class AdminCropdusterWidget(HiddenInput):
         model_id = ContentType.objects.get_for_model(model)
         field = model._meta.get_field_by_name(field_name)[0]
         image = field.rel.to
+        self._image_field = image
 
         self.image_hash = ImageRegistry.add(model_id, field_name, image)
 
@@ -41,7 +42,7 @@ class AdminCropdusterWidget(HiddenInput):
             image = None
         else:
             try:
-                image = CropDusterImage.objects.get(id=value)
+                image = self._image_field.objects.get(id=value)
             except CropDusterImage.DoesNotExist:
                 image = None
 

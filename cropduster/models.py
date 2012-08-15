@@ -732,8 +732,8 @@ def dynamic_path_save(instance, cdf):
 
     # Files are deleted, delete empty directories, except the upload path... 
     # that would be bad
-    for path in sorted(old_dirs, key=lambda d: d.count('/')):
-        if not os.listdir(path) and path not in settings.UPLOAD_PATH:
+    for path in reversed(sorted(old_dirs, key=lambda d: d.count('/'))):
+        if not os.listdir(path) and path not in settings.MEDIA_ROOT:
             os.removedirs(path)
 
 class ImageRegistry(object):
