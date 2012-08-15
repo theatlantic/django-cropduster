@@ -10,6 +10,7 @@ from PIL import Image as pil
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.fields.related import ReverseSingleRelatedObjectDescriptor
 from django.conf import settings
 from django.db.models.signals import post_save
 
@@ -616,6 +617,18 @@ class Image(CachingMixin, models.Model):
 
         return super(Image, self).delete(*args, **kwargs)
 
+class CropDusterReverseProxyDescriptor(ReverseSingleRelatedObjectDescriptor):
+    
+    def __set__(self, instance, value):
+        if value is not None and not isinstance(value, self.field.rel.to):
+            # ok, are we a direct subclass?
+            mro = self.field.rel.to.__mro__
+            if len(mro) > 1 and type(value) == mro[1]: 
+                # Convert to the appropriate proxy object
+                value.__class__ = self.field.rel.to
+
+        super(CropDusterReverseProxyDescriptor, self).__set__(instance, value)
+
 PROXY_COUNT = itertools.count(1)
 class CropDusterField(models.ForeignKey):
     dynamic_path = False
@@ -662,10 +675,10 @@ class CropDusterField(models.ForeignKey):
                            '__module__': Image.__module__})
 
         return super(CropDusterField, self).__init__(ProxyImage, *args, **kwargs)
-
     
     def contribute_to_class(self, cls, name):
         super(CropDusterField, self).contribute_to_class(cls, name)
+        setattr(cls, self.name, CropDusterReverseProxyDescriptor(self))
         
         if self.dynamic_path: 
             def post_signal(sender, instance, created, *args, **kwargs):

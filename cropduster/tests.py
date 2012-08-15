@@ -632,6 +632,23 @@ class TestCropduster(unittest.TestCase):
         # Everything should be different now...
         self.assert_(os.path.isfile(tm.image.image.path), "Path %s is missing" % tm.image.image.path)
 
+    def test_proxy_image_convert(self):
+        """
+        Tests that regular cropduster image saved to fields which use proxy versions.   
+        """
+        cd1 = self.get_test_image()
+        t = TestModel()
+        t.image = cd1
+        self.assert_(isinstance(cd1, CM.Image))
+        self.assertNotEquals(type(cd1), CM.Image)
+        self.assert_(issubclass(type(cd1), CM.Image))
+
+        try:
+            t.image = object()
+            self.fail("This shouldn't be allowed!")
+        except ValueError:
+            pass
+
     def test_absolute_url(self):
         """
         Tests whether absolute urls are created correctly.
