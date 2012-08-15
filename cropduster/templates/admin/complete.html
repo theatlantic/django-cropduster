@@ -7,20 +7,29 @@
 (function($) {
 
 $(document).ready(function(){
-
 	var obj = $(window.opener.document.getElementById("{{ image_element_id }}"));
 	
 	$(obj).val({{ image.id }});
 	
-	$(obj).parent().parent().find(".cropduster_thumbs").html(" ");
+    var $parent = $(obj).parent().parent();
+    var orig_image = $parent.find('.original_image');
+    orig_image.find('img').attr('src', "{{image|safe }}");
+    orig_image.find('a').attr('href', "{{image|safe }}");
+    orig_image.show();
+
+    $manual = $parent.find(".cropduster_thumbs .manual_images");
+    $thumb = $manual.find('.thumbs');
+    // Delete all current manual images
+    $thumb.find('a').remove();
+    // then re-add them!
 	{% for thumb in image_thumbs %}
-	
-	$(obj).parent().parent().find(".cropduster_thumbs").append('<img src="{{ thumb }}" />');
-	
-	$(obj).parent().parent().find(".cropduster-tools .delete-handler").show();
+        $thumb.append('<a target="_blank" href="{{thumb|safe}}"><img src="{{ thumb|safe }}" /></a>');
 	{% endfor %}
+    {% if image_thumbs %}
+        $manual.show();
+        $parent.find(".cropduster-tools .delete-handler").show();
+    {% endif %}
 	
-	window.close();
 });
 
 })((typeof window.django != 'undefined') ? django.jQuery : jQuery);

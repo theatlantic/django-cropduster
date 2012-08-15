@@ -87,23 +87,33 @@ function cropduster_pop(id, size_set_id, image_id, image_hash){
 <p><a data-image_hash="{{image_hash}}" data-attr_id="{{ attrs["id"]}}" data-size_set_id="{{size_set.id}}" href="#" onclick="show_cropduster.call(this)" class="cd_show"><img src="{{ media_url }}/img/cropduster_icon_upload_select.png" alt=""></a></p>
 
 	<div data-attr_id="{{ attrs["id"] }}" class="cropduster_thumbs">
-	{% if image %}
-        <h4>Original Image</h4>
-        <hr />
-        <a title="Original image" alt="Original Image" href="{{image|safe}}" target="_blank">
-            <img data-image_id="{{image.id}}" class="original" src="{{ image|safe }}"/>
-        </a>
+        <div class="original_image" {% if not image %}style="display:none"{% endif %} >
+            <h4>Original Image</h4>
+            <hr />
+            <a title="Original image" alt="Original Image" href="{{image|safe}}" target="_blank">
+                <img data-image_id="{{image.id}}" class="original" src="{{ image|safe }}"/>
+            </a>
+
+        </div>
+
         <div style="clear:both;height:10px;"></div>
-        {% set manual = image.derived.filter(size__size_set=size_set, size__auto_crop=False) %}
-        {% if manual|length > 0 %}
+        {% if image %}
+            {% set manual = image.derived.filter(size__size_set=size_set, size__auto_crop=False) %}
+        {% endif %}
+        {% set has_manual = image and manual|length >0 %}
+
+        <div class="manual_images" {% if not has_manual %}style="display:none"{% endif %}>
             <h4>Manually Cropped</h4>
             <hr />
-            {% for image in manual %}
-                <a target="_blank" href="{{image|safe}}"><img src="{{ image|safe }}" /></a>
-            {% endfor %}
+            <div class="thumbs">
+            {% if image %}
+                {% for image in manual %}
+                    <a target="_blank" href="{{image|safe}}"><img src="{{ image|safe }}" /></a>
+                {% endfor %}
+            {% endif %}
+            </div>
             <div style="clear:both;height:10px;"></div>
-        {% endif %}
-	{% endif %}
+        </div>
 	</div>
 <div id="cropduster_input_{{ attrs["id"] }}">
 {{ input|safe }}
