@@ -734,7 +734,7 @@ def dynamic_path_save(instance, cdf):
     # that would be bad
     for path in reversed(sorted(old_dirs, key=lambda d: d.count('/'))):
         if not os.listdir(path) and path not in settings.MEDIA_ROOT:
-            os.removedirs(path)
+            os.rmdir(path)
 
 class ImageRegistry(object):
     """
