@@ -482,7 +482,7 @@ class Image(CachingMixin, models.Model):
         return self.crop
 
     def __unicode__(self):
-        return unicode(self.image.url) if self.image else u""
+        return self.get_absolute_url() if self.image else u""
 
     def get_absolute_url(self, date_hash=True):
         """
@@ -499,7 +499,7 @@ class Image(CachingMixin, models.Model):
         if date_hash:
             unix_time = int(time.mktime(self.date_modified.timetuple()))
             path += '?' + format(unix_time, 'x')
-        return path
+        return unicode(path)
 
     def get_thumbnail(self, slug, size_set=None):
         """
