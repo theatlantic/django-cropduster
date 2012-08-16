@@ -715,9 +715,11 @@ def dynamic_path_save(instance, cdf):
         old_to_new[old_path] = derived.image.path
         images.append(derived)
 
+    # Filter out paths which haven't changed.
+    old_to_new = dict((k,v) for k,v in old_to_new.iteritems() if k != v)
+
     # Copy the images... this is not cheap
     for old_path, new_path in old_to_new.iteritems():
-
         # Create the directory, if needed
         dirname = os.path.dirname(new_path)
         if not os.path.isdir(dirname):
