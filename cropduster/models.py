@@ -267,9 +267,9 @@ class Image(CachingMixin, models.Model):
 		
 
 	def get_crop(self, size):
-		"""  Gets the crop for this image and size based on size set and aspect ratio """		
-		return Crop.objects.get(size__size_set=size.size_set, size__aspect_ratio=size.aspect_ratio, image=self)
+		"""  Gets the crop for this image and size based on size set and aspect ratio """
 
+		return Crop.objects.filter(size__size_set=size.size_set, size__aspect_ratio=size.aspect_ratio, image=self).order_by("-crop_w")[0]
 
 	def save(self, *args, **kwargs):
 
