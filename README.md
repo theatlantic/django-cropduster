@@ -14,7 +14,7 @@ Installation
 
 The recommended way to install from source is with pip:
 
-    $ pip install -e git+git://github.com/theatlantic/django-cropduster.git#egg=django-cropduster
+    $ pip install -e git+git://github.com/ortsed/django-cropduster.git#egg=django-cropduster
 
 If the source is already checked out, use setuptools:
 
@@ -66,3 +66,11 @@ class MyModelAdmin(admin.ModelAdmin):
         CropDusterField: {"widget": AdminCropdusterWidget("size-set-handle")}
     }
 ```
+
+
+
+Optional Settings:
+
+	CROPDUSTER_UPLOAD_PATH -- Sets the upload_to attribute for file uploads.  Otherwise defaults to MEDIA_ROOT.
+
+	CROPDUSTER_EXIF_DATA -- Import embedded exif data for image attribution and caption.  Default = True.  Uses exif.py by Gene Cash / Thierry Bousch

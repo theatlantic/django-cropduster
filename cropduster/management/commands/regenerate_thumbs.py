@@ -63,8 +63,7 @@ class Command(BaseCommand):
                     action  = "store_true",
                     dest    = "force",
                     default = False,
-                    help    = "Resizes all images regardless of whether or not"\
-                              " they already exist."),
+                    help    = "Resizes all images regardless of whether or not they already exist."),
 
         make_option('--query_set',
                     dest    = "query_set",
@@ -75,8 +74,7 @@ class Command(BaseCommand):
                     dest    = 'stretch',
                     action  = "store_true",
                     default = False,
-                    help    = "Indicates whether to resize an image if size is larger"\
-                              " than original.  Default is False."),
+                    help    = "Indicates whether to resize an image if size is larger than original.  Default is False."),
 
         make_option('--log_file',
                     dest='logfile',
@@ -98,8 +96,7 @@ class Command(BaseCommand):
                     dest='procs',
                     type="int",
                     default=1,
-                    help="Indicates how many procs to use for converting images.  "\
-                         "Default is 1")
+                    help="Indicates how many procs to use for converting images. Default is 1")
     )
     
     IMG_TYPE_PARAMS = {
@@ -264,7 +261,7 @@ class Command(BaseCommand):
                     #self.resize_image(image, sizes, options['force'])
                     yield image, sizes
 
-    def wait_all(self):
+    def wait_all(self, proc_list):
         """
         Wait for all child procs to finish.
         """
@@ -348,7 +345,7 @@ class Command(BaseCommand):
     @PrettyError("Failed to regenerate thumbs: %(error)s")
     def handle(self, *apps, **options):
         """
-        Resolves out the models and images for regeneratating thumbnails and
+        Resolves out the models and images for regenerating thumbnails and
         then resolves them.
         """
         

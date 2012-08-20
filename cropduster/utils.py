@@ -1,26 +1,42 @@
 from PIL import Image
+from decimal import Decimal
+
+def aspect_ratio(width, height):
+	""" Defines aspect ratio from two sizes with consistent rounding method """
+	
+	if not height or not width:
+		return 1
+	else:
+		return Decimal(str(round(float(width)/float(height), 2)))
 
 
-def rescale(img, w=0, h=0, crop=True, **kwargs):
-	"""Rescale the given image, optionally cropping it to make sure the result image has the specified width and height."""
+def rescale(img, width=0, height=0, auto_crop=True, **kwargs):
+	""" 
+		Rescale the given image.  If one size is not given, image is scaled down at current aspect ratio
+		img -- a PIL image object
 
-	if w <= 0 and h <= 0:
-		raise ValueError("Width and height must be greater than zero")
+		Auto-crop option does a dumb crop that chops the image to the needed size  
+	"""
 		
-	if w <= 0:
-		w = float(img.size[0] * h) /float(img.size[1])
-	if h <= 0:
-		h = float(img.size[1] * w) /float(img.size[0])
+	if width <= 0:
+		width = float(img.size[0] * height) /float(img.size[1])
+		
+	if height <= 0:
+		height = float(img.size[1] * width) /float(img.size[0])
 
-	max_width = w
-	max_height = h
+	max_width = width
+	max_height = height
 
 	src_width, src_height = img.size
+	
 	src_ratio = float(src_width) / float(src_height)
+	
 	dst_width, dst_height = max_width, max_height
+	
 	dst_ratio = float(dst_width) / float(dst_height)
 
-	if crop:
+	if auto_crop:
+		
 		if dst_ratio < src_ratio:
 			crop_height = src_height
 			crop_width = crop_height * dst_ratio
@@ -31,54 +47,40 @@ def rescale(img, w=0, h=0, crop=True, **kwargs):
 			crop_height = crop_width / dst_ratio
 			x_offset = 0
 			y_offset = float(src_height - crop_height) / 3
+
 		img = img.crop((
 			int(x_offset), 
 			int(y_offset), 
-			int(x_offset+crop_width), 
-			int(y_offset+crop_height)
+			int(x_offset + crop_width), 
+			int(y_offset + crop_height)
 		))
+
+	# if not cropping, don't squish, use w/h as max values to resize on
+	else:
+		if (width / src_ratio) > height:
+			dst_width = src_ratio * height
+			dst_height = height
+		else:
+			dst_width = width
+			dst_height = width / src_ratio
+		
 	img = img.resize((int(dst_width), int(dst_height)), Image.ANTIALIAS)
 
 	return img
 
-def create_cropped_image(path=None, x=0, y=0, w=0, h=0):
+def create_cropped_image(path=None, x=0, y=0, width=0, height=0):
+	""" 
+		Crop image given a starting (x, y) position and a width and height of the cropped area 
+	"""
+	
 	if path is None:
 		raise ValueError("A path must be specified")
-	if w <= 0 or h <= 0:
-		raise ValueError("Width and height must be greater than zero")
 
 	img = Image.open(path)
 	img.copy()
 	img.load()
-	img = img.crop((x, y, x + w, y + h))
+	img = img.crop((x, y, x + width, y + height))
 	img.load()
+	
 	return img
 
-
-def rescale_signal(sender, instance, created, max_height=None, max_width=None, **kwargs):
-	""" Simplified image resizer meant to work with post-save/pre-save tasks """
-
-	max_width = max_width
-	max_height = max_height
-	
-	if not max_width and not max_height:
-		raise ValueError("Either max width or max height must be defined")
-		
-	if max_width and max_height:
-		raise ValueError("To avoid improper scaling, only define a width or a height, not both")
-
-	if instance.image:
-
-		im = Image.open(instance.image.path)
-		
-		if max_width:
-			height = instance.image.height * max_width/instance.image.width
-			size = max_width, height
-			
-		if max_height:
-			width = instance.image.width * max_height/instance.image.height
-			size = width, max_height
-		
-		im.thumbnail(size, Image.ANTIALIAS)
-		
-		im.save(instance.image.path)

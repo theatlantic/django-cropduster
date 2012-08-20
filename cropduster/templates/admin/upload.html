@@ -1,17 +1,17 @@
 {% extends "admin/base.html" %}
 
 <!-- LOADING -->
-{% load i18n adminmedia cropdustermedia %}
+{% load i18n adminmedia %}
 
 
 
 <!-- JAVASCRIPTS -->
 {% block javascripts %}
 	{{ block.super }}
-	<link rel="stylesheet" href="{% cropduster_media_prefix %}css/CropDuster.css" type="text/css" />
-	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/jquery.Jcrop.js?v=2"></script>
-	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/init.js"></script>
-	<link rel="stylesheet" href="{% cropduster_media_prefix %}css/jquery.Jcrop.css" type="text/css" />
+	<link rel="stylesheet" href="{{ ADMIN_MEDIA_PREFIX }}cropduster/css/CropDuster.css" type="text/css" />
+	<script language="javascript" type="text/javascript" src="{{ ADMIN_MEDIA_PREFIX }}cropduster/js/jquery.Jcrop.js?v=2"></script>
+	<script language="javascript" type="text/javascript" src="{{ ADMIN_MEDIA_PREFIX }}cropduster/js/init.js"></script>
+	<link rel="stylesheet" href="{{ ADMIN_MEDIA_PREFIX }}cropduster/css/jquery.Jcrop.css" type="text/css" />
 {% endblock %}
 
 <!-- Get rid of nav -->
@@ -95,6 +95,7 @@
 
 	$(document).ready(function(){
 		
+		{% if min_w and min_h %}
 		$("#cropbox img").Jcrop({
 			"setSelect":   [ 
 				scale_down({{ crop_x }}), 
@@ -106,6 +107,23 @@
 			"aspectRatio": {{ aspect_ratio }},
 			"onChange": updateCrop
 		});
+		{% endif %}
+		
+		{% if min_w and not min_h %}
+		$("#cropbox img").Jcrop({
+			"minSize":[scale_down({{ min_w }}), 0],
+			"onChange": updateCrop
+		});
+		{% endif %}
+		
+		{% if min_h and not min_w %}
+		$("#cropbox img").Jcrop({
+			"minSize":[0, scale_down({{ min_h }})],
+			"onChange": updateCrop
+		});
+		
+		{% endif %}
+		
 		
     });
 }(django.jQuery));

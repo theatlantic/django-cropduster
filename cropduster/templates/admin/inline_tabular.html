@@ -84,13 +84,13 @@ function toggle_delete(obj){
 	<a href="javascript://" onclick="toggle_delete(this);" class="icon delete-handler" title="Remove" {% if not image %} style="display:none;"{% endif %}></a>
 	
 
-	<a href="#" onclick="cropduster_pop('{{ attrs["id"] }}', {{ size_set.id }}{% if image %}, {{ image.id }}{% endif %});return false" class="find-handler cd_show"><img src="{{ media_url }}img/cropduster_icon_upload_select_small.png" alt=""></a>
+	<a href="#" onclick="cropduster_pop('{{ attrs["id"] }}', {{ size_set.id }}{% if image %}, {{ image.id }}{% endif %});return false" class="find-handler cd_show"><img src="{{ ADMIN_MEDIA_PREFIX }}cropduster/img/cropduster_icon_upload_select_small.png" alt=""></a>
 </div>
 
 
 <div class="cropduster_thumbs">
 {% if image %}
-	{% for size in image.size_set.get_size_by_ratio() %}
+	{% for size in image.size_set.get_unique_ratios() %}
 	<img src="{{ image.thumbnail_url(size.slug) }}" height="30" />
 	{% endfor %}
 {% endif %}

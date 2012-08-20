@@ -6,6 +6,12 @@
 	float: left;
 	margin-right: 10px;
 }
+
+.module .cropduster_tools {
+	position:absolute;
+	top:0px;
+	right:0px;
+}
 </style>
 
 <script type="text/javascript">
@@ -27,33 +33,33 @@ function cropduster_pop(id, size_set_id, image_id){
 }
 
 function toggle_delete(obj){
-	var container = $(obj).parent().parent().parent().parent();
+	var container = django.jQuery(obj).parent().parent().parent().parent();
 	
 	
-	$(container).toggleClass("predelete");
+	django.jQuery(container).toggleClass("predelete");
 	
 	// Swap the title and the value fields, that way the values can be swapped back if deletion is canceled
-	var tempValue = $(container).find("input.cropduster").val();
-	var tempTitle = $(container).find("input.cropduster").attr("title");
+	var tempValue = django.jQuery(container).find("input.cropduster").val();
+	var tempTitle = django.jQuery(container).find("input.cropduster").attr("title");
 
-	$(container).find("input.cropduster").val(tempTitle);
-	$(container).find("input.cropduster").attr("title", tempValue);
+	django.jQuery(container).find("input.cropduster").val(tempTitle);
+	django.jQuery(container).find("input.cropduster").attr("title", tempValue);
 
 	return false;
 }
 
 </script>
 
-<div class="tools">
+<div class="tools cropduster_tools">
 	<a href="javascript://" onclick="toggle_delete(this);" class="icon delete-handler" title="Remove"></a>
 
 </div>
 
-<p><a href="#" onclick="cropduster_pop('{{ attrs["id"] }}', {{ size_set.id }}{% if image %}, {{ image.id }}{% endif %});return false" class="cd_show"><img src="{{ media_url }}/img/cropduster_icon_upload_select.png" alt=""></a></p>
+<p><a href="#" onclick="cropduster_pop('{{ attrs["id"] }}', {{ size_set.id }}{% if image %}, {{ image.id }}{% endif %});return false" class="cd_show"><img src="{{ ADMIN_MEDIA_PREFIX }}cropduster/img/cropduster_icon_upload_select.png" alt="" /></a></p>
 
 	<div class="cropduster_thumbs">
 	{% if image %}
-		{% for size in image.size_set.get_size_by_ratio() %}
+		{% for size in image.size_set.get_unique_ratios(created=True) %}
 		<img src="{{ image.thumbnail_url(size.slug) }}" />
 		{% endfor %}
 	{% endif %}

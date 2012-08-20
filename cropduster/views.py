@@ -1,46 +1,35 @@
-import os
-from django.http import HttpResponse, Http404
+import os, io
+from django.http import HttpResponse
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.forms import TextInput
-from django.forms.widgets import Select
 from django.views.decorators.csrf import csrf_exempt
+from django.forms import ModelForm, ValidationError
+from django.conf import settings
 
 from cropduster.models import Image as CropDusterImage, Crop, Size, SizeSet
-from cropduster.settings import CROPDUSTER_MEDIA_ROOT
+from cropduster.exif import process_file
+from cropduster.utils import aspect_ratio
+from cropduster.admin import ADMIN_MEDIA_PREFIX
 
+import json
 from PIL import Image as pil
 
 
-from django.forms import ModelForm, ValidationError
-
 BROWSER_WIDTH = 800
+CROPDUSTER_EXIF_DATA = getattr(settings, "CROPDUSTER_EXIF_DATA", True)
+
+def get_ratio(request): 
+	return HttpResponse(json.dumps(
+		[u"%s" % aspect_ratio(request.GET["width"], request.GET["height"])]
+	))
 
 
 # Create the form class.
 class ImageForm(ModelForm):
 	class Meta:
 		model = CropDusterImage
-	def clean(self):
-		size_set = self.cleaned_data.get("size_set") or self.instance.size_set
 
-		image = self.cleaned_data.get("image")
-	
-		if image:
-		
-			if os.path.splitext(image.name)[1] == '':
-				raise ValidationError("Please make sure images have file extensions before uploading")
-		
-			try:
-				pil_image = pil.open(image)
-			except:
-				raise ValidationError("Unable to open image file")
-				
-			for size in size_set.size_set.all():
-				if not size.auto_size and (size.width > pil_image.size[0] or size.height > pil_image.size[1]):
-					raise ValidationError("Uploaded image (%s x %s) is smaller than a required thumbnail size: %s" % (pil_image.size[0], pil_image.size[1], size))
-		return self.cleaned_data
-		
 		
 class CropForm(ModelForm):
 	class Meta:
@@ -49,13 +38,20 @@ class CropForm(ModelForm):
 			"image": TextInput(),
 		}
 	def clean(self):
-		if "crop_x" not in self.data or "crop_y" not in self.data:
+	
+		cleaned_data = super(CropForm, self).clean()
+	
+		if "crop_x" not in cleaned_data or "crop_y" not in cleaned_data:
 			self._errors.clear()
 			raise ValidationError("Missing crop values")
-			
-		if int(self.data["crop_x"]) < 0 or int(self.data["crop_y"]) < 0:
+
+		if cleaned_data["crop_x"] < 0 or cleaned_data["crop_y"] < 0:
 			self._errors.clear()
 			raise ValidationError("Crop positions must be non-negative")
+			
+		if cleaned_data["crop_w"] <= 0 or cleaned_data["crop_h"] <= 0:
+			self._errors.clear()
+			raise ValidationError("Crop measurements must be greater than zero")
 		
 		return self.cleaned_data
 	
@@ -78,10 +74,7 @@ def upload(request):
 	else:
 		image = CropDusterImage(size_set=size_set)
 	
-
-	
 	size = Size.objects.get_size_by_ratio(size_set.id, aspect_ratio_id) or Size()
-	
 
 	# Get the current crop
 	try:
@@ -104,6 +97,19 @@ def upload(request):
 			formset = ImageForm(request.POST, request.FILES, instance=image)
 			
 			if formset.is_valid():
+				
+				if CROPDUSTER_EXIF_DATA:
+					# Check for exif data and use it to populate caption/attribution
+					try:
+						exif_data = process_file(io.BytesIO(b"%s" % formset.cleaned_data["image"].file.getvalue()))
+					except AttributeError:
+						exif_data = {}
+						
+					if not formset.cleaned_data["caption"] and "Image ImageDescription" in exif_data:
+						formset.data["caption"] = exif_data["Image ImageDescription"].__str__()
+					if not formset.cleaned_data["attribution"] and "EXIF UserComment" in exif_data:
+						formset.data["attribution"] = exif_data["EXIF UserComment"].__str__()
+				
 				image = formset.save()
 				crop.image = image
 				crop_formset = CropForm(instance=crop)
@@ -114,7 +120,8 @@ def upload(request):
 					"aspect_ratio_id": 0,
 					"errors": errors,
 					"formset": formset,
-					"image_element_id" : request.GET["image_element_id"]
+					"image_element_id" : request.GET["image_element_id"],
+					"ADMIN_MEDIA_PREFIX": ADMIN_MEDIA_PREFIX,
 				}
 			
 				context = RequestContext(request, context)
@@ -126,7 +133,7 @@ def upload(request):
 					
 			#If its the first frame, get the image formset and save it (for attribution)
 			
-			if aspect_ratio_id ==0:
+			if not aspect_ratio_id:
 				formset = ImageForm(request.POST, instance=image)
 				if formset.is_valid():
 					formset.save()
@@ -179,10 +186,12 @@ def upload(request):
 		errors.update(formset.errors)
 		all_errors = []
 		for error in  errors.items():
-			all_errors.append(u"%s: %s" % (error[0].capitalize(), error[1].as_text()))
+			if error[0] != '__all__':
+				string = u"%s: %s" % (error[0].capitalize(), error[1].as_text())
+			else: 
+				string = error[1].as_text()
+			all_errors.append(string)
 			
-		
-		
 		context = {
 			"aspect_ratio": size.aspect_ratio,
 			"aspect_ratio_id": aspect_ratio_id,	
@@ -199,6 +208,7 @@ def upload(request):
 			"image_exists": image.image and os.path.exists(image.image.path),
 			"min_w"  : size.width,
 			"min_h"  : size.height,
+			"ADMIN_MEDIA_PREFIX": ADMIN_MEDIA_PREFIX,
 
 		}
 		
@@ -208,12 +218,13 @@ def upload(request):
 
 	# No more cropping to be done, close out
 	else :
-		image_thumbs = [image.thumbnail_url(size.slug) for size in image.size_set.get_size_by_ratio()] 
+		image_thumbs = [image.thumbnail_url(size.slug) for size in image.size_set.get_unique_ratios()] 
 	
 		context = {
 			"image": image,
 			"image_thumbs": image_thumbs,
-			"image_element_id" : request.GET["image_element_id"]
+			"image_element_id" : request.GET["image_element_id"],
+			"ADMIN_MEDIA_PREFIX": ADMIN_MEDIA_PREFIX,
 		}
 		
 		context = RequestContext(request, context)

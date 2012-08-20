@@ -3,45 +3,77 @@ from coffin.template.loader import get_template
 register = template.Library()
 from django.conf import settings
 from cropduster.models import Size
+from cropduster.models import AUTO_SIZE
+from os.path import exists
+
+CROPDUSTER_CROP_ONLOAD = getattr(settings, "CROPDUSTER_CROP_ONLOAD", True)
+CROPDUSTER_KITTY_MODE = getattr(settings, "CROPDUSTER_KITTY_MODE", False)
 
 
-image_sizes = Size.objects.all()
-image_size_map = {}
-for size in image_sizes:
-	image_size_map[(size.size_set_id, size.slug)] = size
+# preload a map of image sizes so it doesn"t make a DB call for each templatetag use
+IMAGE_SIZE_MAP = {}
+for size in Size.objects.all():
+	IMAGE_SIZE_MAP[(size.size_set_id, size.slug)] = size
 
 
 @register.object
-def get_image(image, size_name="large", template_name="image.html", width=None, height=None, **kwargs):
+def get_image(image, size_name=None, template_name="image.html", retina=False, **kwargs):
+	""" Templatetag to get the HTML for an image from a cropduster image object """
 
 	if image:
 		
-		image_url = image.thumbnail_url(size_name)
-		if image_url is None or image_url == "":
+		if CROPDUSTER_CROP_ONLOAD:
+		# If set, will check for thumbnail existence
+		# if not there, will create the thumb based on predefiend crop/size settings
+		
+			thumb_path = image.thumbnail_path(size_name)
+			if not exists(thumb_path) and exists(image.image.path):
+				try:
+					size = image.size_set.size_set.get(slug=size_name)
+				except Size.DoesNotExist:
+					return ""
+				try:
+					image.create_thumbnail(size, force_crop=True)
+				except:
+					return ""
+		
+		if retina:	
+			image_url = image.retina_thumbnail_url(size_name)
+		else:
+			image_url = image.thumbnail_url(size_name)
+			
+		
+		if not image_url:
 			return ""
+			
 		try:
-			image_size = image_size_map[(image.size_set_id,size_name)]
+			image_size = IMAGE_SIZE_MAP[(image.size_set_id, size_name)]
 		except KeyError:
 			return ""
 	
-		kwargs["image_url"] = image_url			
-		kwargs["width"] = width or image_size.width or ""
-		kwargs["height"] = height or image_size.height  or ""
+		# Set all the args that get passed to the template
 		
+		kwargs["image_url"] = image_url
 
-		if hasattr(settings, "CROPDUSTER_KITTY_MODE") and settings.CROPDUSTER_KITTY_MODE:
-			kwargs["image_url"] = "http://placekitten.com/{0}/{1}".format(kwargs["width"], kwargs["height"])
-
+		if hasattr(image_size, "auto_size") and image_size.auto_size != AUTO_SIZE:
+			kwargs["width"] = image_size.width if hasattr(image_size, "width") else ""
+			kwargs["height"] = image_size.height if hasattr(image_size, "height") else ""
+		
+		
+		if CROPDUSTER_KITTY_MODE:
+			kwargs["image_url"] = "http://placekitten.com/%s/%s" % (kwargs["width"], kwargs["height"])
+		
 		kwargs["size_name"] = size_name
+		
 		kwargs["attribution"] = image.attribution
-		kwargs["alt"] = kwargs["alt"] if "alt" in kwargs else image.caption
-		kwargs["title"] = kwargs["title"] if "title" in kwargs else kwargs["alt"]
-			
+		
+		if hasattr(image, "caption"): kwargs["alt"] = image.caption 
+		
+		if "title" not in kwargs: kwargs["title"] = kwargs["alt"] 
 
-
-		tpl = get_template("templatetags/" + template_name)
-		ctx = template.Context(kwargs)
-		return tpl.render(ctx)
+		tmpl = get_template("templatetags/" + template_name)
+		context = template.Context(kwargs)
+		return tmpl.render(context)
 	else:
 		return ""
 
