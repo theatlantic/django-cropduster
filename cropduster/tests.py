@@ -632,6 +632,11 @@ class TestCropduster(unittest.TestCase):
         # Everything should be different now...
         self.assert_(os.path.isfile(tm.image.image.path), "Path %s is missing" % tm.image.image.path)
 
+        # Check that the children's retina images have moved
+        for image in tm.image.descendants:
+            if image.size.retina:
+                self.assert_(os.path.isfile(image.retina_path), "Retina didn't get moved!")
+
     def test_proxy_image_convert(self):
         """
         Tests that regular cropduster image saved to fields which use proxy versions.   

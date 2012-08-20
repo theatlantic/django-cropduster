@@ -252,7 +252,7 @@ class Image(CachingMixin, models.Model):
         """
         Returns the path to the retina image if it exists.
         """
-        return '%s@2x%s' % os.path.splitext(self.image.path)
+        return to_retina_path(self.image.path)
 
     @property
     def aspect_ratio(self):
@@ -557,7 +557,7 @@ class Image(CachingMixin, models.Model):
 
             # Check for a new retina
             if hasattr(self, '_new_retina'):
-                retina_path = to_retina_path(self.image.path)
+                retina_path = self.retina_path
                 if self._new_retina is None:
                     if os.path.exists(retina_path):
                         # If the reina is now invalid, remove the previous one.
@@ -710,9 +710,18 @@ def dynamic_path_save(instance, cdf):
 
     # Iterate through all derived images, updating the paths
     for derived in cdf.descendants:
+
         old_path = derived.image.path
+        old_retina_path = derived.retina_path
+
+        # Update the name to the new one
         derived.image.name = derived.get_dest_img_from_base(derived.original.image.name)
         old_to_new[old_path] = derived.image.path
+
+        # Only add the retina if it exists.
+        if os.path.exists(old_retina_path) and derived.size.retina:
+            old_to_new[old_retina_path] = derived.retina_path
+
         images.append(derived)
 
     # Filter out paths which haven't changed.
