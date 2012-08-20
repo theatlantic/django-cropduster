@@ -32,7 +32,10 @@ def get_image(image, size_name=None, template_name="image.html", retina=False, *
 					size = image.size_set.size_set.get(slug=size_name)
 				except Size.DoesNotExist:
 					return ""
-				image.create_thumbnail(size, force_crop=True)
+				try:
+					image.create_thumbnail(size, force_crop=True)
+				except:
+					return ""
 		
 		if retina:	
 			image_url = image.retina_thumbnail_url(size_name)
