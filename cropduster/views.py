@@ -4,18 +4,17 @@ from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.forms import TextInput
 from django.views.decorators.csrf import csrf_exempt
-
+from django.forms import ModelForm, ValidationError
 from django.conf import settings
+
 from cropduster.models import Image as CropDusterImage, Crop, Size, SizeSet
 from cropduster.exif import process_file
 from cropduster.utils import aspect_ratio
-import json
 from cropduster.admin import ADMIN_MEDIA_PREFIX
 
+import json
 from PIL import Image as pil
 
-
-from django.forms import ModelForm, ValidationError
 
 BROWSER_WIDTH = 800
 CROPDUSTER_EXIF_DATA = getattr(settings, "CROPDUSTER_EXIF_DATA", True)
@@ -31,7 +30,6 @@ class ImageForm(ModelForm):
 	class Meta:
 		model = CropDusterImage
 
-		
 		
 class CropForm(ModelForm):
 	class Meta:
@@ -102,13 +100,15 @@ def upload(request):
 				
 				if CROPDUSTER_EXIF_DATA:
 					# Check for exif data and use it to populate caption/attribution
-					exif_data = process_file(io.BytesIO(b"%s" % formset.cleaned_data["image"].file.getvalue()))
-					
+					try:
+						exif_data = process_file(io.BytesIO(b"%s" % formset.cleaned_data["image"].file.getvalue()))
+					except AttributeError:
+						exif_data = {}
+						
 					if not formset.cleaned_data["caption"] and "Image ImageDescription" in exif_data:
 						formset.data["caption"] = exif_data["Image ImageDescription"].__str__()
 					if not formset.cleaned_data["attribution"] and "EXIF UserComment" in exif_data:
 						formset.data["attribution"] = exif_data["EXIF UserComment"].__str__()
-				
 				
 				image = formset.save()
 				crop.image = image
@@ -120,7 +120,8 @@ def upload(request):
 					"aspect_ratio_id": 0,
 					"errors": errors,
 					"formset": formset,
-					"image_element_id" : request.GET["image_element_id"]
+					"image_element_id" : request.GET["image_element_id"],
+					"ADMIN_MEDIA_PREFIX": ADMIN_MEDIA_PREFIX,
 				}
 			
 				context = RequestContext(request, context)
