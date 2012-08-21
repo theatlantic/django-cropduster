@@ -91,7 +91,7 @@ function cropduster_pop(id, size_set_id, image_id, image_hash){
             <h4>Original Image</h4>
             <hr />
             <a title="Original image" alt="Original Image" href="{{image|safe}}" target="_blank">
-                <img data-image_id="{{image.id}}" class="original" src="{{ image|safe }}"/>
+                <img data-image_id="{{image.id}}" class="original" src="{% if image %}{{ image|safe }}{% endif %}"/>
             </a>
 
         </div>
