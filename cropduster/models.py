@@ -231,7 +231,7 @@ class Image(CachingMixin, models.Model):
     size_sets = models.ManyToManyField(SizeSet, null=True)
 
     # Single set of attributions
-    metadata = models.ForeignKey(ImageMetadata, null=True)
+    metadata = models.ForeignKey(ImageMetadata, null=True, blank=True)
 
     date_modified = models.DateTimeField(auto_now=True, null=True)
 

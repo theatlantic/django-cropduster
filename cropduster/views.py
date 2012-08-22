@@ -4,7 +4,7 @@ from itertools import count
 
 from PIL import Image as pil
 
-from django.forms import ModelForm, ValidationError
+from django.forms import ModelForm, ValidationError, HiddenInput
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render_to_response
 from django.template import RequestContext
@@ -24,7 +24,11 @@ class ImageForm(ModelForm):
 
     class Meta:
         model = Image
-        fields = ('image',)
+        fields = ('image', 'metadata')
+
+        widgets = {
+            'metadata': HiddenInput()
+        }
 
     def clean_image(self):
         image = self.cleaned_data.get('image')
@@ -233,8 +237,12 @@ def upload_crop_images(request):
     image_form = ImageForm(post, request.FILES, instance=image)
     metadata_form = MetadataForm(post, instance=image.metadata)
     if image_form.is_valid() and metadata_form.is_valid():
-        metadata_form.save()
+        metadata = metadata_form.save()
         image = image_form.save()
+        # this works, it's terrible, but it works.
+        image.metadata = metadata
+        image.save()
+
         sizes = apply_size_set(image, size_set)
 
         context = {
