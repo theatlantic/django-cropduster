@@ -289,7 +289,12 @@ class Image(CachingMixin, models.Model):
 
     def get_metadata(self):
         if self.metadata is None:
-            self.metadata = ImageMetadata()
+            if self.original is not None:
+                metadata = self.original.get_metadata()
+            else:
+                metadata = ImageMetadata()
+
+            self.metadata = metadata
         return self.metadata
 
     def new_derived_image(self, **kwargs):
