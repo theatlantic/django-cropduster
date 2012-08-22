@@ -94,6 +94,7 @@ def rescale_signal(sender, instance, created, max_height=None, max_width=None, *
         im.save(instance.image.path)
 
 
+IMAGE_SAVE_PARAMS = {"quality": 95}
 def save_image(image, path):
     """
     Attempts to save an image to the provided path.  If the
@@ -119,7 +120,7 @@ def save_image(image, path):
     # Since people upload images with garbage extensions,
     # preserve the decoder format.  You will note that we pass
     # the format along anytime we transform an image in 'utils'
-    image.save(tmp_path, image.format)
+    image.save(tmp_path, image.format, **IMAGE_SAVE_PARAMS)
     os.rename(tmp_path, path)
 
     return path

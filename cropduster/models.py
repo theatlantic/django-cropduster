@@ -16,8 +16,6 @@ from django.db.models.signals import post_save
 
 from cropduster import utils
 
-IMAGE_SAVE_PARAMS = {"quality": 95}
-
 try:
     from caching.base import CachingMixin, CachingManager
 except ImportError:
