@@ -333,8 +333,7 @@ class Image(CachingMixin, models.Model):
         @rtype:  /path/to/file
         """
         path = self._get_tmp_img_path()
-        utils.save_image(image, path)
-        return path
+        return utils.save_image(image, path)
 
     def render(self, force=False):
         """
@@ -402,13 +401,13 @@ class Image(CachingMixin, models.Model):
                 if orig_width >= (width * 2) and orig_height >= (height * 2):
                     retina = utils.rescale(utils.copy_image(image),
                         width * 2, height * 2, size.auto_crop)
-                    self._new_retina = self._save_to_tmp(retina)
+                    self._new_retina, _fmt = self._save_to_tmp(retina)
 
             # Calculate the main image
             image = utils.rescale(image, width, height, size.auto_crop)
 
         # Save the image in a temporary place
-        self._new_image = self._save_to_tmp(image)
+        self._new_image, self._new_image_format = self._save_to_tmp(image)
 
     def _get_tmp_img_path(self):
         """
@@ -548,7 +547,13 @@ class Image(CachingMixin, models.Model):
 
         # Do we have a new image?  If so, we need to move it over.
         if getattr(self, '_new_image', None) is not None:
+
             name = self.get_dest_img_name()
+            if getattr(settings, 'CROPDUSTER_NORMALIZE_EXT', False):
+                if not name.endswith(self._new_image_format.lower()):
+                    rest, _ext = os.path.splitext(name)
+                    name = rest + '.' + self._new_image_format.lower()
+
             # Since we only store relative paths in here, but want to get
             # the correct absolute path, we have to set the image name first
             # before we set the image directly (which will)
@@ -556,7 +561,10 @@ class Image(CachingMixin, models.Model):
             os.rename(self._new_image, self.image.path)
             self.image = name
 
+            # I'm not a fan of all this state, but it needs to be saved
+            # somewhere.
             del self._new_image
+            del self._new_image_format
 
             # Check for a new retina
             if hasattr(self, '_new_retina'):
@@ -621,7 +629,7 @@ class Image(CachingMixin, models.Model):
         return super(Image, self).delete(*args, **kwargs)
 
 class CropDusterReverseProxyDescriptor(ReverseSingleRelatedObjectDescriptor):
-    
+
     def __set__(self, instance, value):
         if value is not None and not isinstance(value, self.field.rel.to):
             # ok, are we a direct subclass?
@@ -660,7 +668,7 @@ class CropDusterField(models.ForeignKey):
             upload_path = upload_to
             def upload_to(object, filename):
                 return Image.cropduster_upload_to(filename, upload_path)
-        
+
         elif callable(upload_to):
             old_upload_to = upload_to
             def upload_to(self, filename, instance=None):

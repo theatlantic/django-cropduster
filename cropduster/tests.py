@@ -12,6 +12,7 @@ from django.db import models
 from django.core.files.base import ContentFile
 from django.core.exceptions import ObjectDoesNotExist as DNE, ValidationError
 import cropduster.models as CM
+import cropduster.utils as CMU
 
 from PIL import Image
 
@@ -691,7 +692,45 @@ class TestCropduster(unittest.TestCase):
                 datetime.timedelta(microseconds = cd1.date_modified.microsecond)
 
             self.assertEquals(date_modified, hashed_time)
-            
+
+    def test_auto_transcode(self, normalize_ext=False):
+        """
+        Tests that transcoding image formats works correctly.
+        """
+        # Save JPEGS as GIFs
+        cur_transcode = getattr(settings, 'CROPDUSTER_TRANSCODE', {})
+        setattr(settings, 'CROPDUSTER_TRANSCODE', {'JPEG': 'GIF'})
+        if normalize_ext:
+            cur_normalize = getattr(settings, 'CROPDUSTER_NORMALIZE_EXT', False)
+            setattr(settings, 'CROPDUSTER_NORMALIZE_EXT', True)
+
+        cd1 = self.get_test_image()
+        cd1.save()
+
+        # New derived with arbitrary crop
+        img = cd1.new_derived_image()
+        img.set_crop(100,100,300,300).save()
+
+        img.render()
+        img.save()
+
+        try:
+            self.assertEquals(Image.open(img.image.path).format, 'GIF')
+            if normalize_ext:
+                self.assertEquals(os.path.splitext(img.image.path)[1], '.gif')
+            else:
+                self.assertEquals(os.path.splitext(img.image.path)[1], '.jpg')
+        finally:
+            setattr(settings, 'CROPDUSTER_TRANSCODE', {'JPEG': 'GIF'})
+            if normalize_ext:
+                setattr(settings, 'CROPDUSTER_NORMALIZE_EXT', cur_normalize)
+
+    def test_normalize_ext(self):
+        """
+        Tests that extensions normalize correctly.
+        """
+        self.test_auto_transcode(True)
+
 class TestModel(models.Model):
     image = CM.CropDusterField(upload_to='test/%Y/%m/%d')
     image2 = CM.CropDusterField(null=True, related_name='image2')

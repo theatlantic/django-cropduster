@@ -1,6 +1,6 @@
 import os
 from PIL import Image
-
+from django.conf import settings
 
 def rescale(img, w=0, h=0, crop=True, **kwargs):
     """
@@ -120,10 +120,14 @@ def save_image(image, path):
     # Since people upload images with garbage extensions,
     # preserve the decoder format.  You will note that we pass
     # the format along anytime we transform an image in 'utils'
-    image.save(tmp_path, image.format, **IMAGE_SAVE_PARAMS)
+    if hasattr(settings, 'CROPDUSTER_TRANSCODE'):
+        new_format = settings.CROPDUSTER_TRANSCODE.get(image.format, image.format)
+    else:
+        new_format = image.format
+    image.save(tmp_path, new_format, **IMAGE_SAVE_PARAMS)
     os.rename(tmp_path, path)
 
-    return path
+    return path, new_format
 
 
 def copy_image(image):

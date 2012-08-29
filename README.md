@@ -72,3 +72,13 @@ class MyModelForm(forms.ModelForm):
 class MyModelAdmin(admin.ModelAdmin):
     form = TestForm
 ```
+
+Settings
+--------
+__CROPDUSTER_UPLOAD_PATH__: Relative path indicating where cropduster images should be stored.  Required.
+
+__CROPDUSTER_TMP_DIR__: Path to where temporary images are stored.  If omitted, uses the default path.  Optional, but should be provided.
+
+__CROPDUSTER_NORMALIZE_EXT__: Defaults to False.  If set to true, Cropduster will normalize file extensions based on their encoding format, stripping away erroneous file-type details.  Optional.
+
+__CROPDUSTER_TRANSCODE__: Transcodes one image format into another when rendering derived images.  This is useful when raw images are uploaded that need to be stored in a more web appropriate format.  Optional.
