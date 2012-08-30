@@ -56,10 +56,11 @@ class SizeSet(CachingMixin, models.Model):
 
 
 class SizeManager(CachingManager):
+
 	def get_size_by_ratio(self, size_set, aspect_ratio_id):
 		""" Gets the largest image of a certain ratio in this size set """
 		
-		size_query = Size.objects.all().only("aspect_ratio").filter(size_set=size_set, auto_size=0).order_by("-aspect_ratio")
+		size_query = self.all().only("aspect_ratio").filter(size_set=size_set, auto_size=MANUALLY_CROP).order_by("-aspect_ratio")
 		
 		size_query.query.group_by = ["aspect_ratio"]
 
@@ -67,7 +68,7 @@ class SizeManager(CachingManager):
 			size = size_query[aspect_ratio_id]
 			
 			# get the largest size with this aspect ratio
-			return Size.objects.all().filter(size_set=size_set, aspect_ratio=size.aspect_ratio, auto_size=0).order_by("-width")[0]
+			return self.all().filter(size_set=size_set, aspect_ratio=size.aspect_ratio, auto_size=MANUALLY_CROP).order_by("-width")[0]
 		except IndexError:
 			return None
 
@@ -97,9 +98,9 @@ class Size(CachingMixin, models.Model):
 		if not (self.width or self.height):
 			raise ValidationError("Size requires either a width, a height, or both")
 			
-		elif GENERATION_CHOICES[self.auto_size][1] == "Auto-Crop" and not (self.width and self.height):
+		elif self.auto_size != AUTO_SIZE and not (self.width and self.height):
 			# Raise a validation error if one of the sizes is not set for cropping.
-			# Auto-size is the only one that can take a missing size.
+			# Auto-crop is the only one that can take a missing size.
 			raise ValidationError("Auto-crop requires both sizes be specified")
 	
 	def save(self, *args, **kwargs):
@@ -115,6 +116,7 @@ class Size(CachingMixin, models.Model):
 	
 	@property
 	def retina_size(self):
+		""" Returns a Size object based on the current object but for the retina size """
 		retina_size = copy.copy(self)
 		retina_size.width = retina_size.width * 2
 		retina_size.height = retina_size.height * 2
@@ -150,6 +152,11 @@ class Crop(CachingMixin, models.Model):
 
 
 	def save(self, *args, **kwargs):
+		""" 
+		Save the Crop object, and create the thumbnails by creating 
+		one rescaled version for each ratio and then resizing for each 
+		thumbnail within that ratio
+		"""
 		super(Crop, self).save(*args, **kwargs)
 
 		if self.size:
@@ -179,7 +186,7 @@ class Image(CachingMixin, models.Model):
 	
 	objects = CachingManager()
 	
-	validate_image_size= True
+	validate_image_size = True
 	
 	image = models.ImageField(
 		upload_to=settings.CROPDUSTER_UPLOAD_PATH + "%Y/%m/%d", 
@@ -221,15 +228,18 @@ class Image(CachingMixin, models.Model):
 			return ""
 	@property
 	def path(self):
+		""" Path to the original image file """
 		return self.image.path
 		
 	@property
 	def folder_path(self):
-		file_path, file = os.path.split(self.image.path)
-		file_root, extension = os.path.splitext(file)
+		""" System path to the folder containing the thumbnails """
+		file_path, file_name = os.path.split(self.image.path)
+		file_root, extension = os.path.splitext(file_name)
 		return u"%s" % os.path.join(file_path, file_root)
 		
 	def thumbnail_path(self, size_slug, retina=False):
+		""" System path to the image file for a thumbnail based on the slug """
 		format = u"%s%s"
 		if retina:
 			format = u"%s" + RETINA_POSTFIX + "%s"
@@ -237,18 +247,21 @@ class Image(CachingMixin, models.Model):
 		return format % (os.path.join(self.folder_path, size_slug), self.extension)
 
 	def retina_thumbnail_path(self, size_slug):
+		""" System path to the image file for a retina thumbnail based on the slug """
 		return self.thumbnail_path(size_slug, retina=True)
 		
 	@property
 	def folder_url(self):
+		""" Web URL for the folder containing the thumbs """
 		if hasattr(self.image, "url"):
-			file_path, file = os.path.split(self.image.url)
-			file_root, extension = os.path.splitext(file)
+			file_path, file_name = os.path.split(self.image.url)
+			file_root, extension = os.path.splitext(file_name)
 			return u"%s" % os.path.join(file_path, file_root)
 		else:
 			return ""
 		
 	def thumbnail_url(self, size_slug, retina=False):
+		""" Web URL for a thumbnail based on the size slug """
 		format = u"%s%s"
 		if retina:
 			format = u"%s" + RETINA_POSTFIX + "%s"
@@ -256,6 +269,7 @@ class Image(CachingMixin, models.Model):
 
 		
 	def retina_thumbnail_url(self, size_slug):
+		""" Web URL for a thumbnail based on the size slug """
 		return self.thumbnail_url(size_slug, retina=True)
 		
 			
@@ -271,34 +285,52 @@ class Image(CachingMixin, models.Model):
 
 		return Crop.objects.filter(size__size_set=size.size_set, size__aspect_ratio=size.aspect_ratio, image=self).order_by("-crop_w")[0]
 
-	def save(self, *args, **kwargs):
 
+	def save(self, *args, **kwargs):
+		""" 
+		Save the image object and create any auto-sized thumbnails that don't need crops
+		Also, delete any old thumbs that aren't being written over
+		"""
 		super(Image, self).save(*args, **kwargs)
 		
 		# get all the auto sized thumbnails and create them
 		sizes = self.size_set.size_set.all().filter(
-			auto_size__in=[1,2], 
+			auto_size__in=[AUTO_CROP, AUTO_SIZE], 
 			create_on_request=False
 		)
 		for size in sizes:
 			self.create_thumbnail(size)
+		
+		# get all of the create on request sizes and delete the thumbnails
+		# in anticipation of them being rewritten
+		create_on_request_sizes = self.size_set.size_set.all().filter(
+			auto_size__in=[AUTO_CROP, AUTO_SIZE], 
+			create_on_request=True
+		)
+		for size in create_on_request_sizes:
+			if os.path.exists(self.thumbnail_path(size.slug)):
+				os.remove(self.thumbnail_path(size.slug))
 			
 	def clean(self):
+		""" Additional file validation for saving """
 	
 		if self.image:
-		
+			# Check for valid file extension
 			if os.path.splitext(self.image.name)[1] == '':
 				raise ValidationError("Please make sure images have file extensions before uploading")
 		
+			# Check for valid file
 			try:
 				pil_image = pil.open(self.image)
 			except:
 				raise ValidationError("Unable to open image file")
 			
+			# Check for minimum size requirement 
 			if self.validate_image_size:
 				for size in self.size_set.size_set.all().order_by("-width"):
 					if size.width > pil_image.size[0] or size.height > pil_image.size[1]:
 						raise ValidationError("Uploaded image (%s x %s) is smaller than a required thumbnail size: %s" % (pil_image.size[0], pil_image.size[1], size))
+						
 		return super(Image, self).clean()
 			
 	def create_thumbnail(self, size, force_crop=False):
@@ -326,14 +358,23 @@ class Image(CachingMixin, models.Model):
 
 			
 	def rescale(self, cropped_image, size, force_crop=False):
-		""" Resizes and saves the image to other sizes of the same aspect ratio from a given cropped image"""
+		""" Resizes and saves the image to other sizes of the same aspect ratio from a given cropped image """
+		
 		if force_crop or not size.create_on_request:
 			auto_crop = (size.auto_size == AUTO_CROP)
 			thumbnail = utils.rescale(cropped_image, size.width, size.height, auto_crop=auto_crop)
 		
+			# In case the thumbnail path hasn't been created yet
 			if not os.path.exists(self.folder_path):
-				os.makedirs(self.folder_path)
-			
+				try:
+					os.makedirs(self.folder_path)
+				except OSError:
+					# Handles weird race conditions if the path wasn't created just yet
+					if os.path.exists(self.folder_path):
+						pass
+					else: 
+						os.makedirs(self.folder_path)
+					
 			thumbnail.save(self.thumbnail_path(size.slug), **IMAGE_SAVE_PARAMS)
 			
 			# Create retina image
