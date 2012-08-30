@@ -1,6 +1,10 @@
 import os
-from PIL import Image
+from PIL import Image, ImageFile
 from django.conf import settings
+
+# We have to up the max block size for an image when using optimize, or it
+# will blow up
+ImageFile.MAXBLOCK = 10000000 # ~10mb
 
 def rescale(img, w=0, h=0, crop=True, **kwargs):
     """
@@ -94,7 +98,7 @@ def rescale_signal(sender, instance, created, max_height=None, max_width=None, *
         im.save(instance.image.path)
 
 
-IMAGE_SAVE_PARAMS = {"quality": 95}
+IMAGE_SAVE_PARAMS = {"quality": 80, "optimize": 1}
 def save_image(image, path):
     """
     Attempts to save an image to the provided path.  If the
