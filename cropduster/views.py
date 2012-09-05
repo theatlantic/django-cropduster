@@ -4,7 +4,7 @@ from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.forms import TextInput
 from django.views.decorators.csrf import csrf_exempt
-from django.forms import ModelForm, ValidationError
+from django.forms import ModelForm
 from django.conf import settings
 
 from cropduster.models import Image as CropDusterImage, Crop, Size, SizeSet
@@ -13,7 +13,6 @@ from cropduster.utils import aspect_ratio
 from cropduster.admin import ADMIN_MEDIA_PREFIX
 
 import json
-from PIL import Image as pil
 
 
 BROWSER_WIDTH = 800
