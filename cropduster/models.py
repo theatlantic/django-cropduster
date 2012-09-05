@@ -9,7 +9,9 @@ from django.core.exceptions import ValidationError
 
 CROPDUSTER_UPLOAD_PATH = getattr(settings, "CROPDUSTER_UPLOAD_PATH", settings.MEDIA_ROOT)
 
-IMAGE_SAVE_PARAMS =  {"quality" :95}
+IMAGE_SAVE_PARAMS =  {
+	"quality" :95
+}
 
 MANUALLY_CROP = 0
 AUTO_CROP = 1
@@ -180,6 +182,16 @@ class Crop(CachingMixin, models.Model):
 				# loop through the other sizes of the same aspect ratio, and create those crops
 				for size in sizes:
 					self.image.rescale(cropped_image, size=size)
+	def clean(self):
+	
+		if not self.crop_x or not self.crop_y:
+			raise ValidationError("Missing crop values")
+
+		if self.crop_x < 0 or self.crop_y < 0:
+			raise ValidationError("Crop positions must be non-negative")
+			
+		if self.crop_w <= 0 or self.crop_h <= 0:
+			raise ValidationError("Crop measurements must be greater than zero")
 
 
 class Image(CachingMixin, models.Model):

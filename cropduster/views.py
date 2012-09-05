@@ -37,23 +37,7 @@ class CropForm(ModelForm):
 		widgets = {
 			"image": TextInput(),
 		}
-	def clean(self):
-	
-		cleaned_data = super(CropForm, self).clean()
-	
-		if "crop_x" not in cleaned_data or "crop_y" not in cleaned_data:
-			self._errors.clear()
-			raise ValidationError("Missing crop values")
 
-		if cleaned_data["crop_x"] < 0 or cleaned_data["crop_y"] < 0:
-			self._errors.clear()
-			raise ValidationError("Crop positions must be non-negative")
-			
-		if cleaned_data["crop_w"] <= 0 or cleaned_data["crop_h"] <= 0:
-			self._errors.clear()
-			raise ValidationError("Crop measurements must be greater than zero")
-		
-		return self.cleaned_data
 	
 @csrf_exempt
 def upload(request):
