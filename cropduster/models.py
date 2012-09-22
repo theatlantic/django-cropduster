@@ -7,8 +7,10 @@ from django.db import models
 from django.conf import settings
 
 import PIL.Image
+from jsonutil import jsonutil
 
-from cropduster.utils import relpath
+from cropduster.utils import relpath, get_aspect_ratios, validate_sizes
+
 
 class Thumb(models.Model):
     name = models.CharField(max_length=255, db_index=True)
@@ -23,7 +25,6 @@ class Thumb(models.Model):
 
 
 class Image(models.Model):
-
     content_type = models.ForeignKey(ContentType)
     object_id = models.PositiveIntegerField()
     content_object = generic.GenericForeignKey('content_type', 'object_id')
@@ -80,10 +81,11 @@ class Image(models.Model):
 
     def has_thumb(self, size_name):
         try:
-            thumb = self.thumbs.get(name=size_name)
-            return True
+            self.thumbs.get(name=size_name)
         except Thumb.DoesNotExist:
             return False
+        else:
+            return True
     
     def save(self, **kwargs):
 
@@ -133,10 +135,10 @@ class Image(models.Model):
         if use_temp:
             size_name += '_tmp'
         
-        relative_path = relpath(settings.STATIC_ROOT, settings.CROPDUSTER_UPLOAD_PATH)
+        relative_path = relpath(settings.MEDIA_ROOT, settings.CROPDUSTER_UPLOAD_PATH)
         if re.match(r'\.\.', relative_path):
             raise Exception("Upload path is outside of static root")
-        url_root = settings.STATIC_URL + '/' + relative_path + '/'
+        url_root = settings.MEDIA_URL + '/' + relative_path + '/'
         url = url_root + self.path + '/' + size_name + self.extension
         url = re.sub(r'(?<!:)/+', '/', url)
         return url
@@ -211,15 +213,55 @@ class Image(models.Model):
         return thumb
 
 
-from django.contrib.contenttypes.generic import GenericRelation
+from .related import GenericRelation
 
 class CropDusterField(GenericRelation):
-    def db_type(self, connection):
-        return ''
-        
-    def __init__(self, *args, **kwargs):
+
+    sizes = None
+    auto_sizes = None
+    default_thumb = None
+
+    def __init__(self, sizes=None, auto_sizes=None, default_thumb=None,
+                 *args, **kwargs):
+        if default_thumb is None:
+            raise ValueError("default_thumb attribute must be defined.")
+
+        default_thumb_key_exists = False
+
+        try:
+            self._sizes_validate(sizes)
+            if default_thumb in sizes.keys():
+                default_thumb_key_exists = True
+        except ValueError as e:
+            # Maybe the sizes is none and the auto_sizes is valid, let's
+            # try that
+            try:
+                self._sizes_validate(auto_sizes, is_auto=True)
+            except:
+                # raise the original exception
+                raise e
+
+        if auto_sizes is not None:
+            self._sizes_validate(auto_sizes, is_auto=True)
+            if default_thumb in auto_sizes.keys():
+                default_thumb_key_exists = True
+
+        if not default_thumb_key_exists:
+            raise ValueError("default_thumb attribute does not exist in either sizes or auto_sizes dict.")
+
+        self.sizes = sizes
+        self.auto_sizes = auto_sizes
+        self.default_thumb = default_thumb
+
         kwargs['to'] = Image
         super(CropDusterField, self).__init__(*args, **kwargs)
+
+    def _sizes_validate(self, sizes, is_auto=False):
+        validate_sizes(sizes)    
+        if not is_auto:
+            aspect_ratios = get_aspect_ratios(sizes)
+            if len(aspect_ratios) > 1:
+                raise ValueError("More than one aspect ratio: %s" % jsonutil.dumps(aspect_ratios))
 
     def save_form_data(self, instance, data):
         """
@@ -233,8 +275,45 @@ class CropDusterField(GenericRelation):
             image = Image.objects.get(pk=data)
             mgr.add(image)
 
+    def formfield(self, **kwargs):
+        from .forms import cropduster_formfield_factory, cropduster_widget_factory
+        formfield_cls = cropduster_formfield_factory(*(
+            self.sizes,
+            self.auto_sizes,
+            self.default_thumb,))
+        widget_cls = cropduster_widget_factory(*(
+            self.sizes,
+            self.auto_sizes,
+            self.default_thumb,))
+
+        defaults = {'widget': widget_cls}
+        defaults = {'form_class': formfield_cls}
+        defaults.update(kwargs)
+        return super(CropDusterField, self).formfield(**defaults)
+
+
+from .patch import patch_model_admin
+patch_model_admin()
+
+
 try:
     from south.modelsinspector import add_introspection_rules
-    add_introspection_rules([], ["^cropduster\.models\.CropDusterField"])
-except:
+except ImportError:
     pass
+else:
+    add_introspection_rules(rules=[
+        (
+            (CropDusterField,),
+            [],
+            {
+                "to": ["rel.to", {}],
+                "symmetrical": ["rel.symmetrical", {"default": True}],
+                "object_id_field": ["object_id_field_name", {"default": "object_id"}],
+                "content_type_field": ["content_type_field_name", {"default": "content_type"}],
+                "blank": ["blank", {"default": True}],
+                "sizes": ["sizes", {}],
+                "auto_sizes": ["auto_sizes", {"default": None}],
+                "default_thumb": ["default_thumb", {}],
+            },
+        ),
+    ], patterns=["^cropduster\.models\.CropDusterField"])

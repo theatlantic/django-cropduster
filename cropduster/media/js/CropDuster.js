@@ -107,11 +107,15 @@ window.CropDuster = {};
 				thumbs = $.parseJSON(data.thumbs);
 				CropDuster.setThumbnails(id, thumbs);
 			}
+			var defaultThumbName = CropDuster.defaultThumbs[id];
 			if (data.thumb_urls) {
 				var thumbUrls = $.parseJSON(data.thumb_urls);
 				var html = '';
 				var i = 0;
 				for (var name in thumbUrls) {
+					if (name != defaultThumbName) {
+						continue;
+					}
 					var url = thumbUrls[name];
 					var className = "preview";
 					if (i == 0) {
@@ -122,7 +126,17 @@ window.CropDuster = {};
 					html += '<img id="' + id + '_image_' + name + '" src="' + url + '" class="' + className + '" />';
 					i++;
 				}
-				$('#preview_id_' + id).html(html);
+				var previewId;
+				for (var formsetPrefix in CropDuster.formsetPrefixes) {
+					if (formsetPrefix != id) {
+						previewId = 'preview_id_' + formsetPrefix;
+						break;
+					}
+				}
+				if (previewId) {
+					$('#' + previewId).html(html);
+				}
+
 			}
 		},
 		
@@ -134,6 +148,27 @@ window.CropDuster = {};
 	CropDuster.init();
 	
 	$(document).ready(function(){
+
+		$('.cropduster-customfield').click(function(e) {
+			e.preventDefault();
+			var fieldName = $('.cropduster-id-field').attr('name');
+			CropDuster.show(fieldName, CropDuster.uploadUrl);
+		});
+
+		var $idField = $('.cropduster-id-field');
+		var idFieldName = $idField.attr('name');
+		var $idFieldRow = $idField.parents('.row.' + idFieldName);
+		if ($idFieldRow.length) {
+			var idFieldLabel = $idFieldRow.find('label').html();
+			if (idFieldLabel) {
+				idFieldLabel = idFieldLabel.replace(/:$/, '');
+				$('.cropduster-form').find('h2.collapse-handler').each(function(header) {
+					header.innerHTML = idFieldLabel;
+				});
+			}
+			$idFieldRow.hide();
+		}
+
 		$('.cropduster-form span.delete input').change(function() {
 			form = $(this).parents('.cropduster-form');
 			if (this.checked) {
@@ -166,8 +201,12 @@ window.CropDuster = {};
 			
 			ext = $('#id_' + prefix + '-0-_extension').val();
 			var html = '';
+			var defaultThumbName = CropDuster.defaultThumbs[prefix+'-0-id'];
 			$('#id_' + prefix + '-0-thumbs option').each(function(i, el) {
 				var name = $(el).html();
+				if (name != defaultThumbName) {
+					return;
+				}
 				var url = CropDuster.staticUrl + '/' + path + '/' + name + '.' + ext;
 				url = url.replace(/(:)?\/+/g, function($0, $1) { return $1 ? $0 : '/'; });
 				url += '?rand=' + CropDuster.generateRandomId();

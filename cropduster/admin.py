@@ -14,7 +14,6 @@ class BaseImageInline(GenericInlineModelAdmin):
     formset = BaseInlineFormSet
     extra = 1
     max_num = 1
-    readonly_fields = ('id',)
     extra_fields = []
     
     fieldsets = (
@@ -50,6 +49,14 @@ class BaseImageInline(GenericInlineModelAdmin):
         formset.auto_sizes = self.auto_sizes
         formset.default_thumb = self.default_thumb
         return formset
+
+
+def cropduster_inline_factory(sizes, auto_sizes, default_thumb):
+    return type("CropDusterImageInline", (BaseImageInline,), {
+        'sizes': sizes,
+        'auto_sizes': auto_sizes,
+        'default_thumb': default_thumb,
+    })
 
 
 # Retained for backwards compatibility, but imports of these classes from this module

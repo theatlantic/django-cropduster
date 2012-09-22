@@ -23,21 +23,27 @@
 	CropDuster.formsetPrefixes['{{ final_attrs.name }}'] = '{{ prefix|safe }}';
 	CropDuster.minSize['{{ final_attrs.name }}'] = {{ min_size|safe }};
 	CropDuster.staticUrl = {{ static_url|safe }};
+	CropDuster.uploadUrl = '{% url cropduster.views.upload %}?pop=1';
 })((typeof window.django != 'undefined') ? django.jQuery : jQuery);
 // ]]>
 </script>
 
 {{ formset.non_form_errors }}
 
+	<input type="hidden" id="{{ final_attrs.id }}" name="{{ final_attrs.name }}" value="{{ final_attrs.value }}"{% if not is_formset_render %} class="cropduster-id-field"{% endif %}/>
 
-	<input type="hidden" id="{{ final_attrs.id }}" name="{{ final_attrs.name }}" value="{{ final_attrs.value }}" />
-	
-	<a href="javascript:CropDuster.show('{{ final_attrs.name }}', '{% url cropduster.views.upload %}?pop=1');" class="cropduster-customfield">
+    {% if is_formset_render %}
+	<a href="#" class="cropduster-customfield">
 		<div class="cropduster-upload-button"></div>
 
 		<p class="help" id="preview_{{ final_attrs.id }}">
 			{% for name, url in thumbs.items %}
-		        <img id="{{ final_attrs.id }}_image_{{ name }}" src="{{ url }}" class="preview{% if forloop.first %} first{% endif %}" />
+<script type="text/javascript">
+    var timestamp = (new Date()).getTime().toString(36);
+    document.write('<' + 'img id="{{ final_attrs.id }}_image_{{ name }}" src="{{ url|escapejs }}?v=' + timestamp + '" class="preview{% if forloop.first %} first{% endif %}" /' + '>');
+</script>
+		        
 			{% endfor %}
 		</p>
 	</a>
+    {% endif %}

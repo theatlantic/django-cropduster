@@ -1,3 +1,5 @@
+
+
 .cropduster-form .path,
 .cropduster-form .crop_x,
 .cropduster-form .crop_y,
@@ -7,13 +9,22 @@
 .cropduster-form .default_thumb,
 .cropduster-form .thumbs,
 .cropduster-form .DELETE {
-	display: none;
+  display: none;
 }
 
 .cropduster-form .inline-related .delete {
 	padding-top: 7px;
 	position: absolute;
 	right: 10px;
+	width: 53px;
+}
+
+.cropduster-form .inline-related .delete input {
+    float: left;
+    margin-right: 5px;
+}
+.cropduster-form .inline-related .delete label {
+    margin-top: 0;
 }
 
 .cropduster-form.pre-delete fieldset div {
