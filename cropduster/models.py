@@ -245,8 +245,11 @@ class CropDusterField(GenericRelation):
     auto_sizes = None
     default_thumb = None
 
-    def __init__(self, sizes=None, auto_sizes=None, default_thumb=None,
-                 *args, **kwargs):
+    def __init__(self, verbose_name=None, **kwargs):
+        sizes = kwargs.pop('sizes', None)
+        auto_sizes = kwargs.pop('auto_sizes', None)
+        default_thumb = kwargs.pop('default_thumb', None)
+
         if default_thumb is None:
             raise ValueError("default_thumb attribute must be defined.")
 
@@ -278,7 +281,7 @@ class CropDusterField(GenericRelation):
         self.default_thumb = default_thumb
 
         kwargs['to'] = Image
-        super(CropDusterField, self).__init__(*args, **kwargs)
+        super(CropDusterField, self).__init__(verbose_name=verbose_name, **kwargs)
 
     def _sizes_validate(self, sizes, is_auto=False):
         validate_sizes(sizes)    

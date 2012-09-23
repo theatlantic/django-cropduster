@@ -209,7 +209,10 @@ class CropDusterDescriptor(object):
             try:
                 val = qset.get(**query)
             except rel_model.DoesNotExist:
-                return None
+                if not self.is_image_field:
+                    return None
+                else:
+                    val = None
             else:
                 setattr(instance, cache_name, manager)
                 if val.path:

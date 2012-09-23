@@ -84,7 +84,7 @@ class CropDusterWidget(Input):
         elif isinstance(value, ImageFieldFile):
             image = value.cropduster_image
             image_value = value.name
-            value = image.pk
+            value = getattr(image, 'pk', None)
         elif isinstance(value, basestring) and not value.isdigit():
             try:
                 image = Image.objects.get_by_relpath(value)
