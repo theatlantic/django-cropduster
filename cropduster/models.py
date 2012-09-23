@@ -24,7 +24,28 @@ class Thumb(models.Model):
         db_table = 'cropduster_thumb'
 
 
+class ImageManager(models.Manager):
+
+    def get_by_relpath(self, relative_path):
+        """
+        Images are stored relative to the CROPDUSTER_UPLOAD_PATH.
+        This method accepts a path relative to MEDIA_ROOT and
+        does the relative path conversion for the get() call.
+        """
+        if relative_path[0] == '/':
+            relative_path = relative_path[1:]
+        media_path = os.path.join(settings.MEDIA_ROOT, relative_path)
+        cropduster_rel_path = relpath(settings.CROPDUSTER_UPLOAD_PATH,
+            media_path)
+        cropduster_rel_path = re.sub(r'/original\.[^/]+$', '',
+            cropduster_rel_path)
+        return self.get(path=cropduster_rel_path)
+
+
 class Image(models.Model):
+
+    objects = ImageManager()
+
     content_type = models.ForeignKey(ContentType)
     object_id = models.PositiveIntegerField()
     content_object = generic.GenericForeignKey('content_type', 'object_id')
@@ -70,7 +91,6 @@ class Image(models.Model):
         return self.get_image_url(self.default_thumb, use_temp)
 
     def get_image_path(self, size_name=None, use_temp=False):
-
         if size_name is None:
             size_name = 'original'
         
@@ -78,6 +98,10 @@ class Image(models.Model):
             size_name += '_tmp'
 
         return os.path.join(settings.CROPDUSTER_UPLOAD_PATH, self.path, size_name + self.extension)
+
+    def get_relative_image_path(self, size_name=None, use_temp=False):
+        img_path = self.get_image_path(size_name, use_temp)
+        return relpath(settings.MEDIA_ROOT, img_path)
 
     def has_thumb(self, size_name):
         try:
@@ -262,18 +286,6 @@ class CropDusterField(GenericRelation):
             aspect_ratios = get_aspect_ratios(sizes)
             if len(aspect_ratios) > 1:
                 raise ValueError("More than one aspect ratio: %s" % jsonutil.dumps(aspect_ratios))
-
-    def save_form_data(self, instance, data):
-        """
-        Override Field.save_form_data to ensure that the
-        correct type is saved to the object
-        """
-        if data is None or data == '':
-            setattr(instance, self.name, data)
-        else:
-            mgr = getattr(instance, self.name)
-            image = Image.objects.get(pk=data)
-            mgr.add(image)
 
     def formfield(self, **kwargs):
         from .forms import cropduster_formfield_factory, cropduster_widget_factory

@@ -29,10 +29,11 @@
 </script>
 
 {{ formset.non_form_errors }}
-
+    {% if not is_formset_render %}
+    <input type="text" id="{{ final_attrs.id }}" name="{{ final_attrs.name }}" value="{{ image_value }}"{% if not is_formset_render %} class="cropduster-id-field"{% endif %}/>
+    {% else %}
 	<input type="hidden" id="{{ final_attrs.id }}" name="{{ final_attrs.name }}" value="{{ final_attrs.value }}"{% if not is_formset_render %} class="cropduster-id-field"{% endif %}/>
 
-    {% if is_formset_render %}
 	<a href="#" class="cropduster-customfield">
 		<div class="cropduster-upload-button"></div>
 

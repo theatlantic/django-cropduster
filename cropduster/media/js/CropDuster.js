@@ -54,9 +54,8 @@ window.CropDuster = {};
 		},
 		
 		// open upload window
-		show: function(id, href) {
+		show: function(id, href, imageId) {
 			var id2=String(id).replace(/\-/g,"____").split(".").join("___");
-			var imageId = $('#id_' + id).val();
 			var path = CropDuster.getVal(id, 'path');
 			if (imageId) {
 				href += '&id=' + imageId;
@@ -90,7 +89,7 @@ window.CropDuster = {};
 		},
 		
 		complete: function(id, data) {
-			$('#id_' + id).val(data.id);
+			$('#id_' + id).val(data.relpath);
 			CropDuster.setVal(id, 'id', data.id);
 			CropDuster.setVal(id, 'crop_x', data.x);
 			CropDuster.setVal(id, 'crop_y', data.y);
@@ -151,8 +150,10 @@ window.CropDuster = {};
 
 		$('.cropduster-customfield').click(function(e) {
 			e.preventDefault();
+			var $targetParent = $(e.target).parents('.row.id');
+			var imageId = $targetParent.find('input').val();
 			var fieldName = $('.cropduster-id-field').attr('name');
-			CropDuster.show(fieldName, CropDuster.uploadUrl);
+			CropDuster.show(fieldName, CropDuster.uploadUrl, imageId);
 		});
 
 		var $idField = $('.cropduster-id-field');

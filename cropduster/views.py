@@ -427,6 +427,7 @@ def crop(request):
         'filename': db_image.get_base_dir_name() + db_image.extension,
         'extension': db_image._extension,
         'path': db_image.path,
+        'relpath': db_image.get_relative_image_path(),
         'thumbs': jsonutil.dumps(thumb_ids),
         'x': request.POST['x'],
         'y': request.POST['y'],

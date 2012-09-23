@@ -245,6 +245,8 @@ def relpath(p1, p2):
     if len(l1) > 0:
         p = [ '../' * len(l1) ]
     p = p + l2
+    if len(p) == 0:
+        return './'
     return os.path.join( *p )
 
 # From http://code.activestate.com/recipes/576693/

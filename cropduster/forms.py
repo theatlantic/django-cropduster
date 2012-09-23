@@ -4,8 +4,10 @@ import re
 from django.conf import settings
 
 from django import forms
+from django.core import validators
 from django.db import models
 from django.db.models.fields import related
+from django.db.models.fields.files import ImageFieldFile
 from django.forms.models import ModelMultipleChoiceField
 from django.forms.widgets import Input
 from django.contrib.contenttypes.generic import generic_inlineformset_factory
@@ -67,6 +69,8 @@ class CropDusterWidget(Input):
         # or rendering on the actual form.
         is_formset_render = bool('content_type-object_id' in name)
 
+        image = None
+        image_value = ''
         if isinstance(value, models.Manager):
             try:
                 value = value.all()[0]
@@ -74,6 +78,23 @@ class CropDusterWidget(Input):
                 value = None
             else:
                 value = value.pk
+        elif isinstance(value, Image):
+            image = value
+            value = value.pk
+        elif isinstance(value, ImageFieldFile):
+            image = value.cropduster_image
+            image_value = value.name
+            value = image.pk
+        elif isinstance(value, basestring) and not value.isdigit():
+            try:
+                image = Image.objects.get_by_relpath(value)
+            except Image.DoesNotExist:
+                image = None
+                image_value = value
+                value = None
+            else:
+                image_value = value
+                value = image.pk
 
         self.value = value
         thumbs = OrderedDict({})
@@ -82,7 +103,8 @@ class CropDusterWidget(Input):
             final_attrs['value'] = ""
         else:
             final_attrs['value'] = value
-            image = Image.objects.get(pk=value)
+            if image is None:
+                image = Image.objects.get(pk=value)
             for thumb in image.thumbs.filter(name=self.default_thumb).order_by('-width'):
                 size_name = thumb.name
                 thumbs[size_name] = image.get_image_url(size_name)
@@ -101,6 +123,7 @@ class CropDusterWidget(Input):
 
         static_url = simplejson.dumps(settings.MEDIA_URL + '/' + relative_path + '/')
         return render_to_string("cropduster/custom_field.html", {
+            'image_value': image_value,
             'is_formset_render': is_formset_render,
             'formset': self.formset,
             'inline_admin_formset': self.formset,
@@ -116,7 +139,7 @@ class CropDusterWidget(Input):
         })
 
 
-class CropDusterFormField(forms.IntegerField):
+class CropDusterFormField(forms.Field):
 
     sizes = None
     auto_sizes = None
@@ -170,6 +193,20 @@ class CropDusterFormField(forms.IntegerField):
             aspect_ratios = get_aspect_ratios(sizes)
             if len(aspect_ratios) > 1:
                 raise ValueError("More than one aspect ratio: %s" % jsonutil.dumps(aspect_ratios))
+
+    def to_python(self, value):
+        value = super(CropDusterFormField, self).to_python(value)
+        if value in validators.EMPTY_VALUES:
+            return None
+
+        if isinstance(value, basestring) and not value.isdigit():
+            return value
+
+        try:
+            value = int(str(value))
+        except (ValueError, TypeError):
+            raise ValidationError(self.error_messages['invalid'])
+        return value
 
 
 def cropduster_formfield_factory(sizes, auto_sizes, default_thumb):
