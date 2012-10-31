@@ -34,15 +34,17 @@ function cropduster_pop(id, size_set_id, image_id, image_hash){
 	var href = '{{ cropduster_url }}?pop=1&size_set=' + size_set_id 
                 + '&image_element_id=' + id
                 + '&image_hash=' + image_hash;
-	if (django.jQuery("#cropduster_input_" + id + " input").val() != ''){
-		image_id = django.jQuery("#cropduster_input_" + id + " input").val();
+
+    var $input = django.jQuery("div.cropduster_input[data-attr_id=" + id + "] input");
+	if ($input.val() != ''){
+		image_id = $input.val();
 	}
 	
 	if (image_id !== undefined){
 		href += '&image_id=' + image_id;
 	}
 
-	var win=window.open(href, id, 'height=650, width=960, resizable=yes, scrollbars=yes');
+	window.open(href, id, 'height=650, width=960, resizable=yes, scrollbars=yes');
 
 	return false;
 }
@@ -64,17 +66,34 @@ function cropduster_pop(id, size_set_id, image_id, image_hash){
   };
   window.show_cropduster = function(e) {
       var attr_id = $(this).attr('data-attr_id');
+      if(attr_id.length === 0) {
+          var attr_id = setup_attr_id($(this).parent().parent());
+      }
       var size_set_id = $(this).attr('data-size_set_id');
+
       // Check to see if we have a root image
       var orig_image= $('div[data-attr_id="'+attr_id+'"] img.original');
       if(orig_image !== null) {
           orig_image = orig_image.attr('data-image_id');
       }
       var image_hash = $(this).attr('data-image_hash');
+
       // Show the popup
       cropduster_pop(attr_id, size_set_id, orig_image, image_hash);
       return false;
   };
+
+  /*
+    Generates a new random attr id since we can never guarantee that
+    the actual form id isn't changed via javascript.
+  */
+  function setup_attr_id($container) {
+      var input_id = $container.find('input.cropduster').attr('id');
+      var random_attr_id = Math.floor(Math.random() * 0xFFFFFFFF);
+      var attr_id = input_id + random_attr_id;
+      $container.find('[data-attr_id]').attr('data-attr_id', attr_id);
+      return attr_id;
+  }
 })((typeof window.django == 'object') ? django.jQuery : jQuery);
 
 </script>
@@ -84,9 +103,9 @@ function cropduster_pop(id, size_set_id, image_id, image_hash){
 
 </div>
 
-<p><a data-image_hash="{{image_hash}}" data-attr_id="{{ attrs["id"]}}" data-size_set_id="{{size_set.id}}" href="#" onclick="show_cropduster.call(this)" class="cd_show"><img src="{{ media_url }}/img/cropduster_icon_upload_select.png" alt=""></a></p>
+<p><a data-image_hash="{{image_hash}}" data-attr_id="" data-size_set_id="{{size_set.id}}" href="#" onclick="show_cropduster.call(this)" class="cd_show"><img src="{{ media_url }}/img/cropduster_icon_upload_select.png" alt=""></a></p>
 
-	<div data-attr_id="{{ attrs["id"] }}" class="cropduster_thumbs">
+	<div data-attr_id="" class="cropduster_thumbs">
         <div class="original_image" {% if not image %}style="display:none"{% endif %} >
             <h4>Original Image</h4>
             <hr />
@@ -115,7 +134,6 @@ function cropduster_pop(id, size_set_id, image_id, image_hash){
             <div style="clear:both;height:10px;"></div>
         </div>
 	</div>
-<div id="cropduster_input_{{ attrs["id"] }}">
+<div class="cropduster_input" data-attr_id="">
 {{ input|safe }}
-
 </div>

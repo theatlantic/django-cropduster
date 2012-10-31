@@ -7,11 +7,17 @@
 (function($) {
 
 $(document).ready(function(){
-	var obj = $(window.opener.document.getElementById("{{ image_element_id }}"));
+
+    var $ = (function(o) {
+        return (typeof o.django == 'object') ? o.django.jQuery : o.jQuery;
+    }(window.opener));
+	var $input = $(
+        'div.cropduster_input[data-attr_id="{{image_element_id}}"] input', window.opener.document
+    );
 	
-	$(obj).val({{ image.id }});
+	$input.val({{ image.id }});
 	
-    var $parent = $(obj).parent().parent();
+    var $parent = $input.parent().parent();
     var orig_image = $parent.find('.original_image');
     orig_image.find('img').attr('src', "{{image|safe }}");
     orig_image.find('a').attr('href', "{{image|safe }}");
@@ -19,8 +25,10 @@ $(document).ready(function(){
 
     $manual = $parent.find(".cropduster_thumbs .manual_images");
     $thumb = $manual.find('.thumbs');
+
     // Delete all current manual images
     $thumb.find('a').remove();
+
     // then re-add them!
 	{% for thumb in image_thumbs %}
         $thumb.append('<a target="_blank" href="{{thumb|safe}}"><img src="{{ thumb|safe }}" /></a>');
