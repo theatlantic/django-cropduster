@@ -64,8 +64,21 @@
 		return val === null ? null : Math.round(scale(val, max_width/image_width));
 	}
 	
+    /* JCrop can return negative X/Y coordinates when the image is exact, so fix it */
+    function normalize_cro p(c) {
+        if(c.x < 0) {
+            c.w += c.x;
+            c.x = 0;
+        }
+        if(c.y < 0) {
+            c.h += c.y;
+            c.y = 0;
+        }
+    }
+
     function updateCrop(index) {
         return function (c) {
+            normalize_crop(c);
             console.log(''+index+': '+ [c.x, c.y, c.w, c.h].map(scale_up).join(', '))
             $('#id_'+index+'-crop_x').val(scale_up(c.x));
             $('#id_'+index+'-crop_y').val(scale_up(c.y));
