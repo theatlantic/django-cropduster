@@ -65,7 +65,7 @@
 	}
 	
     /* JCrop can return negative X/Y coordinates when the image is exact, so fix it */
-    function normalize_cro p(c) {
+    function normalize_crop(c) {
         if(c.x < 0) {
             c.w += c.x;
             c.x = 0;
