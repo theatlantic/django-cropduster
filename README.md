@@ -67,6 +67,18 @@ class MyModelAdmin(admin.ModelAdmin):
     }
 ```
 
+If you are using multiple cropduster fields with different size sets in the same 
+admin page, you'll have to explicitly define the formfield based on the dbfield name
+
+```python
+class MyModelAdmin(admin.ModelAdmin):
+    def formfield_for_dbfield(self, db_field, **kwargs):
+        if db_field.name == 'image':
+            kwargs['widget'] = AdminCropdusterWidget("series-graphic")
+        elif db_field.name == 'banner_image':
+            kwargs['widget'] = AdminCropdusterWidget("series-banner")
+```
+
 
 
 Optional Settings:
