@@ -73,4 +73,4 @@ Optional Settings:
 
 	CROPDUSTER_UPLOAD_PATH -- Sets the upload_to attribute for file uploads.  Otherwise defaults to MEDIA_ROOT.
 
-	CROPDUSTER_EXIF_DATA -- Import embedded exif data for image attribution and caption.  Default = False.  Uses exif.py by Gene Cash / Thierry Bousch
+	CROPDUSTER_EXIF_DATA -- Import embedded exif data for image attribution and caption.  Default = True.  Uses exif.py by Gene Cash / Thierry Bousch
