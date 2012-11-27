@@ -184,7 +184,7 @@ class Crop(CachingMixin, models.Model):
 					self.image.rescale(cropped_image, size=size)
 	def clean(self):
 	
-		if not self.crop_x or not self.crop_y:
+		if not hasattr(self, "crop_x") or not hasattr(self, "crop_y"):
 			raise ValidationError("Missing crop values")
 
 		if self.crop_x < 0 or self.crop_y < 0:
