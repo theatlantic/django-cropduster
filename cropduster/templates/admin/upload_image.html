@@ -3,6 +3,11 @@
 <!-- LOADING -->
 {% load i18n adminmedia cropdustermedia %}
 
+{% block extrahead %}
+	{{ block.super }}
+	<link rel="stylesheet" href="{% cropduster_media_prefix %}css/CropDuster.css?v=1" type="text/css" />
+{% endblock %}
+
 <!-- Get rid of nav -->
 {% block nav-global %}{% endblock %}
 

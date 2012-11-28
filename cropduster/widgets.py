@@ -1,5 +1,5 @@
-from django.forms import HiddenInput
-from coffin.template import Context, loader
+from django.forms import HiddenInput, Media
+from django.template import Context, loader
 from django.core.urlresolvers import reverse
 from cropduster.models import SizeSet, Image as CropDusterImage, ImageRegistry
 from django.contrib.contenttypes.models import ContentType
@@ -7,7 +7,9 @@ from django.contrib.contenttypes.models import ContentType
 
 class AdminCropdusterWidget(HiddenInput):
 
-    def __init__(self, model, field, size_set_slug, template="admin/inline.html", *args, **kwargs):
+    ctx_overrides = None
+
+    def __init__(self, model, field, size_set_slug, template="admin/inline.html", attrs=None, *args, **ctx_overrides):
         try:
             self.size_set = SizeSet.objects.get(slug=size_set_slug)
         except SizeSet.DoesNotExist:
@@ -17,8 +19,24 @@ class AdminCropdusterWidget(HiddenInput):
 
         self.register_image(model, field)
         self.template = template
-        super(AdminCropdusterWidget, self).__init__(*args, **kwargs)
+        super(AdminCropdusterWidget, self).__init__(attrs)
         self.is_hidden = False
+        self.ctx_overrides = ctx_overrides
+
+    def _media(self):
+        base = getattr(super(AdminCropdusterWidget, self), 'media', None)
+        media = Media(base) if base else Media()
+
+        media_url = reverse("cropduster-static", kwargs={"path": ""})
+
+        media.add_js([media_url + 'js/admin.cropduster.js',])
+        media.add_css({
+            'all': (
+                media_url + 'css/admin.cropduster.css',
+            ),})
+        return media
+
+    media = property(_media)
 
     def register_image(self, model, field_name):
         model_id = ContentType.objects.get_for_model(model)
@@ -46,8 +64,18 @@ class AdminCropdusterWidget(HiddenInput):
             except CropDusterImage.DoesNotExist:
                 image = None
 
+        if image:
+            filter_kwargs = {
+                'size__size_set': self.size_set,
+                'size__auto_crop': False,
+            }
+            filter_kwargs.update(self.ctx_overrides.pop('derived_filter_kwargs', {}))
+            manual = image.derived.filter(**filter_kwargs)
+        else:
+            manual = None
+
         t = loader.get_template(self.template)
-        c = Context({
+        ctx = {
             "image": image,
             "image_hash": self.image_hash,
             "size_set": self.size_set,
@@ -55,5 +83,10 @@ class AdminCropdusterWidget(HiddenInput):
             "cropduster_url": cropduster_url,
             "input": input,
             "attrs": attrs,
-        })
-        return t.render(c)
+            "show_original": True,
+            "manual": manual,
+            "has_manual": image and len(manual) > 0,
+        }
+        ctx.update(self.ctx_overrides)
+
+        return t.render(Context(ctx))

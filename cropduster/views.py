@@ -221,6 +221,7 @@ def upload_image(request, image_form=None, metadata_form=None):
         'm_height': m_height,
         'next_stage': 'crop_images',
         'current_stage': 'upload',
+        'is_popup': True,
     }
 
     return render_to_response('admin/upload_image.html', context)
@@ -254,6 +255,7 @@ def upload_crop_images(request):
             'crops': get_crops(sizes),
             'next_stage': 'apply_sizes',
             'current_stage': 'crop_images',
+            'is_popup': True,
         }
 
         context = RequestContext(request, context)
@@ -304,12 +306,13 @@ def apply_sizes(request):
 
         # Only show cropped images in the admin.
         if der_image.id in crop_mapping:
-            thumbs.append(der_image.image.url)
+            thumbs.append(der_image)
 
     context = {
         'image': image,
         'image_thumbs': thumbs,
         'image_element_id': request.GET['image_element_id'],
+        'is_popup': True,
     }
 
     context = RequestContext(request, context)

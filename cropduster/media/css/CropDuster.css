@@ -14,6 +14,15 @@ label {
 	display: block;
 	float: left;
 }
+
+#content, #grp-content {
+    top: 30px;
+}
+
+body.popup #content, body.grp-popup #grp-content {
+    top: 0;
+}
+
 #content-main input[type="text"]{
 	width:300px;
 }

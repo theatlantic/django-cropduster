@@ -1,139 +1,45 @@
-
-<style type="text/css">
-.cropduster_thumbs {
-	overflow: hidden;
-    padding: 15px;
-}
-.cropduster_thumbs img {
-	display: block;
-	float: left;
-    border:1px solid black;
-    box-shadow: 0 0 3px 3px #888;
-    max-width: 100%;
-}
-
-.cropduster_thumbs img.original {
-    float:none;
-    max-width: 100%;
-    margin: 0;
-}
-.cropduster_thumbs a {
-    float:left;
-    display: block;
-    width: auto;
-    max-width:20%;
-    margin-top:10px;
-    margin-right: 15px;
-    margin-bottom: 15px;
-}
-</style>
-
-<script type="text/javascript">
-function cropduster_pop(id, size_set_id, image_id, image_hash){
-
-	var href = '{{ cropduster_url }}?pop=1&size_set=' + size_set_id 
-                + '&image_element_id=' + id
-                + '&image_hash=' + image_hash;
-
-    var $input = django.jQuery("div.cropduster_input[data-attr_id=" + id + "] input");
-	if ($input.val() != ''){
-		image_id = $input.val();
-	}
-	
-	if (image_id !== undefined){
-		href += '&image_id=' + image_id;
-	}
-
-	window.open(href, id, 'height=650, width=960, resizable=yes, scrollbars=yes');
-
-	return false;
-}
-
-(function($) {
-  window.toggle_delete = function(obj){
-	var container = $(obj).parent().parent().parent().parent();
-	
-	$(container).toggleClass("predelete");
-	
-	// Swap the title and the value fields, that way the values can be swapped back if deletion is canceled
-	var tempValue = $(container).find("input.cropduster").val();
-	var tempTitle = $(container).find("input.cropduster").attr("title");
-
-	$(container).find("input.cropduster").val(tempTitle);
-	$(container).find("input.cropduster").attr("title", tempValue);
-
-	return false;
-  };
-  window.show_cropduster = function(e) {
-      var attr_id = $(this).attr('data-attr_id');
-      if(attr_id.length === 0) {
-          var attr_id = setup_attr_id($(this).parent().parent());
-      }
-      var size_set_id = $(this).attr('data-size_set_id');
-
-      // Check to see if we have a root image
-      var orig_image= $('div[data-attr_id="'+attr_id+'"] img.original');
-      if(orig_image !== null) {
-          orig_image = orig_image.attr('data-image_id');
-      }
-      var image_hash = $(this).attr('data-image_hash');
-
-      // Show the popup
-      cropduster_pop(attr_id, size_set_id, orig_image, image_hash);
-      return false;
-  };
-
-  /*
-    Generates a new random attr id since we can never guarantee that
-    the actual form id isn't changed via javascript.
-  */
-  function setup_attr_id($container) {
-      var input_id = $container.find('input.cropduster').attr('id');
-      var random_attr_id = Math.floor(Math.random() * 0xFFFFFFFF);
-      var attr_id = input_id + random_attr_id;
-      $container.find('[data-attr_id]').attr('data-attr_id', attr_id);
-      return attr_id;
-  }
-})((typeof window.django == 'object') ? django.jQuery : jQuery);
-
-</script>
-
-<div class="tools">
-	<a href="javascript://" onclick="toggle_delete(this);" class="icon delete-handler" title="Remove"></a>
-
-</div>
-
-<p><a data-image_hash="{{image_hash}}" data-attr_id="" data-size_set_id="{{size_set.id}}" href="#" onclick="show_cropduster.call(this)" class="cd_show"><img src="{{ media_url }}/img/cropduster_icon_upload_select.png" alt=""></a></p>
-
-	<div data-attr_id="" class="cropduster_thumbs">
-        <div class="original_image" {% if not image %}style="display:none"{% endif %} >
+{% load cropdusteradmin %}
+{% spaceless %}
+<div class="cropduster-inline">
+    <div class="tools">
+        <a href="javascript://" onclick="return toggle_delete(this);" class="icon delete-handler" title="Remove"></a>
+    </div>
+    <p>
+        <a data-image_hash="{{image_hash}}" data-attr_id="" data-size_set_id="{{size_set.id}}" href="{{cropduster_url}}" onclick="return show_cropduster.call(this)" class="cd_show cropduster-popup-button"></a>
+    </p>
+    <div data-attr_id="" class="cropduster_thumbs">
+        {% if show_original %}
+        <div class="original_image cropduster-image-group" {% if not image %}style="display:none"{% endif %} >
             <h4>Original Image</h4>
-            <hr />
-            <a title="Original image" alt="Original Image" href="{{image|safe}}" target="_blank">
+            <div class="cropduster-images">
+            <a title="Original image" class="cropduster-image cropduster-image-original" alt="Original Image" href="{{image|safe}}" target="_blank">
                 <img data-image_id="{{image.id}}" class="original" src="{% if image %}{{ image|safe }}{% endif %}"/>
             </a>
-
+            </div>
         </div>
-
-        <div style="clear:both;height:10px;"></div>
-        {% if image %}
-            {% set manual = image.derived.filter(size__size_set=size_set, size__auto_crop=False) %}
         {% endif %}
-        {% set has_manual = image and manual|length >0 %}
 
-        <div class="manual_images" {% if not has_manual %}style="display:none"{% endif %}>
+        <div class="manual_images cropduster-image-group" {% if not has_manual %}style="display:none"{% endif %}>
             <h4>Manually Cropped</h4>
-            <hr />
-            <div class="thumbs">
+            <div class="thumbs cropduster-images">
             {% if image %}
                 {% for image in manual %}
-                    <a target="_blank" href="{{image|safe}}"><img src="{{ image|safe }}" /></a>
+                {# If this is edited, make sure to also edit the template in admin.cropduster.js #}
+                <a target="_blank" class="cropduster-image cropduster-image-{{image.size.slug}}" href="{{image|safe}}">
+                <!--[if lt IE 9]>
+                <span style="background-image:url({{image|safe}});width:{% scale_width image.size max_width=216 %}px;height:{% scale_height image.size max_width=216 %}px;filter:progid:DXImageTransform.Microsoft.AlphaImageLoader(src='{{image|safe}}', sizingMethod='scale');-ms-filter:&quot;progid:DXImageTransform.Microsoft.AlphaImageLoader(src='{{image|safe}}', sizingMethod='scale')&quot;;"></span>
+                <![endif]-->
+                <!--[if gte IE 9]> -->
+                <span style="background-image:url({{image|safe}});width:{% scale_width image.size max_width=216 %}px;height:{% scale_height image.size max_width=216 %}px;"></span>
+                <!-- <![endif]>-->
+                </a>
                 {% endfor %}
             {% endif %}
             </div>
-            <div style="clear:both;height:10px;"></div>
         </div>
 	</div>
 <div class="cropduster_input" data-attr_id="">
 {{ input|safe }}
 </div>
+</div>
+{% endspaceless %}
