@@ -43,8 +43,8 @@ $(document).ready(function(){
             {
                 size_slug: "{{thumb.size.slug}}",
                 image_url: "{{thumb|safe}}",
-                width: "{% scale_width thumb.size max_width=216 %}",
-                height: "{% scale_height thumb.size max_width=216 %}"
+                width: "{% scale_width thumb max_width=216 %}",
+                height: "{% scale_height thumb max_width=216 %}"
             }{% if not forloop.last %},{% endif %}
             {% endfor %}
         ];

@@ -27,10 +27,10 @@
                 {# If this is edited, make sure to also edit the template in admin.cropduster.js #}
                 <a target="_blank" class="cropduster-image cropduster-image-{{image.size.slug}}" href="{{image|safe}}">
                 <!--[if lt IE 9]>
-                <span style="background-image:url({{image|safe}});width:{% scale_width image.size max_width=216 %}px;height:{% scale_height image.size max_width=216 %}px;filter:progid:DXImageTransform.Microsoft.AlphaImageLoader(src='{{image|safe}}', sizingMethod='scale');-ms-filter:&quot;progid:DXImageTransform.Microsoft.AlphaImageLoader(src='{{image|safe}}', sizingMethod='scale')&quot;;"></span>
+                <span style="background-image:url({{image|safe}});width:{% scale_width image max_width=216 %}px;height:{% scale_height image max_width=216 %}px;filter:progid:DXImageTransform.Microsoft.AlphaImageLoader(src='{{image|safe}}', sizingMethod='scale');-ms-filter:&quot;progid:DXImageTransform.Microsoft.AlphaImageLoader(src='{{image|safe}}', sizingMethod='scale')&quot;;"></span>
                 <![endif]-->
                 <!--[if gte IE 9]> -->
-                <span style="background-image:url({{image|safe}});width:{% scale_width image.size max_width=216 %}px;height:{% scale_height image.size max_width=216 %}px;"></span>
+                <span style="background-image:url({{image|safe}});width:{% scale_width image max_width=216 %}px;height:{% scale_height image max_width=216 %}px;"></span>
                 <!-- <![endif]>-->
                 </a>
                 {% endfor %}
