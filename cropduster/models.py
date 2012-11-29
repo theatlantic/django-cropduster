@@ -1,3 +1,4 @@
+import re
 import shutil
 import time
 import uuid
@@ -5,8 +6,7 @@ import os
 import datetime
 import hashlib
 import itertools
-
-from PIL import Image as pil
+import urllib
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -501,7 +501,13 @@ class Image(CachingMixin, models.Model):
         if date_hash:
             unix_time = int(time.mktime(self.date_modified.timetuple()))
             path += '?' + format(unix_time, 'x')
-        return unicode(path)
+
+        # Django's filepath_to_uri passes '()' in the safe kwarg to
+        # urllib.quote, which is problematic when used in inline
+        # background-image:url() styles.
+        # This regex replaces '(' and ')' with '%28' and '%29', respectively
+        url = unicode(path)
+        return re.sub(r'([\(\)])', lambda m: urllib.quote(m.group(1)), url)
 
     def get_thumbnail(self, slug, size_set=None):
         """
