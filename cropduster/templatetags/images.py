@@ -7,7 +7,7 @@ from cropduster.models import AUTO_SIZE
 from os.path import exists
 
 CROPDUSTER_CROP_ONLOAD = getattr(settings, "CROPDUSTER_CROP_ONLOAD", True)
-CROPDUSTER_KITTY_MODE = getattr(settings, "CROPDUSTER_KITTY_MODE", False)
+CROPDUSTER_PLACEHOLDER_MODE = getattr(settings, "CROPDUSTER_PLACEHOLDER_MODE", False)
 
 
 # preload a map of image sizes so it doesn"t make a DB call for each templatetag use
@@ -60,8 +60,8 @@ def get_image(image, size_name=None, template_name="image.html", retina=False, *
 			kwargs["height"] = image_size.height if hasattr(image_size, "height") else ""
 		
 		
-		if CROPDUSTER_KITTY_MODE:
-			kwargs["image_url"] = "http://placekitten.com/%s/%s" % (kwargs["width"], kwargs["height"])
+		if CROPDUSTER_PLACEHOLDER_MODE:
+			kwargs["image_url"] = "http://placehold.it/%sx%s" % (kwargs["width"], kwargs["height"])
 		
 		kwargs["size_name"] = size_name
 		
