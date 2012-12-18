@@ -8,6 +8,8 @@ import hashlib
 import itertools
 import urllib
 
+from PIL import Image as pil
+
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.fields.related import ReverseSingleRelatedObjectDescriptor
