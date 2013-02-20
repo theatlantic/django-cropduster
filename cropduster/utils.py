@@ -12,7 +12,7 @@ def rescale(img, w=0, h=0, crop=True, **kwargs):
     Rescale the given image, optionally cropping it to make sure the result
     image has the specified width and height.
     """
-    dst_width, dst_height, dst_ratio = normalize_dimensions(img, w, h, return_ratio=True)
+    dst_width, dst_height, dst_ratio = normalize_dimensions(img, (w, h), return_ratio=True)
 
     src_width, src_height = img.size
     src_ratio = float(src_width) / float(src_height)
