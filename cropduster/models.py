@@ -25,12 +25,10 @@ GENERATION_CHOICES = (
 
 RETINA_POSTFIX = "@2x"
 
-try:
-	from caching.base import CachingMixin, CachingManager
-except ImportError:
-	class CachingMixin(object):
-		pass
-	CachingManager = models.Manager
+
+class CachingMixin(object):
+	pass
+CachingManager = models.Manager
 
 class SizeSet(CachingMixin, models.Model):
 	objects = CachingManager()
@@ -399,7 +397,9 @@ class Image(CachingMixin, models.Model):
 					retina_thumbnail = utils.rescale(cropped_image, retina_size.width, retina_size.height, crop=retina_size.auto_size)
 					retina_thumbnail.save(self.thumbnail_path(retina_size.slug), **IMAGE_SAVE_PARAMS)
 			
-
+	def tag(self, **kwargs):
+		from cropduster.templatetags.images import get_image
+		return get_image(self, **kwargs)
 
 
 

@@ -3,7 +3,6 @@ from coffin.template import Context, loader
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from cropduster.models import SizeSet, Image as CropDusterImage
-from cropduster.admin import ADMIN_MEDIA_PREFIX
 
 class AdminCropdusterWidget(HiddenInput):
 	def __init__(self, size_set_slug, template="admin/inline.html", *args, **kwargs):
@@ -37,6 +36,5 @@ class AdminCropdusterWidget(HiddenInput):
 			"cropduster_url": cropduster_url,
 			"input": input,
 			"attrs": attrs,
-			"ADMIN_MEDIA_PREFIX": ADMIN_MEDIA_PREFIX,
 		})
 		return template.render(context)

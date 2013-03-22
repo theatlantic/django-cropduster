@@ -2,7 +2,7 @@ from django.contrib import admin
 from cropduster.models import Size, SizeSet
 from django.conf import settings
 
-ADMIN_MEDIA_PREFIX = getattr(settings, "STANDARD_ADMIN_MEDIA_PREFIX", settings.ADMIN_MEDIA_PREFIX) 
+#ADMIN_MEDIA_PREFIX = getattr(settings, "STANDARD_ADMIN_MEDIA_PREFIX", settings.ADMIN_MEDIA_PREFIX) 
 
 class SizeInline(admin.TabularInline):
 	model = Size
@@ -36,11 +36,11 @@ class SizeSetAdmin(admin.ModelAdmin):
 	class Media:
 
 		js = (
-			ADMIN_MEDIA_PREFIX + "cropduster/js/size_set.js",
+			settings.STATIC_URL + "admin/cropduster/js/size_set.js",
 		)
 		css = {
 			"all": (
-				ADMIN_MEDIA_PREFIX + "cropduster/css/size_set.css",
+				settings.STATIC_URL + "admin/cropduster/css/size_set.css",
 			)
 		}
 
