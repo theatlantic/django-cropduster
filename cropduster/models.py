@@ -199,7 +199,7 @@ class Image(CachingMixin, models.Model):
 	validate_image_size = True
 	
 	image = models.ImageField(
-		upload_to=settings.CROPDUSTER_UPLOAD_PATH + "%Y/%m/%d", 
+		upload_to=CROPDUSTER_UPLOAD_PATH + "%Y/%m/%d", 
 		max_length=255, 
 		db_index=True
 	)
