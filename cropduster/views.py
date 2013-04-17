@@ -60,8 +60,9 @@ def upload(request):
 	try:
 		image_id = int(image_id)
 		image = CropDusterImage.objects.get(id=image_id)
-	except:
+	except ValueError:
 		image = CropDusterImage(size_set=size_set)
+	
 		
 		
 	
