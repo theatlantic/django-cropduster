@@ -49,12 +49,20 @@ def upload(request):
 		aspect_ratio_id = 0
 	
 	
+	
+	
 	if "image_id" in request.GET:
-		image = CropDusterImage.objects.get(id=request.GET["image_id"])
+		image_id = request.GET["image_id"]
 	elif "image_id" in request.POST:
-		image = CropDusterImage.objects.get(id=request.POST["image_id"])
-	else:
+		image_id = request.POST["image_id"]
+	
+	try:
+		image_id = int(image_id)
+		image = CropDusterImage.objects.get(id=image_id)
+	except ValueError:
 		image = CropDusterImage(size_set=size_set)
+		
+		
 	
 	size = Size.objects.get_size_by_ratio(size_set.id, aspect_ratio_id) or Size()
 
