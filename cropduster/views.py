@@ -50,6 +50,7 @@ def upload(request):
 	
 	
 	
+	image_id = None
 	
 	if "image_id" in request.GET:
 		image_id = request.GET["image_id"]
@@ -59,7 +60,7 @@ def upload(request):
 	try:
 		image_id = int(image_id)
 		image = CropDusterImage.objects.get(id=image_id)
-	except ValueError:
+	except:
 		image = CropDusterImage(size_set=size_set)
 		
 		
