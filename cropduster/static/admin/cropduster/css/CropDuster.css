@@ -17,3 +17,12 @@ label {
 #content-main input[type="text"]{
 	width:300px;
 }
+
+#row_id_image label {
+	height:30px;
+}
+
+
+#upload-footer #upload-button {
+	margin-top:10px;
+}
