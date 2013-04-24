@@ -1,14 +1,12 @@
-from django.conf import settings
-
 from coffin import template
-from coffin.template.loader import get_template
-
-from cropduster.models import Size
 
 register = template.Library()
 
-@register.object
-def get_image(image, size_name='large', template_name='image.html', width=None, height=None, **kwargs):
+
+@register.simple_tag
+def get_image(image, size_name='large', template_name='image.html',
+              width=None, height=None, **kwargs):
+
     if not image:
         return ""
 
@@ -26,7 +24,6 @@ def get_image(image, size_name='large', template_name='image.html', width=None, 
     })
     kwargs['title'] = kwargs.get('title', kwargs['alt'])
 
-    tpl = get_template('templatetags/' + template_name)
+    tpl = template.loader.get_template('templatetags/' + template_name)
     ctx = template.Context(kwargs)
     return tpl.render(ctx)
-
