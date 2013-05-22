@@ -44,7 +44,7 @@ class SizeSet(CachingMixin, models.Model):
 		""" 
 			Shorthand to get all the unique ratios rather than show every possible thumbnail
 		"""
-		create_on_request =  not created
+		create_on_request = not created
 		
 		size_query = Size.objects.all().filter(size_set__id=self.id, create_on_request=create_on_request)
 		

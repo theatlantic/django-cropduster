@@ -13,7 +13,7 @@
 	height:30px;
 }
 
-.module.table .cropduster-tools {
+.cropduster-tools {
 	float:left;
 	right: 0;
 	margin: 0;
@@ -23,11 +23,11 @@
 }
 
 
-.module.table .cropduster-tools a{
+.cropduster-tools a{
 	display:block;
 	width: 20px;
 }
-.module.table .cropduster-tools .delete-handler {
+.cropduster-tools .delete-handler {
 	
 	float: right;
 	border-left: 1px solid #CCC;
@@ -35,7 +35,7 @@
 	padding: 0 !important;
 }
 
-.module.table .cropduster-tools .find-handler  {
+.cropduster-tools .find-handler  {
 	float:left;
 	width:12px;
 	padding: 8px 3px 0 0 !important;
@@ -81,10 +81,10 @@ function toggle_delete(obj){
 
 <div class="tools cropduster-tools">
 	
-	<a href="javascript://" onclick="toggle_delete(this);" class="icon delete-handler" title="Remove" {% if not image %} style="display:none;"{% endif %}></a>
+	<a href="javascript://" onclick="toggle_delete(this);" class="icon delete-handler" title="Remove" {% if not image %} style="display:none;"{% endif %}><img src="{{ static_url }}admin/cropduster/img/cropduster_icon_upload_delete.png" width="10" height="10" alt="" /></a>
 	
 
-	<a href="#" onclick="cropduster_pop('{{ attrs["id"] }}', {{ size_set.id }}{% if image %}, {{ image.id }}{% endif %});return false" class="find-handler cd_show"><img src="{{ static_url }}admin/cropduster/img/cropduster_icon_upload_select_small.png" alt=""></a>
+	<a href="#" onclick="cropduster_pop('{{ attrs["id"] }}', {{ size_set.id }}{% if image %}, {{ image.id }}{% endif %});return false" class="find-handler cd_show"><img src="{{ static_url }}admin/cropduster/img/cropduster_icon_upload_select_small.png" alt="" /></a>
 </div>
 
 

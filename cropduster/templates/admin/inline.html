@@ -7,11 +7,18 @@
 	margin-right: 10px;
 }
 
-.module .cropduster_tools {
+.cropduster_tools {
 	position:absolute;
 	top:0px;
 	right:0px;
 }
+
+.cropduster-tools .delete-handler {
+	float: right;
+	margin: 5px !important;
+	padding: 0 !important;
+}
+
 </style>
 
 <script type="text/javascript">
@@ -51,7 +58,7 @@ function toggle_delete(obj){
 </script>
 
 <div class="tools cropduster_tools">
-	<a href="javascript://" onclick="toggle_delete(this);" class="icon delete-handler" title="Remove"></a>
+	<a href="javascript://" onclick="toggle_delete(this);" class="icon delete-handler" title="Remove"><img src="{{ static_url }}admin/cropduster/img/cropduster_icon_upload_delete.png" width="10" height="10" alt="" /></a>
 
 </div>
 
