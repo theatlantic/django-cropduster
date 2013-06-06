@@ -285,6 +285,9 @@ class Image(CachingMixin, models.Model):
 			
 	def has_size(self, size_slug):
 		return self.size_set.size_set.filter(slug=size_slug).exists()
+
+	def has_crop_for_size(self, size_slug):
+		return Crop.objects.filter(size__size_set=self.size_set, size__slug=size_slug, image=self).exists()
 			
 	def get_absolute_url(self):
 		return settings.STATIC_URL + self.image
