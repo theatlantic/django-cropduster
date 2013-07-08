@@ -5,6 +5,8 @@ from django.conf import settings
 from cropduster.models import Size
 from cropduster.models import AUTO_SIZE
 from os.path import exists
+from raven import Client
+import sys
 
 CROPDUSTER_CROP_ONLOAD = getattr(settings, "CROPDUSTER_CROP_ONLOAD", True)
 CROPDUSTER_PLACEHOLDER_MODE = getattr(settings, "CROPDUSTER_PLACEHOLDER_MODE", False)
@@ -35,6 +37,8 @@ def get_image(image, size_name=None, template_name="image.html", retina=False, *
 				try:
 					image.create_thumbnail(size, force_crop=True)
 				except:
+					client = Client(dsn=settings.RAVEN_CONFIG['dsn'])
+				        client.captureException(exc_info=sys.exc_info(), data=exception_data)			
 					return ""
 		
 		if retina:	
