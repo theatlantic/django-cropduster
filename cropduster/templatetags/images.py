@@ -38,7 +38,7 @@ def get_image(image, size_name=None, template_name="image.html", retina=False, *
 					image.create_thumbnail(size, force_crop=True)
 				except:
 					client = Client(dsn=settings.RAVEN_CONFIG['dsn'])
-				        client.captureException(exc_info=sys.exc_info(), data=exception_data)			
+				        client.captureException(exc_info=sys.exc_info())			
 					return ""
 		
 		if retina:	
