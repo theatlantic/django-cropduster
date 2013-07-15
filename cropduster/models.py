@@ -499,7 +499,7 @@ class Image(CachingMixin, models.Model):
         @return: Absolute path to the url
         @rtype: basestring
         """
-        path = os.path.join(settings.STATIC_URL, self.image.url)
+        path = self.image.url
         if date_hash:
             unix_time = int(time.mktime(self.date_modified.timetuple()))
             path += '?' + format(unix_time, 'x')

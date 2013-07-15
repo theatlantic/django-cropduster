@@ -19,7 +19,7 @@ class mytest(test):
 
 setup(
     name='django-cropduster',
-    version='1',
+    version=__import__('cropduster').__version__,
     author='Llewellyn Hinkes',
     author_email='ortsed@gmail.com',
     url='http://github.com/theatlantic/cropduster',
