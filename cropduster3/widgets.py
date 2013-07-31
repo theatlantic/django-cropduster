@@ -1,8 +1,9 @@
 from django.forms import HiddenInput, Media
 from django.template import Context, loader
 from django.core.urlresolvers import reverse
-from cropduster.models import SizeSet, Image as CropDusterImage, ImageRegistry
 from django.contrib.contenttypes.models import ContentType
+
+from .models import SizeSet, Image as CropDusterImage, ImageRegistry
 
 
 class AdminCropdusterWidget(HiddenInput):

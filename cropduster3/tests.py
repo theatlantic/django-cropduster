@@ -11,8 +11,8 @@ PATH = os.path.split(__file__)[0]
 from django.db import models
 from django.core.files.base import ContentFile
 from django.core.exceptions import ObjectDoesNotExist as DNE, ValidationError
-import cropduster.models as CM
-import cropduster.utils as CMU
+import cropduster3.models as CM
+import cropduster3.utils as CMU
 
 from PIL import Image
 

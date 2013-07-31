@@ -3,8 +3,12 @@ import inspect
 
 from django.db.models.loading import get_app, get_models
 from django.db.models.base import ModelBase
-from cropduster.models import Image as CropDusterImage,CropDusterField as CDF
+
+from cropduster3.models import Image as CropDusterImage,CropDusterField as CDF
+
+
 get_def_file = lambda o: os.path.abspath(inspect.getfile(o))
+
 
 def find_cropduster_images(model):
     """
@@ -27,6 +31,7 @@ def find_cropduster_images(model):
             fields.append(field.name)
 
     return fields
+
 
 def import_app(app_name, model_name=None, field_name=None):
     """
@@ -67,6 +72,7 @@ def import_app(app_name, model_name=None, field_name=None):
 
     return field_map
 
+
 def resolve_apps(apps):
     """
     Takes a couple of raw apps and converts them into sets of Models/fields.
@@ -87,4 +93,3 @@ def resolve_apps(apps):
         for model, fields in import_app(app_name, model_name, field_name):
             if fields:
                 yield model, fields
-

@@ -1,5 +1,6 @@
 from django.contrib import admin
-from cropduster.models import Size, SizeSet
+
+from .models import Size, SizeSet
 
 
 class SizeInline(admin.TabularInline):

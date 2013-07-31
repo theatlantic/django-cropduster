@@ -1,2 +1,8 @@
-__version_info__ = (3, 0, 6, 4)
-__version__ = '.'.join(map(str, __version_info__))
+# this is a namespace package
+try:
+    import pkg_resources
+except ImportError:
+    import pkgutil
+    __path__ = pkgutil.extend_path(__path__, __name__)
+else:
+    pkg_resources.declare_namespace(__name__)

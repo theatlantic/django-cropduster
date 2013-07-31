@@ -11,8 +11,8 @@ except ImportError:
 
 from django.core.management.base import BaseCommand, CommandError
 
-from cropduster.models import Image as CropDusterImage
-from cropduster.utils import rescale, create_cropped_image, normalize_dimensions
+from cropduster3.models import Image as CropDusterImage
+from cropduster3.utils import rescale, create_cropped_image, normalize_dimensions
 
 from .apputils import resolve_apps
 

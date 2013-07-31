@@ -1,6 +1,7 @@
 import os
 import copy
 from itertools import count
+from collections import namedtuple
 
 from PIL import Image as pil
 
@@ -9,15 +10,17 @@ from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 
-from cropduster.models import Image, Crop, Size, SizeSet, ImageMetadata, ImageRegistry
-from collections import namedtuple
+from .models import Image, Crop, Size, SizeSet, ImageMetadata, ImageRegistry
+
 
 BROWSER_WIDTH = 800
+
 
 class MetadataForm(ModelForm):
 
     class Meta:
         model = ImageMetadata
+
 
 # Create the form class.
 class ImageForm(ModelForm):
@@ -63,6 +66,7 @@ class ImageForm(ModelForm):
 
         return image
 
+
 class CropForm(ModelForm):
 
     class Meta:
@@ -83,6 +87,7 @@ class CropForm(ModelForm):
 
         return self.cleaned_data
 
+
 def get_image(request):
     image_id = request.GET.get('image_id') or request.POST.get('image_id')
     image_hash = request.GET.get('image_hash')
@@ -93,6 +98,7 @@ def get_image(request):
         image = cls()
 
     return image
+
 
 def apply_size_set(image, size_set):
     # Do we already have the image_set?
@@ -113,19 +119,24 @@ def apply_size_set(image, size_set):
 
 
 Dimensions = namedtuple('Dimensions', 'width,height,ar')
+
+
 def get_inherited_dims(image):
     o = image.original
     return Dimensions(image.size.get_width(),
                       image.size.get_height(),
                       image.size.get_aspect_ratio())
 
+
 def get_inherited_ar(image):
     return get_inherited_dims(image)[2]
+
 
 def calc_min_dims(images):
     widths, heights, ars = zip(get_inherited_dims(i) for i in images)
     assert(min(ars) == max(ars))
     return max(widths), max(heights)
+
 
 def calc_linked_crop(images, prefix):
     dims = [get_inherited_dims(i) for i in images]
@@ -145,6 +156,7 @@ def calc_linked_crop(images, prefix):
     return (ids, max_dim,
             CropForm(instance=crop,
                      prefix=prefix))
+
 
 def get_crops(images):
     """
@@ -175,6 +187,7 @@ def get_crops(images):
 
     return crops
 
+
 def categorize(iterator, key=None):
     if callable(key):
         iterator = ((key(i), i) for i in iterator)
@@ -188,6 +201,7 @@ def categorize(iterator, key=None):
 
     return d
 
+
 def min_size(size_set):
     """
     Calculates the minimum dimensions from a size_set
@@ -199,6 +213,7 @@ def min_size(size_set):
         height = max(height, h)
 
     return width, height
+
 
 def upload_image(request, image_form=None, metadata_form=None):
     size_set = SizeSet.objects.get(id=request.GET['size_set'])
@@ -225,6 +240,7 @@ def upload_image(request, image_form=None, metadata_form=None):
     }
 
     return render_to_response('admin/upload_image.html', context)
+
 
 def upload_crop_images(request):
     size_set = SizeSet.objects.get(id=request.GET['size_set'])
@@ -268,6 +284,7 @@ def upload_crop_images(request):
 def get_ids(request, index):
     return (int(i) for i in request.POST['crop_ids_%i' % index].split(','))
 
+
 def get_crops_from_post(request):
     total_crops = int(request.POST['total_crops'])
     crop_mapping = {}
@@ -283,9 +300,11 @@ def get_crops_from_post(request):
 
     return crop_mapping
 
+
 def update_crop(der_image, crop):
     der_image.set_crop(crop.crop_x, crop.crop_y, crop.crop_w, crop.crop_h).save()
     der_image.crop = der_image.crop
+
 
 def apply_sizes(request):
     # Get each crop and validate it
@@ -324,8 +343,10 @@ STAGES = {
     'apply_sizes': apply_sizes,
 }
 
+
 def get_next_stage(request):
     return request.POST.get('next_stage', 'upload')
+
 
 def dispatch_stage(request):
     stage = get_next_stage(request)
@@ -334,6 +355,7 @@ def dispatch_stage(request):
 
     #Raise error
     return None
+
 
 @csrf_exempt
 def upload(request):

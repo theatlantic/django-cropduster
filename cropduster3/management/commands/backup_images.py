@@ -9,12 +9,13 @@ import os
 import tempfile
 from optparse import make_option
 
+import Image
 from django.core.management.base import BaseCommand, CommandError
 
-from cropduster.models import Image as CropDusterImage,CropDusterField as CDF
-from cropduster.utils import create_cropped_image, rescale
+from cropduster3.models import Image as CropDusterImage,CropDusterField as CDF
+from cropduster3.utils import create_cropped_image, rescale
 import apputils
-import Image
+
 
 class Command(BaseCommand):
     args = "app1 [app2...]"

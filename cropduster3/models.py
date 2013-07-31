@@ -16,7 +16,8 @@ from django.db.models.fields.related import ReverseSingleRelatedObjectDescriptor
 from django.conf import settings
 from django.db.models.signals import post_save
 
-from cropduster import utils
+from . import utils
+from . import settings as cropduster_settings
 
 try:
     from caching.base import CachingMixin, CachingManager
@@ -35,7 +36,8 @@ class SizeSet(CachingMixin, models.Model):
     objects = CachingManager()
 
     class Meta:
-        db_table = 'cropduster_sizeset'
+        app_label = cropduster_settings.CROPDUSTER_APP_LABEL
+        db_table = '%s_sizeset' % cropduster_settings.CROPDUSTER_DB_PREFIX
 
     name = models.CharField(max_length=255, db_index=True)
     slug = models.SlugField(max_length=50, null=False, unique=True)
@@ -60,7 +62,8 @@ class Size(CachingMixin, models.Model):
     objects = CachingManager()
 
     class Meta:
-        db_table = "cropduster_size"
+        app_label = cropduster_settings.CROPDUSTER_APP_LABEL
+        db_table = '%s_size' % cropduster_settings.CROPDUSTER_DB_PREFIX
 
     # An Size not associated with a set is a 'one off'
     size_set = models.ForeignKey(SizeSet, null=True)
@@ -172,7 +175,8 @@ class Size(CachingMixin, models.Model):
 class Crop(CachingMixin, models.Model):
 
     class Meta:
-        db_table = "cropduster_crop"
+        app_label = cropduster_settings.CROPDUSTER_APP_LABEL
+        db_table = '%s_crop' % cropduster_settings.CROPDUSTER_DB_PREFIX
 
     objects = CachingManager()
 
@@ -195,7 +199,8 @@ class ImageMetadata(CachingMixin, models.Model):
     objects = CachingManager()
 
     class Meta:
-        db_table = "cropduster_image_meta"
+        app_label = cropduster_settings.CROPDUSTER_APP_LABEL
+        db_table = '%s_image_meta' % cropduster_settings.CROPDUSTER_DB_PREFIX
 
     # Attribution details.
     attribution = models.CharField(max_length=255, blank=True, null=True)
@@ -207,7 +212,8 @@ class Image(CachingMixin, models.Model):
     objects = CachingManager()
 
     class Meta:
-        db_table = "cropduster_image"
+        app_label = cropduster_settings.CROPDUSTER_APP_LABEL
+        db_table = '%s_image' % cropduster_settings.CROPDUSTER_DB_PREFIX
         verbose_name = "Image"
         verbose_name_plural = "Image"
 
@@ -800,4 +806,4 @@ try:
 except ImportError:
     pass
 else:
-    add_introspection_rules([], ["^cropduster\.models\.CropDusterField"])
+    add_introspection_rules([], ["^cropduster3\.models\.CropDusterField"])
