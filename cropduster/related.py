@@ -188,20 +188,31 @@ class CropDusterDescriptor(object):
 
             qn = connection.ops.quote_name
 
+            if hasattr(instance._default_manager, 'prefetch_related'):
+                # Django 1.4+
+                manager_kwargs = {
+                    'prefetch_cache_name': self.field.attname,
+                }
+            else:
+                # Django <= 1.3
+                manager_kwargs = {
+                    'join_table': qn(self.field.m2m_db_table()),
+                }
+
             manager = RelatedManager(
                 model=rel_model,
                 instance=instance,
                 field=self.field,
                 symmetrical=(self.field.rel.symmetrical and instance.__class__ == rel_model),
-                join_table=qn(self.field.m2m_db_table()),
                 source_col_name=qn(self.field.m2m_column_name()),
                 target_col_name=qn(self.field.m2m_reverse_name()),
                 content_type=ContentType.objects.db_manager(instance._state.db).get_for_model(instance),
                 content_type_field_name=self.field.content_type_field_name,
-                object_id_field_name=self.field.object_id_field_name)
+                object_id_field_name=self.field.object_id_field_name,
+                **manager_kwargs)
 
             db = manager._db or router.db_for_read(rel_model, instance=instance)
-            query = {
+            query = manager.core_filters or {
                 '%s__pk' % manager.content_type_field_name : manager.content_type.id,
                 '%s__exact' % manager.object_id_field_name : manager.pk_val,
             }
@@ -286,35 +297,64 @@ def create_generic_related_manager(superclass):
     """
 
     class GenericRelatedObjectManager(superclass):
-        def __init__(self, model=None, core_filters=None, instance=None,
-                     field=None, symmetrical=None, join_table=None,
-                     source_col_name=None, target_col_name=None,
-                     content_type=None, content_type_field_name=None,
-                     object_id_field_name=None):
-
+        def __init__(self, model=None, instance=None, symmetrical=None,
+                     source_col_name=None, target_col_name=None, content_type=None,
+                     content_type_field_name=None, object_id_field_name=None, **kwargs):
             super(GenericRelatedObjectManager, self).__init__()
-            self.core_filters = core_filters or {}
             self.model = model
             self.content_type = content_type
             self.symmetrical = symmetrical
             self.instance = instance
-            self._field = field
-            self.join_table = join_table
-            self.join_table = model._meta.db_table
+            if 'join_table' in kwargs:
+                # django <= 1.3
+                self.join_table = kwargs.pop('join_table')
+                self.join_table = model._meta.db_table
+                self.core_filters = kwargs.pop('core_filters', None) or {}
+            else:
+                # django 1.4+
+                self.core_filters = {
+                    '%s__pk' % content_type_field_name: content_type.id,
+                    '%s__exact' % object_id_field_name: instance._get_pk_val(),
+                }
+            if 'prefetch_cache_name' in kwargs:
+                # django 1.4+
+                self.prefetch_cache_name = kwargs['prefetch_cache_name']
             self.source_col_name = source_col_name
             self.target_col_name = target_col_name
             self.content_type_field_name = content_type_field_name
             self.object_id_field_name = object_id_field_name
             self.pk_val = self.instance._get_pk_val()
+            # Change from django.contrib.contenttypes.generic.create_generic_related_manager()
+            self._field = kwargs.pop('field', None)
             self.image_field_name = self._field.image_field_name
 
         def get_query_set(self):
+            if hasattr(self, 'prefetch_cache_name'):
+                try:
+                    return self.instance._prefetched_objects_cache[self.prefetch_cache_name]
+                except (AttributeError, KeyError):
+                    pass
             db = self._db or router.db_for_read(self.model, instance=self.instance)
             query = {
                 '%s__pk' % self.content_type_field_name : self.content_type.id,
                 '%s__exact' % self.object_id_field_name : self.pk_val,
             }
             return superclass.get_query_set(self).using(db).filter(**query)
+
+        def get_prefetch_query_set(self, instances):
+            from operator import attrgetter
+            db = self._db or router.db_for_read(self.model, instance=instances[0])
+            query = {
+                '%s__pk' % self.content_type_field_name: self.content_type.id,
+                '%s__in' % self.object_id_field_name:
+                    set(obj._get_pk_val() for obj in instances)
+                }
+            qs = super(GenericRelatedObjectManager, self).get_query_set().using(db).filter(**query)
+            return (qs,
+                    attrgetter(self.object_id_field_name),
+                    lambda obj: obj._get_pk_val(),
+                    False,
+                    self.prefetch_cache_name)
 
         def add(self, *objs):
             for obj in objs:

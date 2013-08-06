@@ -9,7 +9,8 @@ from django.conf import settings
 import PIL.Image
 from jsonutil import jsonutil
 
-from cropduster.utils import relpath, get_aspect_ratios, validate_sizes
+from .utils import relpath, get_aspect_ratios, validate_sizes
+from . import settings as cropduster_settings
 
 
 class Thumb(models.Model):
@@ -21,7 +22,8 @@ class Thumb(models.Model):
         return self.name
     
     class Meta:
-        db_table = 'cropduster_thumb'
+        app_label = cropduster_settings.CROPDUSTER_APP_LABEL
+        db_table = '%s_thumb' % cropduster_settings.CROPDUSTER_DB_PREFIX
 
 
 class ImageManager(models.Manager):
@@ -35,7 +37,7 @@ class ImageManager(models.Manager):
         if relative_path[0] == '/':
             relative_path = relative_path[1:]
         media_path = os.path.join(settings.MEDIA_ROOT, relative_path)
-        cropduster_rel_path = relpath(settings.CROPDUSTER_UPLOAD_PATH,
+        cropduster_rel_path = relpath(cropduster_settings.CROPDUSTER_UPLOAD_PATH,
             media_path)
         cropduster_rel_path = re.sub(r'/original\.[^/]+$', '',
             cropduster_rel_path)
@@ -71,7 +73,8 @@ class Image(models.Model):
     attribution = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
-        db_table = 'cropduster_image'
+        app_label = cropduster_settings.CROPDUSTER_APP_LABEL
+        db_table = '%s_image' % cropduster_settings.CROPDUSTER_DB_PREFIX
         unique_together = ("content_type", "object_id")
 
     def __unicode__(self):
@@ -97,7 +100,7 @@ class Image(models.Model):
         if use_temp:
             size_name += '_tmp'
 
-        return os.path.join(settings.CROPDUSTER_UPLOAD_PATH, self.path, size_name + self.extension)
+        return os.path.join(cropduster_settings.CROPDUSTER_UPLOAD_PATH, self.path, size_name + self.extension)
 
     def get_relative_image_path(self, size_name=None, use_temp=False):
         img_path = self.get_image_path(size_name, use_temp)
@@ -159,7 +162,7 @@ class Image(models.Model):
         if use_temp:
             size_name += '_tmp'
         
-        relative_path = relpath(settings.MEDIA_ROOT, settings.CROPDUSTER_UPLOAD_PATH)
+        relative_path = relpath(settings.MEDIA_ROOT, cropduster_settings.CROPDUSTER_UPLOAD_PATH)
         if re.match(r'\.\.', relative_path):
             raise Exception("Upload path is outside of static root")
         url_root = settings.MEDIA_URL + '/' + relative_path + '/'

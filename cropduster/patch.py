@@ -3,18 +3,71 @@ import inspect
 from .admin import cropduster_inline_factory
 from .models import Image
 from django.contrib.admin.options import ModelAdmin
+from django.contrib.admin import validation
+from django.core.exceptions import ImproperlyConfigured
+
+
+# Remove model field validation in check_formfield.
+# The implementation is so buggy that it will be removed from django 1.6
+def check_formfield(cls, model, opts, label, field):
+    if getattr(cls.form, 'base_fields', None):
+        try:
+            cls.form.base_fields[field]
+        except KeyError:
+            raise ImproperlyConfigured("'%s.%s' refers to field '%s' that "
+                "is missing from the form." % (cls.__name__, label, field))
+    # ... model field validation would go here, in an else:
+
+# Monkeypatch check_formfield() of django.contrib.admin.validation
+validation.check_formfield = check_formfield
+
+
+def get_cropduster_fields_for_model(model):
+    """Returns a list of cropduster fields on a given model"""
+    fields = model._meta.get_m2m_with_model()
+    cropduster_fields = []
+    for field, m in fields:
+        if hasattr(field, 'rel'):
+            rel_model = getattr(field.rel, 'to', None)
+            # Only check classes, otherwise we'll get a TypeError
+            if not isinstance(rel_model, type):
+                continue
+            if issubclass(rel_model, Image):
+                cropduster_fields.append(field)
+    return cropduster_fields
 
 
 def patch_model_admin():
 
-    def __init__(old_init, self, model, admin_site):
-        fields = model._meta.get_m2m_with_model()
-        for field, m in fields:
-            if hasattr(field, 'rel') and getattr(field.rel, 'to', None) == Image:
-                InlineFormSet = cropduster_inline_factory(
-                    field.sizes, field.auto_sizes, field.default_thumb)
-                self.inlines.append(InlineFormSet)
-        old_init(self, model, admin_site);
+    def __init__(old_init, self, *args, **kwargs):
+        if isinstance(self, ModelAdmin):
+            model, admin_site = (args + (None, None))[0:2]
+            if not model:
+                model = kwargs.get('model')
+        else:
+            model = self.model
+
+        cropduster_fields = get_cropduster_fields_for_model(model)
+        for field in cropduster_fields:
+            InlineFormSet = cropduster_inline_factory(field.sizes, field.auto_sizes, field.default_thumb)
+            self.inlines.append(InlineFormSet)
+
+        old_init(self, *args, **kwargs)
+        # self.form = type('CropDuster%s' % self.form.__name__, (self.form,), {
+        #     'bound_field_cls': CropDusterBoundField,
+        #     '__module__': self.form.__module__,
+        # })
+        # for inline_instance in getattr(self, 'inline_instances', []):
+        #     inline_instance.root_admin = self
+
+    # def __init__(old_init, self, model, admin_site):
+    #     fields = model._meta.get_m2m_with_model()
+    #     for field, m in fields:
+    #         if hasattr(field, 'rel') and getattr(field.rel, 'to', None) == Image:
+    #             InlineFormSet = cropduster_inline_factory(
+    #                 field.sizes, field.auto_sizes, field.default_thumb)
+    #             self.inlines.append(InlineFormSet)
+    #     old_init(self, model, admin_site);
 
     wrapfunc(ModelAdmin, '__init__', __init__)
 

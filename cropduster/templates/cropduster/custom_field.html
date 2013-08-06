@@ -28,23 +28,24 @@
 // ]]>
 </script>
 
-{{ formset.non_form_errors }}
+    {{ formset.non_form_errors }}
     {% if not is_formset_render %}
-    <input type="text" id="{{ final_attrs.id }}" name="{{ final_attrs.name }}" value="{{ image_value }}"{% if not is_formset_render %} class="cropduster-id-field"{% endif %}/>
+        <input type="text" id="{{ final_attrs.id }}" name="{{ final_attrs.name }}" value="{{ image_value }}" class="cropduster-id-field"/>
+        	<a href="#" class="cropduster-customfield">
+        		<div class="cropduster-upload-button"></div>
+
+        		<p class="help" id="preview_{{ final_attrs.id }}">
+        			{% for name, url in thumbs.items %}
+        <script type="text/javascript">
+            var timestamp = (new Date()).getTime().toString(36);
+            document.write('<' + 'img id="{{ final_attrs.id }}_image_{{ name }}" src="{{ url|escapejs }}?v=' + timestamp + '" class="preview{% if forloop.first %} first{% endif %}" /' + '>');
+        </script>
+
+        			{% endfor %}
+        		</p>
+        	</a>
     {% else %}
-	<input type="hidden" id="{{ final_attrs.id }}" name="{{ final_attrs.name }}" value="{{ final_attrs.value }}"{% if not is_formset_render %} class="cropduster-id-field"{% endif %}/>
+	<input type="hidden" id="{{ final_attrs.id }}" name="{{ final_attrs.name }}" value="{{ final_attrs.value }}"/>
 
-	<a href="#" class="cropduster-customfield">
-		<div class="cropduster-upload-button"></div>
 
-		<p class="help" id="preview_{{ final_attrs.id }}">
-			{% for name, url in thumbs.items %}
-<script type="text/javascript">
-    var timestamp = (new Date()).getTime().toString(36);
-    document.write('<' + 'img id="{{ final_attrs.id }}_image_{{ name }}" src="{{ url|escapejs }}?v=' + timestamp + '" class="preview{% if forloop.first %} first{% endif %}" /' + '>');
-</script>
-		        
-			{% endfor %}
-		</p>
-	</a>
     {% endif %}

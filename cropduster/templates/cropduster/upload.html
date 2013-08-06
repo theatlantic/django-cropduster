@@ -1,12 +1,12 @@
-{% extends "admin/base.html" %}
+{% extends parent_template %}
 
 <!-- LOADING -->
-{% load i18n adminmedia cropdustermedia %}
+{% load i18n adminmedia %}
 
 <!-- STYLESHEETS -->
 {% block stylesheets %}
 	{{ block.super }}
-	<link rel="stylesheet" href="{% cropduster_media_prefix %}css/jquery.Jcrop.css" type="text/css" />
+	<link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/jquery.Jcrop.css" type="text/css" />
 	<style type="text/css">
 	
 	#progress-wrapper {
@@ -35,24 +35,26 @@
 	}
 	.ui-progressbar { height:2em; text-align: left; }
 	.ui-progressbar .ui-progressbar-value {margin: -1px; height:100%; }
-	.ui-progressbar-value { background-image: url({% cropduster_media_prefix %}img/progressbar.gif); }
+	.ui-progressbar-value { background-image: url({{ STATIC_URL }}cropduster/img/progressbar.gif); }
 	</style>
 {% endblock %}
 
 <!-- JAVASCRIPTS -->
 {% block javascripts %}
 	{{ block.super }}
-	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/json2.js"></script>
-	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/jquery.class.js"></script>
-	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/jquery.form.js?v=1"></script>
-	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/jquery.Jcrop.js?v=2"></script>
-	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/jquery.progressbar.js"></script>
-	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/upload.js"></script>
-	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/CropDuster.js"></script>
+	<script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/json2.js"></script>
+	<script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.class.js"></script>
+	<script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.form.js?v=1"></script>
+	<script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.Jcrop.js?v=2"></script>
+	<script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.progressbar.js"></script>
+	<script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/upload.js"></script>
+	<script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/CropDuster.js"></script>
 {% endblock %}
 
 <!-- Get rid of nav -->
 {% block nav-global %}{% endblock %}
+
+{% block bodyclass %}{{ block.super }} cropduster-form absolute-pos{% endblock %}
 
 {% block content-class %}content-flexible{% endblock %}
 

@@ -6,7 +6,7 @@ import sys
 
 from django import forms
 from django.conf import settings
-from django.http import HttpResponse, HttpResponseServerError, Http404, HttpResponseNotModified
+from django.http import HttpResponse, HttpResponseServerError
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.core.cache import cache
@@ -17,20 +17,33 @@ from jsonutil import jsonutil
 
 import PIL.Image
 
-from cropduster.handlers import UploadProgressCachedHandler
-from cropduster.utils import *
-from cropduster.models import Image as CropDusterImage
-from cropduster.settings import *
-from cropduster.exceptions import *
+from .handlers import UploadProgressCachedHandler
+from .models import Image as CropDusterImage
+from .settings import CROPDUSTER_UPLOAD_PATH
+from .utils import (
+    rescale, get_relative_media_url, get_upload_foldername,
+    get_image_extension, get_media_path, get_media_url, get_min_size,
+    create_cropped_image, OrderedDict)
+from .exceptions import CropDusterException, CropDusterUrlException, CropDusterViewException
 
 import simplejson
 import re
 
 import logging
-from sentry.client.handlers import SentryHandler
 
 logger = logging.getLogger('root')
-logger.addHandler(SentryHandler())
+
+try:
+    from sentry.client.handlers import SentryHandler
+except ImportError:
+    try:
+        from raven.handlers.logging import SentryHandler
+    except ImportError:
+        SentryHandler = None
+
+if SentryHandler:
+    logger.addHandler(SentryHandler())
+
 
 # For validation
 class UploadForm(forms.Form):
@@ -45,12 +58,10 @@ def upload(request):
         except:
             image_element_id = ""
         
-        media_url = reverse('cropduster-static', kwargs={'path':''})
-        
-        context_data =     {
+        context_data = {
             'is_popup': True,
             'image_element_id': image_element_id,
-            'image': os.path.join(media_url, 'img/blank.gif'),
+            'image': u"%scropduster/img/blank.gif" % settings.STATIC_URL,
             'orig_image': '',
             'x': 0,
             'y': 0,
@@ -85,7 +96,7 @@ def upload(request):
         # If we have a new image that hasn't been saved yet
         try:
             path = request.GET['path']
-            root_path = os.path.join(settings.STATIC_ROOT, path)
+            root_path = os.path.join(CROPDUSTER_UPLOAD_PATH, path)
             ext = request.GET['ext']
             if os.path.exists(os.path.join(root_path, '_preview' + '.' + ext)):
                 orig_image = os.path.join(path, 'original' + '.' + ext)
@@ -101,8 +112,6 @@ def upload(request):
         except:
             pass
         
-        context = RequestContext(request, context_data)
-        
         try:
             crop_path = reverse('cropduster.views.crop')
             curr_path = request.META['PATH_INFO']
@@ -113,8 +122,19 @@ def upload(request):
         except CropDusterException, e:
             _log_error(request, 'upload', action="reversing cropduster.views.crop", errors=[e])
     
-        
-        return render_to_response('cropduster/upload.html', context)
+        try:
+            import custom_admin
+        except ImportError:
+            try:
+                import admin_mod
+            except ImportError:
+                context_data['parent_template'] = 'admin/base.html'
+            else:
+                context_data['parent_template'] = 'admin_mod/base.html'
+        else:
+            context_data['parent_template'] = 'custom_admin/base.html'
+
+        return render_to_response('cropduster/upload.html', RequestContext(request, context_data))
     else:
         # if hasattr(settings, 'CACHE_BACKEND'):
         #     request.upload_handlers.insert(0, UploadProgressCachedHandler(request))
@@ -249,7 +269,6 @@ def _log_error(request, view, action, errors):
         pass
     
     if error_type == 'CropDusterUrlException':
-        from django.contrib import admin
         from django.core.urlresolvers import get_urlconf,get_resolver
         from django.utils.encoding import force_unicode
         urlconf = get_urlconf()
@@ -305,7 +324,7 @@ def _json_error(request, view, action, errors, log_error=False):
         error_msg =  "Errors %s: " % action
         error_msg += "<ul>"
         for error in errors:
-            error_msg += "<li>&nbsp;&nbsp;&nbsp;&bull;&nbsp;%s</li>" % format_error(error)
+            error_msg += "<li>&nbsp;&nbsp;&nbsp;&bull;&nbsp;%s</li>" % _format_error(error)
         error_msg += "</ul>"
     data = {
         'error': error_msg
@@ -442,11 +461,6 @@ def crop(request):
             data['id'] = ''
     
     return HttpResponse(jsonutil.dumps(data))
-
-def static_media(request, path):
-    from django.views.static import serve
-    from cropduster.settings import CROPDUSTER_MEDIA_ROOT
-    return serve(request, path, CROPDUSTER_MEDIA_ROOT)
 
 def _generate_and_save_thumbs(db_image, sizes, img, file_dir, file_ext, is_auto=False):
     '''

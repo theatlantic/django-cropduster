@@ -1,6 +1,8 @@
 from django.contrib.contenttypes.generic import GenericInlineModelAdmin
-from cropduster.models import Image
-from cropduster.forms import BaseInlineFormSet, CropDusterFormField, CropDusterThumbField
+from django.utils.functional import curry
+
+from .models import Image
+from . import forms
 
 
 class BaseImageInline(GenericInlineModelAdmin):
@@ -11,10 +13,9 @@ class BaseImageInline(GenericInlineModelAdmin):
         
     model = Image
     template = "cropduster/inline.html"
-    formset = BaseInlineFormSet
+    # formset = BaseInlineFormSet
     extra = 1
     max_num = 1
-    extra_fields = []
     
     fieldsets = (
         ('Image', {
@@ -23,76 +24,34 @@ class BaseImageInline(GenericInlineModelAdmin):
         }),
     )
 
-    def __init__(self, *args, **kwargs):
-        try:
-            fields = list(self.fieldsets[0][1]['fields'])
-            for field in self.extra_fields:
-                fields.append(field)
-            self.fieldsets[0][1]['fields'] = tuple(fields)
-        except:
-            pass
-
-        super(BaseImageInline, self).__init__(*args, **kwargs)
-
     def formfield_for_manytomany(self, db_field, request=None, **kwargs):
-        """
-        Override default ManyToManyField form field for thumbs.
-        """
+        """Override default ManyToManyField form field for thumbs."""
         if db_field.column == 'thumbs':
-            kwargs['form_class'] = CropDusterThumbField
-        
+            kwargs['form_class'] = forms.CropDusterThumbField
+            return db_field.formfield(**kwargs)
         return super(BaseImageInline, self).formfield_for_manytomany(db_field, request, **kwargs)
 
     def get_formset(self, request, obj=None):
-        formset = super(BaseImageInline, self).get_formset(request, obj)
-        formset.sizes = self.sizes
-        formset.auto_sizes = self.auto_sizes
-        formset.default_thumb = self.default_thumb
+        formset = forms.cropduster_formset_factory(
+            sizes=self.sizes,
+            auto_sizes=self.auto_sizes,
+            default_thumb=self.default_thumb,
+            model=self.model,
+            formfield_callback=curry(self.formfield_for_dbfield, request=request))
+        if getattr(self, 'default_prefix', None):
+            formset.default_prefix = self.default_prefix
         return formset
 
 
-def cropduster_inline_factory(sizes, auto_sizes, default_thumb):
-    return type("CropDusterImageInline", (BaseImageInline,), {
+def cropduster_inline_factory(sizes, auto_sizes, default_thumb, **kwargs):
+    attrs = {
         'sizes': sizes,
         'auto_sizes': auto_sizes,
         'default_thumb': default_thumb,
-    })
-
-
-# Retained for backwards compatibility, but imports of these classes from this module
-# are deprecated
-from cropduster.forms import BaseInlineFormSet
-from cropduster.forms import CropDusterFormField as _CropDusterFormField
-from cropduster.forms import CropDusterThumbField as _CropDusterThumbField
-
-class ImageInlineFormset(BaseInlineFormSet):
-    def __init__(self, *args, **kwargs):
-        import warnings
-        warnings.warn(
-            'Calls to cropduster.admin.ImageInlineFormset are deprecated. Please use ' +\
-            'cropduster.forms.BaseInlineFormSet',
-            PendingDeprecationWarning
-        )
-        return super(ImageInlineFormset, self).__init__(*args, **kwargs)
-
-class CropDusterFormField(_CropDusterFormField):
-    def __init__(self, *args, **kwargs):
-        import warnings
-        warnings.warn(
-            'Calls to cropduster.admin.CropDusterFormField are deprecated. Please use ' +\
-            'cropduster.forms.CropDusterFormField',
-            PendingDeprecationWarning
-        )
-        return super(CropDusterFormField, self).__init__(*args, **kwargs)
-
-class CropDusterThumbField(_CropDusterThumbField):
-    def __init__(self, *args, **kwargs):
-        import warnings
-        warnings.warn(
-            'Calls to cropduster.admin.CropDusterThumbField are deprecated. Please use ' +\
-            'cropduster.forms.CropDusterThumbField',
-            PendingDeprecationWarning
-        )
-        return super(CropDusterThumbField, self).__init__(*args, **kwargs)
-        
-
+        '__module__': BaseImageInline.__module__,
+    }
+    for k, v in kwargs.iteritems():
+        if k not in ('model', 'formset', 'template'):
+            continue
+        attrs[k] = v
+    return type("CropDusterImageInline", (BaseImageInline,), attrs)

@@ -2,17 +2,17 @@ from __future__ import division
 
 import os
 import re
-
 from datetime import datetime
-from django.conf import settings
-from cropduster.settings import *
+from decimal import Decimal, ROUND_HALF_DOWN
 
-from decimal import *
+from django.conf import settings
+from django.template.defaultfilters import slugify 
 
 import PIL.Image
-
-from django.template.defaultfilters import slugify 
 import simplejson
+
+from .settings import CROPDUSTER_UPLOAD_PATH
+
 
 IMAGE_EXTENSIONS = {
     "ARG":  ".arg",   "BMP":  ".bmp",   "BUFR": ".bufr",  "CUR":  ".cur",   "DCX":  ".dcx",
@@ -23,6 +23,7 @@ IMAGE_EXTENSIONS = {
     "PNG":  ".png",   "PPM":  ".ppm",   "PSD":  ".psd",   "SGI":  ".rgb",   "SUN":  ".ras",
     "TGA":  ".tga",   "TIFF": ".tiff",  "WMF":  ".wmf",   "XBM":  ".xbm",   "XPM":  ".xpm",
 }
+
 
 def get_image_extension(img):
     if img.format in IMAGE_EXTENSIONS:
@@ -35,12 +36,12 @@ def get_image_extension(img):
             return fallback_ext
         exts = []
         for ext in PIL.Image.EXTENSION:
-            if PIL.Image.EXTENSION[ext] == image.format:
+            if PIL.Image.EXTENSION[ext] == img.format:
                 exts.append(ext)
         if len(exts) > 0:
             return exts[0]
         else:
-            return fallback
+            return fallback_ext
 
 def get_aspect_ratios(dims):
     ratios = []
@@ -107,7 +108,7 @@ def get_media_path(url):
     Determine media URL's system file.
     """
     url = url.replace(settings.MEDIA_URL, '')
-    relative_path = relpath(settings.MEDIA_ROOT, settings.CROPDUSTER_UPLOAD_PATH)
+    relative_path = relpath(settings.MEDIA_ROOT, CROPDUSTER_UPLOAD_PATH)
     if re.match(r'\.\.', relative_path):
         raise Exception("Upload path is outside of static root")
     path = os.path.abspath(settings.MEDIA_ROOT) + '/' + relative_path + '/' + url
@@ -120,7 +121,7 @@ def get_relative_media_url(path):
     """
     url = path.replace(settings.MEDIA_ROOT, '')
     url = url.replace(settings.MEDIA_URL, '')
-    relative_path = relpath(settings.MEDIA_ROOT, settings.CROPDUSTER_UPLOAD_PATH)
+    relative_path = relpath(settings.MEDIA_ROOT, CROPDUSTER_UPLOAD_PATH)
     if re.match(r'\.\.', relative_path):
         raise Exception("Upload path is outside of static root")
     url = url.replace(relative_path, '')
@@ -167,7 +168,7 @@ def get_upload_foldername(file_name):
     date_path = datetime.now().strftime('%Y/%m')
 
     # Complete upload path (upload_path + date_path).
-    upload_path = os.path.join(settings.CROPDUSTER_UPLOAD_PATH, date_path)
+    upload_path = os.path.join(CROPDUSTER_UPLOAD_PATH, date_path)
 
     # Make sure upload_path exists.
     if not os.path.exists(upload_path):

@@ -1,25 +1,23 @@
-import os
 import re
+import json
 
-from django.conf import settings
+from jsonutil import jsonutil
 
 from django import forms
+from django.conf import settings
 from django.core import validators
 from django.db import models
-from django.db.models.fields import related
 from django.db.models.fields.files import ImageFieldFile
 from django.forms.models import ModelMultipleChoiceField
 from django.forms.widgets import Input
 from django.contrib.contenttypes.generic import generic_inlineformset_factory
 from django.core.exceptions import ValidationError
-from django.core.urlresolvers import reverse
 from django.template.loader import render_to_string
 
-from cropduster.generic import GenericInlineFormSet
-from cropduster.models import Image, Thumb
-from cropduster.utils import get_aspect_ratios, validate_sizes, OrderedDict, get_min_size, relpath
-
-from jsonutil import jsonutil
+from .generic import GenericInlineFormSet
+from .models import Image, Thumb
+from .settings import CROPDUSTER_UPLOAD_PATH
+from .utils import get_aspect_ratios, validate_sizes, OrderedDict, get_min_size, relpath
 
 
 class CropDusterWidget(Input):
@@ -28,6 +26,10 @@ class CropDusterWidget(Input):
     auto_sizes = None
     default_thumb = None
     field = None
+
+    class Media:
+        css = {'all': (u'%scropduster/css/CropDuster.css' % settings.STATIC_URL,),}
+        js = (u'%scropduster/js/CropDuster.js' % settings.STATIC_URL,)
 
     def __init__(self, field=None, sizes=None, auto_sizes=None, default_thumb=None, attrs=None):
         self.field = field
@@ -41,28 +43,7 @@ class CropDusterWidget(Input):
         else:
             self.attrs = {}
     
-    def get_media(self):
-        """
-        A method used to dynamically generate the media property,
-        since we may not have the urls ready at the time of import,
-        and then the reverse() call would fail.
-        """
-        from django.forms.widgets import Media as _Media
-        media_url = reverse('cropduster-static', kwargs={'path':''})
-        media_cls = type('Media', (_Media,), {
-            'css': {
-                'all': (os.path.join(media_url, 'css/CropDuster.css?v=1'), )
-            },
-            'js': (os.path.join(media_url, 'js/CropDuster.js'), )
-        })
-        return _Media(media_cls)
-    
-    media = property(get_media)
-    
     def render(self, name, value, attrs=None):
-        from jsonutil import jsonutil as json
-        import simplejson
-        
         final_attrs = self.build_attrs(attrs, type=self.input_type, name=name)
 
         # Whether we are rendering from the generated inline formset
@@ -109,30 +90,22 @@ class CropDusterWidget(Input):
                 size_name = thumb.name
                 thumbs[size_name] = image.get_image_url(size_name)
 
-        final_attrs['sizes'] = simplejson.dumps(self.sizes)
-        final_attrs['auto_sizes'] = simplejson.dumps(self.auto_sizes)
+        final_attrs['sizes'] = jsonutil.dumps(self.sizes)
+        final_attrs['auto_sizes'] = jsonutil.dumps(self.auto_sizes)
 
-        aspect_ratios = get_aspect_ratios(self.sizes)
-        aspect_ratio = json.dumps(aspect_ratios[0])
-        min_size = json.dumps(get_min_size(self.sizes, self.auto_sizes))
-        prefix = getattr(self.formset, 'prefix', self.formset.get_default_prefix())
-        relative_path = relpath(settings.MEDIA_ROOT, settings.CROPDUSTER_UPLOAD_PATH)
+        relative_path = relpath(settings.MEDIA_ROOT, CROPDUSTER_UPLOAD_PATH)
         if re.match(r'\.\.', relative_path):
             raise Exception("Upload path is outside of static root")
-        url_root = settings.MEDIA_URL + '/' + relative_path + '/'
 
-        static_url = simplejson.dumps(settings.MEDIA_URL + '/' + relative_path + '/')
         return render_to_string("cropduster/custom_field.html", {
             'image_value': image_value,
             'is_formset_render': is_formset_render,
             'formset': self.formset,
             'inline_admin_formset': self.formset,
-            'prefix': prefix,
-            'relative_path': relative_path,
-            'url_root': url_root,
-            'static_url': static_url,
-            'min_size': min_size,
-            'aspect_ratio': aspect_ratio,
+            'prefix': getattr(self.formset, 'prefix', self.formset.get_default_prefix()),
+            'static_url': json.dumps(u'%s/%s/' % (settings.MEDIA_URL, relative_path)),
+            'min_size': jsonutil.dumps(get_min_size(self.sizes, self.auto_sizes)),
+            'aspect_ratio': jsonutil.dumps(get_aspect_ratios(self.sizes)[0]),
             'default_thumb': self.default_thumb or '',
             'final_attrs': final_attrs,
             'thumbs': thumbs
@@ -231,27 +204,27 @@ class CropDusterThumbField(ModelMultipleChoiceField):
         Override default validation so that it doesn't throw a ValidationError
         if a given value is not in the original queryset.
         """
-        required_msg = self.error_messages['required']
-        list_msg = self.error_messages['list']
-        ret = value
         try:
-            ret = super(CropDusterThumbField, self).clean(value)
+            value = super(CropDusterThumbField, self).clean(value)
         except ValidationError, e:
-            if required_msg in e.messages or list_msg in e.messages:
-                raise e
-        return ret
+            if self.error_messages['required'] in e.messages:
+                raise
+            elif self.error_messages['list'] in e.messages:
+                raise
+        return value
 
 
 class CropDusterForm(forms.ModelForm):
 
     model = Image
-    
+
     @staticmethod
     def formfield_for_dbfield(db_field, **kwargs):
-        if isinstance(db_field, related.ManyToManyField) and db_field.column == 'thumbs':
+        if isinstance(db_field, models.ManyToManyField) and db_field.column == 'thumbs':
             return db_field.formfield(form_class=CropDusterThumbField)
         else:
             return db_field.formfield()
+
 
 class AbstractInlineFormSet(GenericInlineFormSet):
 
@@ -334,43 +307,41 @@ class AbstractInlineFormSet(GenericInlineFormSet):
         return form
 
 
-def cropduster_formset_factory(sizes=None, auto_sizes=None, default_thumb=None):
-    ct_field = Image._meta.get_field("content_type")
-    ct_fk_field = Image._meta.get_field("object_id")
-    
+def cropduster_formset_factory(sizes=None, auto_sizes=None, model=Image, **kwargs):
+    ct_field = model._meta.get_field("content_type")
+    ct_fk_field = model._meta.get_field("object_id")
     exclude = [ct_field.name, ct_fk_field.name]
-    
+    formfield_callback = kwargs.get('formfield_callback') or CropDusterForm.formfield_for_dbfield
+
     form = type('CropDusterForm', (CropDusterForm,), {
-        "model": Image,
+        "model": model,
         "formfield_overrides": {
-            Thumb: {
-                'form_class': CropDusterThumbField,
-            },
+            Thumb: {'form_class': CropDusterThumbField,},
         },
-        "formfield_callback": CropDusterForm.formfield_for_dbfield,
+        "formfield_callback": formfield_callback,
         "Meta": type('Meta', (object,), {
-            "formfield_callback": CropDusterForm.formfield_for_dbfield,
+            "formfield_callback": formfield_callback,
             "fields": AbstractInlineFormSet.fields,
             "exclude": exclude,
-            "model": Image,
-        })
+            "model": model,
+        }),
+        '__module__': CropDusterForm.__module__,
     })
-    
+
     inline_formset_attrs = {
-        "formfield_callback": CropDusterForm.formfield_for_dbfield,
+        "formfield_callback": formfield_callback,
         "ct_field": ct_field,
         "ct_fk_field": ct_fk_field,
         "exclude": exclude,
         "form": form,
+        "model": model,
+        '__module__': AbstractInlineFormSet.__module__,
     }
     if sizes is not None:
         inline_formset_attrs['sizes'] = sizes
     if auto_sizes is not None:
         inline_formset_attrs['auto_sizes'] = auto_sizes
-    if default_thumb is not None:
-        inline_formset_attrs['default_thumb'] = default_thumb
+    if kwargs.get('default_thumb') is not None:
+        inline_formset_attrs['default_thumb'] = kwargs['default_thumb']
 
     return type('BaseInlineFormSet', (AbstractInlineFormSet, ), inline_formset_attrs)
-
-
-BaseInlineFormSet = cropduster_formset_factory()

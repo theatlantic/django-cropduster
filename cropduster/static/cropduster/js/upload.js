@@ -41,7 +41,7 @@
 						progressInterval = undefined;
 						return;
 					}
-					var percentage = Math.floor(100 * parseInt(data.uploaded) / parseInt(data.length));
+					var percentage = Math.floor(100 * parseInt(data.uploaded, 10) / parseInt(data.length, 10));
 					$("#uploadprogressbar").progressbar({ value: percentage });
 					$('#progress-percent').html(percentage + '%');
 				});
@@ -100,13 +100,32 @@
 				this.jcrop.destroy();
 			} catch (e) { }
 
-			this.jcrop = $.Jcrop('#cropbox', {
+			var imgDim = {
+				width: $('#cropbox').width(),
+				height: $('#cropbox').height()
+			};
+
+			var scalex = imgDim.width  / this.data.orig_width;
+			var scaley = imgDim.height / this.data.orig_height;
+
+			var minSize = [0, 0];
+
+			if (Object.prototype.toString.call(minSize) == '[object Array]') {
+				if (minSize.length == 2) {
+					minSize[0] = Math.floor(this.minSize[0] * scalex);
+					minSize[1] = Math.floor(this.minSize[1] * scaley);
+				}
+			}
+
+			var opts = {
 				setSelect: this.getCropSelect(),
 				aspectRatio: this.aspectRatio,
 				onSelect: updateCoords,
 				trueSize: [ this.data.orig_width, this.data.orig_height ],
-				minSize: this.minSize
-			});
+				minSize: minSize
+			};
+
+			this.jcrop = $.Jcrop('#cropbox', opts);
 
 			$('#upload-footer').hide();
 			$('#crop-footer').show();
@@ -145,7 +164,7 @@
 			
 			var scalex = imgDim.width  / this.data.orig_width;
 			var scaley = imgDim.height / this.data.orig_height;
-			
+
 			if (this.data.initial) {
 				// setSelect autoscales the x, y, w, and h that it feeds the
 				// function, so we need to scale our data to mimic this effect
@@ -233,7 +252,7 @@
 		// We already have an image, initiate a jcrop instance
 		if (imageId || origImage) {
 			// Mimic the data returned from a POST to the upload action
-			data = {
+			var data = {
 				initial: true,
 				image_id:    parseInt(imageId, 10),
 				orig_width:  parseInt($('#orig-w').val(), 10),

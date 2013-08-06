@@ -175,7 +175,7 @@ $.Jcrop = function(obj,opt)
 
 	var bgopacity = options.bgOpacity;
 	var xlimit, ylimit, xmin, ymin;
-	var xscale, yscale, enabled = true;
+	var xscale = 1, yscale = 1, enabled = true;
 	var docOffset = getPos($img),
 		// Internal states
 		btndown, lastcurs, dimmed, animating,
@@ -244,10 +244,10 @@ $.Jcrop = function(obj,opt)
 			if (!options.aspectRatio) return getRect();
 			// This function could use some optimization I think...
 			var aspect = options.aspectRatio,
-				min_x = options.minSize[0]/xscale, 
-				min_y = options.minSize[1]/yscale,
-				max_x = options.maxSize[0]/xscale, 
-				max_y = options.maxSize[1]/yscale,
+				min_x = options.minSize[0],
+				min_y = options.minSize[1],
+				max_x = options.maxSize[0],
+				max_y = options.maxSize[1],
 				rw = x2 - x1,
 				rh = y2 - y1,
 				rwa = Math.abs(rw),

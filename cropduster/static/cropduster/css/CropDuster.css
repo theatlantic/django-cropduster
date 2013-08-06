@@ -1,5 +1,4 @@
-
-
+/*
 .cropduster-form .path,
 .cropduster-form .crop_x,
 .cropduster-form .crop_y,
@@ -11,7 +10,7 @@
 .cropduster-form .DELETE {
   display: none;
 }
-
+*/
 .cropduster-form .inline-related .delete {
 	padding-top: 7px;
 	position: absolute;
