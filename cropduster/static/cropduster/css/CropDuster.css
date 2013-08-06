@@ -12,10 +12,10 @@
 }
 */
 .cropduster-form .inline-related .delete {
-	padding-top: 7px;
-	position: absolute;
-	right: 10px;
-	width: 53px;
+    padding-top: 7px;
+    position: absolute;
+    right: 10px;
+    width: 53px;
 }
 
 .cropduster-form .inline-related .delete input {
@@ -27,24 +27,24 @@
 }
 
 .cropduster-form.pre-delete fieldset div {
-	background: #F2E6E6 !important;
+    background: #F2E6E6 !important;
 }
 
 .cropduster-form .help img.preview {
-	margin-right: 8px;
-	margin-bottom: 8px;
-	float: left;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    float: left;
 }
 
 .cropduster-form .help img.preview.first {
-	margin: 0 8px 8px 0;
+    margin: 0 8px 8px 0;
 }
 .cropduster-customfield img{
-	border: 0;
+    border: 0;
 }
 
 .cropduster-customfield .cropduster-upload-button {
-	background: transparent url('../img/cropduster_icon_upload_select.png') no-repeat top left;
-	width: 26px;
-	height: 22px;
+    background: transparent url('../img/cropduster_icon_upload_select.png') no-repeat top left;
+    width: 26px;
+    height: 22px;
 }

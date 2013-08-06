@@ -4,48 +4,46 @@
 // <![CDATA[
 (function($) {
 
-	if (!window.sizes) {
-		window.sizes = {};
-	}
-	if (!window.autoSizes) {
-		window.autoSizes = {};
-	}
-	if (!window.defaultThumbs) {
-		window.defaultThumbs = {};
-	}
-	if (!window.aspectRatios) {
-		window.aspectRatios = {};
-	}
-	CropDuster.sizes['{{ final_attrs.name }}'] = '{{ final_attrs.sizes|safe }}';
-	CropDuster.autoSizes['{{ final_attrs.name }}'] = '{{ final_attrs.auto_sizes|safe }}';
-	CropDuster.defaultThumbs['{{ final_attrs.name }}'] = '{{ default_thumb|safe }}';
-	CropDuster.aspectRatios['{{ final_attrs.name }}'] = {{ aspect_ratio }};
-	CropDuster.formsetPrefixes['{{ final_attrs.name }}'] = '{{ prefix|safe }}';
-	CropDuster.minSize['{{ final_attrs.name }}'] = {{ min_size|safe }};
-	CropDuster.staticUrl = {{ static_url|safe }};
-	CropDuster.uploadUrl = '{% url cropduster.views.upload %}?pop=1';
+    if (!window.sizes) {
+        window.sizes = {};
+    }
+    if (!window.autoSizes) {
+        window.autoSizes = {};
+    }
+    if (!window.defaultThumbs) {
+        window.defaultThumbs = {};
+    }
+    if (!window.aspectRatios) {
+        window.aspectRatios = {};
+    }
+    CropDuster.sizes['{{ final_attrs.name }}'] = '{{ final_attrs.sizes|safe }}';
+    CropDuster.autoSizes['{{ final_attrs.name }}'] = '{{ final_attrs.auto_sizes|safe }}';
+    CropDuster.defaultThumbs['{{ final_attrs.name }}'] = '{{ default_thumb|safe }}';
+    CropDuster.aspectRatios['{{ final_attrs.name }}'] = {{ aspect_ratio }};
+    CropDuster.formsetPrefixes['{{ final_attrs.name }}'] = '{{ prefix|safe }}';
+    CropDuster.minSize['{{ final_attrs.name }}'] = {{ min_size|safe }};
+    CropDuster.staticUrl = {{ static_url|safe }};
+    CropDuster.uploadUrl = '{% url cropduster.views.upload %}?pop=1';
 })((typeof window.django != 'undefined') ? django.jQuery : jQuery);
 // ]]>
 </script>
 
-    {{ formset.non_form_errors }}
-    {% if not is_formset_render %}
-        <input type="text" id="{{ final_attrs.id }}" name="{{ final_attrs.name }}" value="{{ image_value }}" class="cropduster-id-field"/>
-        	<a href="#" class="cropduster-customfield">
-        		<div class="cropduster-upload-button"></div>
+{{ formset.non_form_errors }}
 
-        		<p class="help" id="preview_{{ final_attrs.id }}">
-        			{% for name, url in thumbs.items %}
-        <script type="text/javascript">
-            var timestamp = (new Date()).getTime().toString(36);
-            document.write('<' + 'img id="{{ final_attrs.id }}_image_{{ name }}" src="{{ url|escapejs }}?v=' + timestamp + '" class="preview{% if forloop.first %} first{% endif %}" /' + '>');
-        </script>
+{% if not is_formset_render %}
+    <input type="text" id="{{ final_attrs.id }}" name="{{ final_attrs.name }}" value="{{ image_value }}" class="cropduster-id-field"/>
+        <a href="#" class="cropduster-customfield">
+            <div class="cropduster-upload-button"></div>
 
-        			{% endfor %}
-        		</p>
-        	</a>
-    {% else %}
-	<input type="hidden" id="{{ final_attrs.id }}" name="{{ final_attrs.name }}" value="{{ final_attrs.value }}"/>
-
-
-    {% endif %}
+            <p class="help" id="preview_{{ final_attrs.id }}">
+                {% for name, url in thumbs.items %}
+                <script type="text/javascript">
+                    var timestamp = (new Date()).getTime().toString(36);
+                    document.write('<' + 'img id="{{ final_attrs.id }}_image_{{ name }}" src="{{ url|escapejs }}?v=' + timestamp + '" class="preview{% if forloop.first %} first{% endif %}" /' + '>');
+                </script>
+                {% endfor %}
+            </p>
+        </a>
+{% else %}
+    <input type="hidden" id="{{ final_attrs.id }}" name="{{ final_attrs.name }}" value="{{ final_attrs.value }}"/>
+{% endif %}

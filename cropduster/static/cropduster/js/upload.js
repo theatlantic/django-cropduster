@@ -1,308 +1,308 @@
 (function($){
 
-	var imageElementId;
+    var imageElementId;
 
-	var unknownErrorMsg = 'An unknown error occurred. Contact ' +
-	                      '<a href="mailto:ATMOProgrammers@theatlantic.com">' +
-	                      'ATMOProgrammers@theatlantic.com' +
-	                      '</a>';
+    var unknownErrorMsg = 'An unknown error occurred. Contact ' +
+                          '<a href="mailto:ATMOProgrammers@theatlantic.com">' +
+                          'ATMOProgrammers@theatlantic.com' +
+                          '</a>';
 
-	var ProgressBarClass = Class.extend({
-		init: function() {
-			this.id = CropDuster.generateRandomId();
-			$('#X-Progress-ID').val(this.id);
-		},
-		show: function() {
-			$('#progressbar-container').html('<div id="uploadprogressbar"></div>');
-			$('#progressbar-container').find('#uploadprogressbar').progressbar();
-			this.startUpdate();
-		},
-		startUpdate: function() {
-			$("#uploadprogressbar").fadeIn();
-			if(typeof progressInterval !== 'undefined') {
-				try {
-					$("#uploadprogressbar").progressbar("destroy");
-				} catch (e) { }
-				clearInterval(progressInterval);
-				$("#progress-wrapper").hide();
-			}
+    var ProgressBarClass = Class.extend({
+        init: function() {
+            this.id = CropDuster.generateRandomId();
+            $('#X-Progress-ID').val(this.id);
+        },
+        show: function() {
+            $('#progressbar-container').html('<div id="uploadprogressbar"></div>');
+            $('#progressbar-container').find('#uploadprogressbar').progressbar();
+            this.startUpdate();
+        },
+        startUpdate: function() {
+            $("#uploadprogressbar").fadeIn();
+            if(typeof progressInterval !== 'undefined') {
+                try {
+                    $("#uploadprogressbar").progressbar("destroy");
+                } catch (e) { }
+                clearInterval(progressInterval);
+                $("#progress-wrapper").hide();
+            }
 
-			$("#progress-wrapper").show();
+            $("#progress-wrapper").show();
 
-			var uploadId = this.id;
+            var uploadId = this.id;
 
-			progressInterval = setInterval(function() {
-				var url = $('#form-upload-progress').attr('action');
-				$.getJSON(url + '?X-Progress-ID=' + uploadId, function(data) {
-					if (data == null) {
-						$("#uploadprogressbar").progressbar("destroy");
-						clearInterval(progressInterval);
-						$("#progress-wrapper").hide();
-						progressInterval = undefined;
-						return;
-					}
-					var percentage = Math.floor(100 * parseInt(data.uploaded, 10) / parseInt(data.length, 10));
-					$("#uploadprogressbar").progressbar({ value: percentage });
-					$('#progress-percent').html(percentage + '%');
-				});
-			}, 100);
-		}
-	});
-	
-	function updateCoords(c) {
-		$('#x').val(c.x);
-		$('#y').val(c.y);
-		$('#w').val(c.w);
-		$('#h').val(c.h);
-	}
+            progressInterval = setInterval(function() {
+                var url = $('#form-upload-progress').attr('action');
+                $.getJSON(url + '?X-Progress-ID=' + uploadId, function(data) {
+                    if (data == null) {
+                        $("#uploadprogressbar").progressbar("destroy");
+                        clearInterval(progressInterval);
+                        $("#progress-wrapper").hide();
+                        progressInterval = undefined;
+                        return;
+                    }
+                    var percentage = Math.floor(100 * parseInt(data.uploaded, 10) / parseInt(data.length, 10));
+                    $("#uploadprogressbar").progressbar({ value: percentage });
+                    $('#progress-percent').html(percentage + '%');
+                });
+            }, 100);
+        }
+    });
 
-	var CropBoxClass = Class.extend({
+    function updateCoords(c) {
+        $('#x').val(c.x);
+        $('#y').val(c.y);
+        $('#w').val(c.w);
+        $('#h').val(c.h);
+    }
 
-		jcrop: null,
+    var CropBoxClass = Class.extend({
 
-		aspectRatio: null,
+        jcrop: null,
 
-		error: false,
+        aspectRatio: null,
 
-		minSize: [0, 0],
+        error: false,
 
-		onSuccess: function(data, responseType) {
-			var error = false;
-			if (responseType != 'success') {
-				error = unknownErrorMsg;
-			} else if (data.error) {
-				error = data.error;
-			} else if (!data.url) {
-				error = unknownErrorMsg;
-			}
-			
-			if (error) {
-				$('#error-container').find('.errornote').html(error);
-				$('#error-container').show();
-			} else {
-				$('#error-container').hide();
-				this.data = data;
-				
-				if (!data.initial) {
-					this._setHiddenInputs();
-				}
-				
-				this._waitForImageLoad();
-			}
-		},
-		onImageLoad: function() {
+        minSize: [0, 0],
 
-			if (window.opener.CropDuster.aspectRatios) {
-				this.aspectRatio = window.opener.CropDuster.aspectRatios[imageElementId];
-			}
+        onSuccess: function(data, responseType) {
+            var error = false;
+            if (responseType != 'success') {
+                error = unknownErrorMsg;
+            } else if (data.error) {
+                error = data.error;
+            } else if (!data.url) {
+                error = unknownErrorMsg;
+            }
 
-			try {
-				this.jcrop.destroy();
-			} catch (e) { }
+            if (error) {
+                $('#error-container').find('.errornote').html(error);
+                $('#error-container').show();
+            } else {
+                $('#error-container').hide();
+                this.data = data;
 
-			var imgDim = {
-				width: $('#cropbox').width(),
-				height: $('#cropbox').height()
-			};
+                if (!data.initial) {
+                    this._setHiddenInputs();
+                }
 
-			var scalex = imgDim.width  / this.data.orig_width;
-			var scaley = imgDim.height / this.data.orig_height;
+                this._waitForImageLoad();
+            }
+        },
+        onImageLoad: function() {
 
-			var minSize = [0, 0];
+            if (window.opener.CropDuster.aspectRatios) {
+                this.aspectRatio = window.opener.CropDuster.aspectRatios[imageElementId];
+            }
 
-			if (Object.prototype.toString.call(minSize) == '[object Array]') {
-				if (minSize.length == 2) {
-					minSize[0] = Math.floor(this.minSize[0] * scalex);
-					minSize[1] = Math.floor(this.minSize[1] * scaley);
-				}
-			}
+            try {
+                this.jcrop.destroy();
+            } catch (e) { }
 
-			var opts = {
-				setSelect: this.getCropSelect(),
-				aspectRatio: this.aspectRatio,
-				onSelect: updateCoords,
-				trueSize: [ this.data.orig_width, this.data.orig_height ],
-				minSize: minSize
-			};
+            var imgDim = {
+                width: $('#cropbox').width(),
+                height: $('#cropbox').height()
+            };
 
-			this.jcrop = $.Jcrop('#cropbox', opts);
+            var scalex = imgDim.width  / this.data.orig_width;
+            var scaley = imgDim.height / this.data.orig_height;
 
-			$('#upload-footer').hide();
-			$('#crop-footer').show();
-		},
-		getCropSelect: function() {
-			var x, y, w, h;
+            var minSize = [0, 0];
 
-			var imgDim = {
-				width: $('#cropbox').width(),
-				height: $('#cropbox').height()
-			};
+            if (Object.prototype.toString.call(minSize) == '[object Array]') {
+                if (minSize.length == 2) {
+                    minSize[0] = Math.floor(this.minSize[0] * scalex);
+                    minSize[1] = Math.floor(this.minSize[1] * scaley);
+                }
+            }
 
-			var imgAspect = (imgDim.width / imgDim.height);
+            var opts = {
+                setSelect: this.getCropSelect(),
+                aspectRatio: this.aspectRatio,
+                onSelect: updateCoords,
+                trueSize: [ this.data.orig_width, this.data.orig_height ],
+                minSize: minSize
+            };
 
-			if (this.data.initial) {
-				// If we have initial dimensions onload
-				x = this.data.x;
-				y = this.data.y;
-				w = this.data.width;
-				h = this.data.height;
-			} else if (imgAspect < this.aspectRatio) {
-				// The uploaded image is taller than the needed aspect ratio
-				x = 0;
-				w = imgDim.width;
-				var newHeight = imgDim.width / this.aspectRatio;
-				y = Math.round((imgDim.height - newHeight) / 2);
-				h = Math.round(newHeight);
-			} else {
-				// The uploaded image is wider than the needed aspect ratio
-				y = 0;
-				h = imgDim.height;
-				var newWidth = imgDim.height * this.aspectRatio;
-				x = Math.round((imgDim.width - newWidth) / 2);
-				w = Math.round(newWidth);
-			}
-			
-			var scalex = imgDim.width  / this.data.orig_width;
-			var scaley = imgDim.height / this.data.orig_height;
+            this.jcrop = $.Jcrop('#cropbox', opts);
 
-			if (this.data.initial) {
-				// setSelect autoscales the x, y, w, and h that it feeds the
-				// function, so we need to scale our data to mimic this effect
-				w = Math.round((w + x) * scalex);
-				h = Math.round((h + y) * scaley);
-				x = Math.round(x * scalex);
-				y = Math.round(y * scaley);
-				// Our data is no longer initial
-				this.data.initial = false;
-			} else {
-				// Update the hidden inputs with our best-guess crop for the aspect ratio,
-				// dividing by the scale factor so that the coordinates are relative to the
-				// original image
-				updateCoords({
-					x:  Math.round(x / scalex),
-					y:  Math.round(y / scaley),
-					w:  Math.round(w / scalex),
-					h:  Math.round(h / scaley)
-				});
-			}
-			return [x, y, w, h];
-		},
-		_waitForImageLoad: function() {
-			var i = 0;
-			var self = this;
-			var interval = window.setInterval(function() {
-				if (++i > 20) {
-					// Take a break
-					setTimeout(function() {
-						self._waitForImageLoad();
-					}, 1000);
-					clearInterval(interval);
-				}
+            $('#upload-footer').hide();
+            $('#crop-footer').show();
+        },
+        getCropSelect: function() {
+            var x, y, w, h;
 
-				var width = $('#cropbox').width();
-				if (width > 1) {
-					self.onImageLoad();
-					clearInterval(interval);
-				}
-			}, 50);
-		},
-		
-		// Save dimensions for current aspect ratio
-		// to hidden input in crop form
-		_setHiddenInputs: function() {
-			$('#crop-uploaded-image').val(this.data.url);
-			$('#crop-orig-image').val(this.data.orig_url);
-			$('#cropbox').attr('src', this.data.url);
-		}
-		
-	});
+            var imgDim = {
+                width: $('#cropbox').width(),
+                height: $('#cropbox').height()
+            };
 
-	window.cropBox = new CropBoxClass();
+            var imgAspect = (imgDim.width / imgDim.height);
 
-	$(document).ready(function(){
+            if (this.data.initial) {
+                // If we have initial dimensions onload
+                x = this.data.x;
+                y = this.data.y;
+                w = this.data.width;
+                h = this.data.height;
+            } else if (imgAspect < this.aspectRatio) {
+                // The uploaded image is taller than the needed aspect ratio
+                x = 0;
+                w = imgDim.width;
+                var newHeight = imgDim.width / this.aspectRatio;
+                y = Math.round((imgDim.height - newHeight) / 2);
+                h = Math.round(newHeight);
+            } else {
+                // The uploaded image is wider than the needed aspect ratio
+                y = 0;
+                h = imgDim.height;
+                var newWidth = imgDim.height * this.aspectRatio;
+                x = Math.round((imgDim.width - newWidth) / 2);
+                w = Math.round(newWidth);
+            }
 
-		if (window.opener && window.opener.CropDuster.sizes) {
-			imageElementId = $('#image-element-id').val();
-			var sizes = window.opener.CropDuster.sizes[imageElementId];
-			$('#crop-sizes').val(sizes);
-			$('#upload-sizes').val(sizes);
+            var scalex = imgDim.width  / this.data.orig_width;
+            var scaley = imgDim.height / this.data.orig_height;
 
-			if (window.opener.CropDuster.autoSizes) {
-				var autoSizes = window.opener.CropDuster.autoSizes[imageElementId];
-				$('#crop-auto-sizes').val(autoSizes);
-				$('#upload-auto-sizes').val(autoSizes);
-			}
-			
-			if (window.opener.CropDuster.defaultThumbs) {
-				var defaultThumb = window.opener.CropDuster.defaultThumbs[imageElementId];
-				$('#default-thumb').val(defaultThumb);
-			}
+            if (this.data.initial) {
+                // setSelect autoscales the x, y, w, and h that it feeds the
+                // function, so we need to scale our data to mimic this effect
+                w = Math.round((w + x) * scalex);
+                h = Math.round((h + y) * scaley);
+                x = Math.round(x * scalex);
+                y = Math.round(y * scaley);
+                // Our data is no longer initial
+                this.data.initial = false;
+            } else {
+                // Update the hidden inputs with our best-guess crop for the aspect ratio,
+                // dividing by the scale factor so that the coordinates are relative to the
+                // original image
+                updateCoords({
+                    x:  Math.round(x / scalex),
+                    y:  Math.round(y / scaley),
+                    w:  Math.round(w / scalex),
+                    h:  Math.round(h / scaley)
+                });
+            }
+            return [x, y, w, h];
+        },
+        _waitForImageLoad: function() {
+            var i = 0;
+            var self = this;
+            var interval = window.setInterval(function() {
+                if (++i > 20) {
+                    // Take a break
+                    setTimeout(function() {
+                        self._waitForImageLoad();
+                    }, 1000);
+                    clearInterval(interval);
+                }
 
-			if (window.opener.CropDuster.minSize) {
-				cropBox.minSize = window.opener.CropDuster.minSize[imageElementId];
-			}
-		}
-		
-		var progressBar = new ProgressBarClass();
-		
-		var actionUrl = $('#upload').attr('action');
-		
-		var imageId = $('#image-id').val();
-		var origImage = $('#crop-orig-image').val();
-		// We already have an image, initiate a jcrop instance
-		if (imageId || origImage) {
-			// Mimic the data returned from a POST to the upload action
-			var data = {
-				initial: true,
-				image_id:    parseInt(imageId, 10),
-				orig_width:  parseInt($('#orig-w').val(), 10),
-				orig_height: parseInt($('#orig-h').val(), 10),
-				width:       parseInt($('#w').val(), 10),
-				height:      parseInt($('#h').val(), 10),
-				x:           parseInt($('#x').val(), 10),
-				y:           parseInt($('#y').val(), 10),
-				url: $('#cropbox').attr('src')
-			};
-			cropBox.onSuccess(data, 'success');
-			// cropBox.init(data, 'success');
-		}
-		
-		$('#upload').ajaxForm({
-		  dataType: 'json',
-		  url: actionUrl +'?X-Progress-ID='+$('#X-Progress-ID').val(),
-		  beforeSubmit: function() { progressBar.show(); },
-		  success: function(data, responseType) {
-			cropBox.onSuccess(data, responseType);
-		  }
-		});
+                var width = $('#cropbox').width();
+                if (width > 1) {
+                    self.onImageLoad();
+                    clearInterval(interval);
+                }
+            }, 50);
+        },
 
-		$('#crop-form').ajaxForm({
-			dataType: 'json',
-			success: function(data, responseType) {
-				if (responseType == 'success') {
-					if (data.error) {
-						$('#error-container').find('.errornote').html(data.error);
-						$('#error-container').show();
-					} else {
-						$('#error-container').hide();
-						window.opener.CropDuster.complete(imageElementId, data);
-						window.close();
-					}
-				}
-			}
-		});
-		
-		window.uploadSubmit = function() {
-			$('#upload').ajaxSubmit({
-			  dataType: 'json',
-			  url: actionUrl +'?X-Progress-ID='+$('#X-Progress-ID').val(),
-			  beforeSubmit: function() { progressBar.show(); },
-			  success: function(data, responseType) {
-				cropBox.onSuccess(data, responseType);
-			  }
-			});
-			return false;
-		};
+        // Save dimensions for current aspect ratio
+        // to hidden input in crop form
+        _setHiddenInputs: function() {
+            $('#crop-uploaded-image').val(this.data.url);
+            $('#crop-orig-image').val(this.data.orig_url);
+            $('#cropbox').attr('src', this.data.url);
+        }
+
+    });
+
+    window.cropBox = new CropBoxClass();
+
+    $(document).ready(function(){
+
+        if (window.opener && window.opener.CropDuster.sizes) {
+            imageElementId = $('#image-element-id').val();
+            var sizes = window.opener.CropDuster.sizes[imageElementId];
+            $('#crop-sizes').val(sizes);
+            $('#upload-sizes').val(sizes);
+
+            if (window.opener.CropDuster.autoSizes) {
+                var autoSizes = window.opener.CropDuster.autoSizes[imageElementId];
+                $('#crop-auto-sizes').val(autoSizes);
+                $('#upload-auto-sizes').val(autoSizes);
+            }
+
+            if (window.opener.CropDuster.defaultThumbs) {
+                var defaultThumb = window.opener.CropDuster.defaultThumbs[imageElementId];
+                $('#default-thumb').val(defaultThumb);
+            }
+
+            if (window.opener.CropDuster.minSize) {
+                cropBox.minSize = window.opener.CropDuster.minSize[imageElementId];
+            }
+        }
+
+        var progressBar = new ProgressBarClass();
+
+        var actionUrl = $('#upload').attr('action');
+
+        var imageId = $('#image-id').val();
+        var origImage = $('#crop-orig-image').val();
+        // We already have an image, initiate a jcrop instance
+        if (imageId || origImage) {
+            // Mimic the data returned from a POST to the upload action
+            var data = {
+                initial: true,
+                image_id:    parseInt(imageId, 10),
+                orig_width:  parseInt($('#orig-w').val(), 10),
+                orig_height: parseInt($('#orig-h').val(), 10),
+                width:       parseInt($('#w').val(), 10),
+                height:      parseInt($('#h').val(), 10),
+                x:           parseInt($('#x').val(), 10),
+                y:           parseInt($('#y').val(), 10),
+                url: $('#cropbox').attr('src')
+            };
+            cropBox.onSuccess(data, 'success');
+            // cropBox.init(data, 'success');
+        }
+
+        $('#upload').ajaxForm({
+          dataType: 'json',
+          url: actionUrl +'?X-Progress-ID='+$('#X-Progress-ID').val(),
+          beforeSubmit: function() { progressBar.show(); },
+          success: function(data, responseType) {
+            cropBox.onSuccess(data, responseType);
+          }
+        });
+
+        $('#crop-form').ajaxForm({
+            dataType: 'json',
+            success: function(data, responseType) {
+                if (responseType == 'success') {
+                    if (data.error) {
+                        $('#error-container').find('.errornote').html(data.error);
+                        $('#error-container').show();
+                    } else {
+                        $('#error-container').hide();
+                        window.opener.CropDuster.complete(imageElementId, data);
+                        window.close();
+                    }
+                }
+            }
+        });
+
+        window.uploadSubmit = function() {
+            $('#upload').ajaxSubmit({
+              dataType: 'json',
+              url: actionUrl +'?X-Progress-ID='+$('#X-Progress-ID').val(),
+              beforeSubmit: function() { progressBar.show(); },
+              success: function(data, responseType) {
+                cropBox.onSuccess(data, responseType);
+              }
+            });
+            return false;
+        };
     });
 
 
