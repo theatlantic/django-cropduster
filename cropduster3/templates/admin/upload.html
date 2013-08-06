@@ -1,0 +1,143 @@
+{% extends "admin/base.html" %}
+
+<!-- LOADING -->
+{% load i18n adminmedia cropdustermedia %}
+
+<!-- JAVASCRIPTS -->
+{% block extrahead %}
+	{{ block.super }}
+    <script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/jquery-1.7.2.min.js"></script>
+	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/jquery.Jcrop.js?v=2"></script>
+	<script language="javascript" type="text/javascript" src="{% cropduster_media_prefix %}js/init.js"></script>
+	<link rel="stylesheet" href="{% cropduster_media_prefix %}css/CropDuster.css?v=1" type="text/css" />
+	<link rel="stylesheet" href="{% cropduster_media_prefix %}css/jquery.Jcrop.css" type="text/css" />
+{% endblock %}
+
+<!-- Get rid of nav -->
+{% block nav-global %}{% endblock %}
+
+{% block content-class %}content-flexible{% endblock %}
+
+{% block breadcrumbs %}{% endblock %}
+
+
+<!-- CONTENT -->
+{% block content %}
+<h1 id="step-header">Upload, Crop, and Generate Thumbnails {% if min_w or min_h %}({{ min_w }} x {{ min_h }}){% endif %}</h1>
+<div id="content-main">
+
+	{% if errors %}
+	<ul class="error-container errorlist">
+		{% for error in errors %}
+		<li>{{ error }}</li>
+		{% endfor %}
+	</ul>
+	{% endif %}
+
+	<form method="post" action="" enctype="multipart/form-data">
+        {% if not image.image %}
+            {{ formset.management_form }}
+            {% for form in formset %}
+                <p id="row_{{ form.auto_id }}">
+                    <label for="{{ form.auto_id }}">{{ form.label }}</label>
+                    <span id="{{ form.auto_id }}" class="form_field">{{ form }}</span>
+                </p>
+            {% endfor %}
+        {% endif %}
+
+	{% if image.image and not formset.errors.values %}
+	<input type="hidden" name="image_id" value="{{ image.id }}" />
+	<div id="cropbox">
+		<img src="{{ image|safe }}" style="max-width:{{ browser_width }}px" alt="" />
+	</div>
+	{% endif %}
+	
+{% if image.image %}
+Sizes found:
+<ul>
+    {% for size in sizes %}
+    <li>{{ size.0 }} x {{ size.1 }} ({{ size.2 }})
+    {% endfor %}
+</ul>
+
+{% for ar, w, h in crops.items %}
+	<img data-aspect_ratio="ar" 
+         data-min_width="w" 
+         data-min_height="h" 
+         src="{{image|safe}}"
+         style="max-width:{{ browser_width }}px" />
+{% endfor %}
+
+<script type="text/javascript">	
+(function($){
+
+	var image_width = {{ image.width }};
+	var max_width = {{ browser_width }};
+
+	function scale(val, ratio){
+		if (image_width > max_width){
+			return Math.round(val * ratio);
+		}else{
+			return val;
+		}
+	}
+
+
+	function scale_up(val){
+		return scale(val, image_width/max_width);
+	}
+	function scale_down(val){
+		return scale(val, max_width/image_width);
+	}
+	
+	
+	function updateCrop(c){
+		$("#id_crop_x").val(scale_up(c.x));
+		$("#id_crop_y").val(scale_up(c.y));
+		$("#id_crop_w").val(scale_up(c.w));
+		$("#id_crop_h").val(scale_up(c.h));
+	}
+
+	$(document).ready(function(){
+		
+		$("#cropbox img").Jcrop({
+			"setSelect":   [ 
+				scale_down({{ crop_x }}), 
+				scale_down({{ crop_y }}), 
+				scale_down({{ crop_x }} + {{ crop_w }}), 
+				scale_down({{ crop_y }} + {{ crop_h }})
+			],
+			"minSize":[scale_down({{ min_w }}), scale_down({{ min_h }})],
+			"aspectRatio": {{ aspect_ratio }},
+			"onChange": updateCrop
+		});
+		
+    });
+}(django && django.jQuery ?django.jQuery:$));
+</script>
+	{% endif %}
+	
+
+	<div id="crop_formset">
+	{{ crop_formset.management_form }}
+	{% for form in crop_formset %}
+		<p>
+			{{ form }}
+		</p>
+	{% endfor %}
+   
+	</div>
+     
+     
+
+	<div class="module footer" id="upload-footer">
+			<ul class="submit-row">
+				<li class="submit-button-container">
+					<input id="upload-button" class="default" type="submit" name="_save" value='Save' />
+				</li>
+			</ul>
+		</div>
+	</form>
+	
+</div>
+{% endblock %}

@@ -1,0 +1,203 @@
+{% extends "admin/upload.html" %}
+
+{% block content %}
+<h1 id="step-header">Crop Image</h1>
+<div id="content-main">
+
+	{% if errors %}
+	<ul class="error-container errorlist">
+		{% for error in errors %}
+		<li>{{ error }}</li>
+		{% endfor %}
+	</ul>
+	{% endif %}
+
+	<form method="post" action="" enctype="multipart/form-data">
+        <input name="next_stage" type="hidden" value="{{next_stage}}" />
+        <input name="current_stage" type="hidden" value="{{current_stage}}" />
+        
+        <input type="hidden" name="image_id" value="{{ image.id }}" />
+        <h2>Please crop the images to the desired proportions</h2>
+        <input type="hidden" name="total_crops" value="{{crops|length}}" />
+        {% for ids, dims, crop in crops %}
+            <input type="hidden" name="crop_ids_{{forloop.counter0}}" value="{{ ids }}" />
+            <div style="display: none">
+            {% for field in crop %} 
+                {{ field }} 
+            {% endfor %}
+            </div>
+            <img data-aspect_ratio="{{dims.ar}}" 
+                 data-min_width="{{dims.width}}" 
+                 data-min_height="{{dims.height}}" 
+                 data-start_x="{{crop.crop_x.value}}"
+                 data-start_y="{{crop.crop_y.value}}"
+                 data-start_w="{{crop.crop_w.value}}"
+                 data-start_h="{{crop.crop_h.value}}"
+                 src="{{image|safe}}"
+                 style="max-width:{{ browser_width }}px" />
+            <br/>
+        {% endfor %}
+
+<script type="text/javascript">	
+(function($){
+
+	var image_width = {{ image.width }};
+	var image_height = {{ image.height }};
+	var max_width = {{ browser_width }};
+
+    var scale = (function() {
+        if(image_width > max_width) {
+            return function (val, ratio){
+                return Math.round(val * ratio);
+            } 
+        } else{
+            return function(val, ratio) {
+                return val;
+            }
+        }
+    })();
+
+	function scale_up(val){
+		return val === null ? null : Math.round(scale(val, image_width/max_width));
+	}
+	function scale_down(val){
+		return val === null ? null : Math.round(scale(val, max_width/image_width));
+	}
+	
+    /* JCrop can return negative X/Y coordinates when the image is exact, so fix it */
+    function normalize_crop(c) {
+        if(c.x < 0) {
+            c.w += c.x;
+            c.x = 0;
+        }
+        if(c.y < 0) {
+            c.h += c.y;
+            c.y = 0;
+        }
+    }
+
+    function updateCrop(index) {
+        return function (c) {
+            normalize_crop(c);
+            console.log(''+index+': '+ [c.x, c.y, c.w, c.h].map(scale_up).join(', '))
+            $('#id_'+index+'-crop_x').val(scale_up(c.x));
+            $('#id_'+index+'-crop_y').val(scale_up(c.y));
+            $('#id_'+index+'-crop_w').val(scale_up(c.w));
+            $('#id_'+index+'-crop_h').val(scale_up(c.h));
+        }
+    }
+    function get_int(t, a) {
+        var attr = t.getAttribute(a);
+        return /^\d+$/.test(attr) ? parseInt(attr) : null;
+    }
+
+    function get_float(t, a) {
+        var attr = t.getAttribute(a);
+        return /^\d+(\.\d+)?$/.test(attr) ? parseFloat(attr) : null;
+    }
+
+    function scale_mins(aspect_ratio, x, y) {
+        var dims = {};
+        var scale_x = scale_down(x);
+        var scale_y = scale_down(y);
+        if(aspect_ratio === null) {
+            // Anything goes
+            dims.x = scale_x;
+            dims.y = scale_y;
+        } else {
+            if(aspect_ratio > 1) {
+                dims.y = scale_y;
+                dims.x = Math.round(scale_x*aspect_ratio);
+            } else if(aspect_ratio === 1) {
+                dims.x = dims.y = Math.min(scale_x, scale_y)
+            } else {
+                dims.x = scale_x;
+                dims.y = Math.round(scale_y*aspect_ratio);
+            }
+        }
+        return dims;
+    }
+
+    function parse_img(img) {
+        return {
+            min_width: scale_down(get_int(img, 'data-min_width')),
+            min_height: scale_down(get_int(img, 'data-min_height')),
+            start_x: scale_down(get_int(img, 'data-start_x')),
+            start_y: scale_down(get_int(img, 'data-start_y')),
+            start_w: scale_down(get_int(img, 'data-start_w')),
+            start_h: scale_down(get_int(img, 'data-start_h')),
+            aspect_ratio: get_float(img, 'data-aspect_ratio')
+        };
+
+    }
+
+	$(document).ready(function(){
+        
+        $("form img").each(function(i) {
+            var dims = parse_img(this);
+
+            // if the starting width is zero, means new crop.
+            var offset_x=0, offset_y=0;
+            var start_x2, start_y2;
+            if(dims.start_w === 0) {
+                var mins = scale_mins(dims.aspect_ratio,
+                                      image_width,
+                                      image_height);
+                start_x2 = mins.x;
+                start_y2 = mins.y;
+
+                // Center it if possible
+                offset_x = Math.floor((scale_down(image_width) - start_x2)/2);
+                offset_y = Math.floor((scale_down(image_height) - start_y2)/2);
+
+                // Update the form data 
+                updateCrop(i)({x: offset_x, y: offset_y, w: start_x2, h: start_y2 });
+            } else {
+                start_x2 = dims.start_x + dims.start_w;
+                start_y2 = dims.start_y + dims.start_h;
+            }
+
+            $(this).Jcrop({
+                "setSelect":   [ 
+                    offset_x + dims.start_x, 
+                    offset_y + dims.start_y, 
+                    offset_x + start_x2,
+                    offset_y + start_y2
+                ],
+                "minSize":[dims.min_width||1, dims.min_height||1],
+                "aspectRatio": dims.aspect_ratio,
+                "onChange": updateCrop(i)
+            });
+        });
+    });
+}(window.django && django.jQuery ?django.jQuery : $));
+</script>
+	
+
+	<div id="crop_formset">
+	{{ crop_formset.management_form }}
+	{% for form in crop_formset %}
+		<p>
+			{{ form }}
+		</p>
+	{% endfor %}
+   
+	</div>
+     
+	<div class="module footer" id="upload-footer">
+        <ul class="submit-row">
+            <li class="submit-button-container">
+                <input id="upload-button" class="default" type="submit" name="_save" value='Save' />
+            </li>
+        </ul>
+    </div>
+	</form>
+    {% if not crops %}
+        <script type="text/javascript">
+        document.forms[0].submit();
+        </script>
+    {% endif %}
+	
+</div>
+{% endblock %}
+

@@ -1,0 +1,45 @@
+{% load cropdusteradmin %}
+{% spaceless %}
+<div class="cropduster-inline">
+    <div class="tools">
+        <a href="javascript://" onclick="return toggle_delete(this);" class="icon delete-handler" title="Remove"></a>
+    </div>
+    <p>
+        <a data-image_hash="{{image_hash}}" data-attr_id="" data-size_set_id="{{size_set.id}}" href="{{cropduster_url}}" onclick="return show_cropduster.call(this)" class="cd_show cropduster-popup-button"></a>
+    </p>
+    <div data-attr_id="" class="cropduster_thumbs">
+        {% if show_original %}
+        <div class="original_image cropduster-image-group" {% if not image %}style="display:none"{% endif %} >
+            <h4>Original Image</h4>
+            <div class="cropduster-images">
+            <a title="Original image" class="cropduster-image cropduster-image-original" alt="Original Image" href="{{image|safe}}" target="_blank">
+                <img data-image_id="{{image.id}}" class="original" src="{% if image %}{{ image|safe }}{% endif %}"/>
+            </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="manual_images cropduster-image-group" {% if not has_manual %}style="display:none"{% endif %}>
+            <h4>Manually Cropped</h4>
+            <div class="thumbs cropduster-images">
+            {% if image %}
+                {% for image in manual %}
+                {# If this is edited, make sure to also edit the template in admin.cropduster.js #}
+                <a target="_blank" class="cropduster-image cropduster-image-{{image.size.slug}}" href="{{image|safe}}">
+                <!--[if lt IE 9]>
+                <span style="background-image:url({{image|safe}});width:{% scale_width image max_width=216 %}px;height:{% scale_height image max_width=216 %}px;filter:progid:DXImageTransform.Microsoft.AlphaImageLoader(src='{{image|safe}}', sizingMethod='scale');-ms-filter:&quot;progid:DXImageTransform.Microsoft.AlphaImageLoader(src='{{image|safe}}', sizingMethod='scale')&quot;;"></span>
+                <![endif]-->
+                <!--[if gte IE 9]> -->
+                <span style="background-image:url({{image|safe}});width:{% scale_width image max_width=216 %}px;height:{% scale_height image max_width=216 %}px;"></span>
+                <!-- <![endif]>-->
+                </a>
+                {% endfor %}
+            {% endif %}
+            </div>
+        </div>
+	</div>
+<div class="cropduster_input" data-attr_id="">
+{{ input|safe }}
+</div>
+</div>
+{% endspaceless %}

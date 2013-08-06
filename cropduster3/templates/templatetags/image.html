@@ -1,0 +1,11 @@
+<img src="{{ image_url }}"
+     alt="{{ alt }}"
+     title="{{ title }}"
+     {% if class %}class="{{ class }}"{% endif %}
+     {% if height %}height="{{ height }}" {% endif %}
+     {% if width %}width="{{ width }}" {% endif %}
+/>
+
+{% if attribution and attribute %}
+<figcaption>{{ attribution }}</figcaption>
+{% endif %}
