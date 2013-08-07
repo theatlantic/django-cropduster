@@ -9,6 +9,7 @@ from django.conf import settings
 import PIL.Image
 from jsonutil import jsonutil
 
+from .related import CropDusterGenericRelation
 from .utils import relpath, get_aspect_ratios, validate_sizes
 from . import settings as cropduster_settings
 
@@ -62,13 +63,11 @@ class Image(models.Model):
 
     default_thumb = models.CharField(max_length=255)
 
-    thumbs = models.ManyToManyField(
-        'cropduster.Thumb',
-        related_name = 'thumbs',
-        verbose_name = 'thumbs',
-        null = True,
-        blank = True
-    )
+    thumbs = models.ManyToManyField('cropduster.Thumb',
+        related_name='thumbs',
+        verbose_name='thumbs',
+        null=True,
+        blank=True)
 
     attribution = models.CharField(max_length=255, blank=True, null=True)
 
@@ -90,9 +89,6 @@ class Image(models.Model):
         """ ensures that file extension is lower case and doesn't have a double dot (.) """
         self._extension = val.lower().replace('.', '')
         
-    def default_thumb_url(self, use_temp=False):
-        return self.get_image_url(self.default_thumb, use_temp)
-
     def get_image_path(self, size_name=None, use_temp=False):
         if size_name is None:
             size_name = 'original'
@@ -115,38 +111,23 @@ class Image(models.Model):
             return True
     
     def save(self, **kwargs):
-
-        has_changed = False
-        try:
-            img = self.objects.get(pk=self.id)
-
-            if self.crop_x != img.crop_x:
-                has_changed = True
-            elif self.crop_y != img.crop_y:
-                has_changed = True
-            elif self.crop_w != img.crop_w:
-                has_changed = True
-            elif self.crop_h != img.crop_h:
-                has_changed = True
-            elif self.path != img.path:
-                has_changed = True
-            elif self.ext != img.ext:
-                has_changed = True
-        except:
+        if not self.pk:
             has_changed = True
+        else:
+            orig = Image.objects.get(pk=self.pk)
+            fields = self._meta.fields
+            has_changed = any([getattr(orig, f.attname) != getattr(self, f.attname)
+                               for f in fields])
 
         if has_changed:
-            try:
-                for thumb in self.thumbs.all():
-                    try:
-                        os.rename(
-                            self.get_image_path(thumb.name, use_temp=True),
-                            self.get_image_path(thumb.name)
-                        )
-                    except:
-                        pass
-            except:
-                pass
+            for thumb in self.thumbs.all():
+                try:
+                    os.rename(
+                        self.get_image_path(thumb.name, use_temp=True),
+                        self.get_image_path(thumb.name)
+                    )
+                except:
+                    pass
 
         return super(Image, self).save(**kwargs)
         
@@ -198,26 +179,6 @@ class Image(models.Model):
         except:
             return (0, 0)
 
-    def get_image_filesize(self, size_name=None):
-        """Returns the filesize of the thumbnail.  Defaults to the original image."""
-        if size_name is None:
-            return os.path.getsize(self.get_image_path())
-        else:
-            if self.has_thumb(size_name):
-                return os.path.getsize(self.get_image_path(size_name))
-            else:
-                return 0
-            
-    def get_image_filename(self, size_name=None):
-        """Returns the filename of the thumbnail.  Defaults to the original image."""
-        if size_name is None:
-            return os.path.basename(self.get_image_path())
-        else:
-            if self.has_thumb(size_name):
-                return os.path.basename(self.get_image_path(size_name))
-            else:
-                return ''
-    
     def save_thumb(self, name, width, height):
         """
         Check if a thumbnail already exists for the current image,
@@ -240,9 +201,7 @@ class Image(models.Model):
         return thumb
 
 
-from .related import GenericRelation
-
-class CropDusterField(GenericRelation):
+class CropDusterField(CropDusterGenericRelation):
 
     sizes = None
     auto_sizes = None
@@ -294,24 +253,28 @@ class CropDusterField(GenericRelation):
                 raise ValueError("More than one aspect ratio: %s" % jsonutil.dumps(aspect_ratios))
 
     def formfield(self, **kwargs):
-        from .forms import cropduster_formfield_factory, cropduster_widget_factory
-        formfield_cls = cropduster_formfield_factory(*(
-            self.sizes,
-            self.auto_sizes,
-            self.default_thumb,))
-        widget_cls = cropduster_widget_factory(*(
-            self.sizes,
-            self.auto_sizes,
-            self.default_thumb,))
+        from .forms import cropduster_formfield_factory
+        from .widgets import cropduster_widget_factory
 
-        defaults = {'widget': widget_cls}
-        defaults = {'form_class': formfield_cls}
-        defaults.update(kwargs)
-        return super(CropDusterField, self).formfield(**defaults)
+        factory_kwargs = {
+            'sizes': self.sizes,
+            'auto_sizes': self.auto_sizes,
+            'default_thumb': self.default_thumb,
+            'related': self.related,
+        }
+        widget = cropduster_widget_factory(**factory_kwargs)
+        formfield = cropduster_formfield_factory(widget=widget, **factory_kwargs)
+        widget.parent_admin = formfield.parent_admin = kwargs.pop('parent_admin', None)
+        widget.request = formfield.request = kwargs.pop('request', None)
+        kwargs.update({
+            'widget': widget,
+            'form_class': formfield,
+        })
+        return super(CropDusterField, self).formfield(**kwargs)
 
 
-from .patch import patch_model_admin
-patch_model_admin()
+from .patch import patch_django
+patch_django()
 
 
 try:

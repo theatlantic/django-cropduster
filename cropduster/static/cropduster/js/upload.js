@@ -1,7 +1,5 @@
 (function($){
 
-    var imageElementId;
-
     var unknownErrorMsg = 'An unknown error occurred. Contact ' +
                           '<a href="mailto:ATMOProgrammers@theatlantic.com">' +
                           'ATMOProgrammers@theatlantic.com' +
@@ -66,6 +64,18 @@
 
         minSize: [0, 0],
 
+        init: function(data) {
+            if (typeof data != 'object' || !data) {
+                return;
+            }
+            if (data.aspectRatio) {
+                this.aspectRatio = data.aspectRatio;
+            }
+            if (data.minSize) {
+                this.minSize = data.minSize;
+            }
+        },
+
         onSuccess: function(data, responseType) {
             var error = false;
             if (responseType != 'success') {
@@ -91,11 +101,6 @@
             }
         },
         onImageLoad: function() {
-
-            if (window.opener.CropDuster.aspectRatios) {
-                this.aspectRatio = window.opener.CropDuster.aspectRatios[imageElementId];
-            }
-
             try {
                 this.jcrop.destroy();
             } catch (e) { }
@@ -110,8 +115,8 @@
 
             var minSize = [0, 0];
 
-            if (Object.prototype.toString.call(minSize) == '[object Array]') {
-                if (minSize.length == 2) {
+            if (Object.prototype.toString.call(this.minSize) == '[object Array]') {
+                if (this.minSize.length == 2) {
                     minSize[0] = Math.floor(this.minSize[0] * scalex);
                     minSize[1] = Math.floor(this.minSize[1] * scaley);
                 }
@@ -217,29 +222,34 @@
 
     });
 
-    window.cropBox = new CropBoxClass();
 
     $(document).ready(function(){
+        var imageElementId = $('#image-element-id').val();
 
-        if (window.opener && window.opener.CropDuster.sizes) {
-            imageElementId = $('#image-element-id').val();
-            var sizes = window.opener.CropDuster.sizes[imageElementId];
-            $('#crop-sizes').val(sizes);
-            $('#upload-sizes').val(sizes);
 
-            if (window.opener.CropDuster.autoSizes) {
-                var autoSizes = window.opener.CropDuster.autoSizes[imageElementId];
-                $('#crop-auto-sizes').val(autoSizes);
-                $('#upload-auto-sizes').val(autoSizes);
+        var $P;
+        if (window.opener) {
+            $P = (typeof window.opener.django == 'object')
+                   ? window.opener.django.jQuery
+                   : window.opener.jQuery;
+        }
+
+        var data = {};
+
+        if ($P) {
+            data = $P('#id_' + imageElementId).data();
+        }
+        window.cropBox = new CropBoxClass(data);
+
+        if (typeof data == 'object') {
+            if (data.sizes) {
+                $('#crop-sizes,#upload-sizes').val(JSON.stringify(data.sizes));
             }
-
-            if (window.opener.CropDuster.defaultThumbs) {
-                var defaultThumb = window.opener.CropDuster.defaultThumbs[imageElementId];
-                $('#default-thumb').val(defaultThumb);
+            if (data.autoSizes) {
+                $('#crop-auto-sizes,#upload-auto-sizes').val(JSON.stringify(data.autoSizes));
             }
-
-            if (window.opener.CropDuster.minSize) {
-                cropBox.minSize = window.opener.CropDuster.minSize[imageElementId];
+            if (data.defaultThumb) {
+                $('#default-thumb').val(data.defaultThumb);
             }
         }
 
@@ -264,7 +274,6 @@
                 url: $('#cropbox').attr('src')
             };
             cropBox.onSuccess(data, 'success');
-            // cropBox.init(data, 'success');
         }
 
         $('#upload').ajaxForm({

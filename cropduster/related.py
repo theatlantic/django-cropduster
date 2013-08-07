@@ -1,19 +1,13 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.base import File
-from django.db import connection, models
-from django.db import router, DEFAULT_DB_ALIAS
-from django.db.models.loading import get_model
+from django.db import connection, router, models
 from django.db.models.fields.files import FieldFile
-from django.db.models.fields.related import RelatedField, Field
-from django.contrib.contenttypes.generic import GenericRel
-from django.utils.encoding import smart_unicode
-
-from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.generic import GenericRelation, GenericRel
 
 from .settings import CROPDUSTER_MEDIA_ROOT
 
 
-class GenericRelation(RelatedField, Field):
+class CropDusterGenericRelation(GenericRelation):
     """Provides an accessor to generic related objects (e.g. comments)"""
 
     image_kwargs = None
@@ -23,13 +17,7 @@ class GenericRelation(RelatedField, Field):
     image_descriptor = None
 
     def __init__(self, to, **kwargs):
-        self.image_kwargs = {}
-
-        for arg in ('unique', 'db_index'):
-            if arg in kwargs:
-                self.image_kwargs[arg] = kwargs.pop(arg)
-
-        self.image_kwargs.update({
+        self.image_kwargs = {
             'editable': False,
             'default': '',
             'blank': True,
@@ -38,7 +26,8 @@ class GenericRelation(RelatedField, Field):
             'width_field': kwargs.pop('width_field', None),
             'height_field': kwargs.pop('height_field', None),
             'max_length': kwargs.pop('max_length', 100),
-        })
+            'db_index': kwargs.pop('db_index', False),
+        }
 
         kwargs['rel'] = GenericRel(to,
                             related_name=kwargs.pop('related_name', None),
@@ -53,38 +42,18 @@ class GenericRelation(RelatedField, Field):
             'blank': True,
             'editable': True,
             'serialize': False,
+            'max_length': self.image_kwargs['max_length'],
         })
 
-        Field.__init__(self, **kwargs)
-        self.image_kwargs['db_column'] = kwargs.pop('db_column', self.name)
+        models.Field.__init__(self, **kwargs)
+
+        self.image_kwargs['db_column'] = kwargs.get('db_column', self.name)
 
     def __get__(self, instance, obj_type):
         try:
             return super(GenericRelation, self).__get__(instance, obj_type)
         except AttributeError:
             return self
-
-    def get_choices_default(self):
-        return Field.get_choices(self, include_blank=False)
-
-    def value_to_string(self, obj):
-        qs = getattr(obj, self.name).all()
-        return smart_unicode([instance._get_pk_val() for instance in qs])
-
-    def m2m_db_table(self):
-        return self.rel.to._meta.db_table
-
-    def m2m_column_name(self):
-        return self.object_id_field_name
-
-    def m2m_reverse_name(self):
-        return self.rel.to._meta.pk.column
-
-    def m2m_target_field_name(self):
-        return self.model._meta.pk.name
-
-    def m2m_reverse_target_field_name(self):
-        return self.rel.to._meta.pk.name
 
     def contribute_to_class(self, cls, name):
         self.generic_rel_name = '%s_generic_rel' % name
@@ -94,7 +63,7 @@ class GenericRelation(RelatedField, Field):
         # Save a reference to which model this class is on for future use
         self.model = cls
 
-        self.image_field = models.ImageField(**self.image_kwargs)
+        self.__dict__['image_field'] = models.ImageField(**self.image_kwargs)
         ### HACK: manually fix creation counter
         self.image_field.creation_counter = self.creation_counter
 
@@ -113,44 +82,23 @@ class GenericRelation(RelatedField, Field):
         self.__dict__['image_descriptor'] = image_descriptor
         setattr(cls, self.image_field_name, image_descriptor)
 
-    def contribute_to_related_class(self, cls, related):
-        pass
+        self.image_field.__dict__.update({
+            'generic_descriptor': generic_descriptor,
+            'image_descriptor': image_descriptor,
+            'db_field': self,
+            'generic_field': getattr(cls, self.generic_rel_name),
+        })
 
-    def set_attributes_from_rel(self):
-        pass
+    def south_init(self):
+        self._rel = self.rel
+        self.rel = None
+        self.south_executing = True
 
-    def get_internal_type(self):
-        return "ManyToManyField"
-
-    def db_type(self, connection):
-        # Since we're simulating a ManyToManyField, in effect, best return the
-        # same db_type as well.
-        return None
-
-    def extra_filters(self, pieces, pos, negate):
-        """
-        Return an extra filter to the queryset so that the results are filtered
-        on the appropriate content type.
-        """
-        if negate:
-            return []
-        ContentType = get_model("contenttypes", "contenttype")
-        content_type = ContentType.objects.get_for_model(self.model)
-        prefix = "__".join(pieces[:pos + 1])
-        return [("%s__%s" % (prefix, self.content_type_field_name),
-            content_type)]
-
-    def bulk_related_objects(self, objs, using=DEFAULT_DB_ALIAS):
-        """
-        Return all objects related to ``objs`` via this ``GenericRelation``.
-
-        """
-        return self.rel.to._base_manager.db_manager(using).filter(**{
-                "%s__pk" % self.content_type_field_name:
-                    ContentType.objects.db_manager(using).get_for_model(self.model).pk,
-                "%s__in" % self.object_id_field_name:
-                    [obj.pk for obj in objs]
-                })
+    def post_create_sql(self, style, db_table):
+        self.south_executing = False
+        if self.rel is None and hasattr(self, '_rel'):
+            self.rel = self._rel
+        return []
 
 
 class CropDusterDescriptor(object):
@@ -232,6 +180,9 @@ class CropDusterDescriptor(object):
                     return manager
 
         # Sort out what to do with the image_val
+        # For reference, see django.db.models.fields.files.FileDescriptor, upon
+        # which this logic is based.
+
         # If this value is a string (instance.file = "path/to/file") or None
         # then we simply wrap it with the appropriate attribute class according
         # to the file field. [This is FieldFile for FileFields and

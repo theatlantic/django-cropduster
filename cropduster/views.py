@@ -23,7 +23,7 @@ from .settings import CROPDUSTER_UPLOAD_PATH
 from .utils import (
     rescale, get_relative_media_url, get_upload_foldername,
     get_image_extension, get_media_path, get_media_url, get_min_size,
-    create_cropped_image, OrderedDict)
+    create_cropped_image, OrderedDict, relpath)
 from .exceptions import CropDusterException, CropDusterUrlException, CropDusterViewException
 
 import simplejson
@@ -99,9 +99,10 @@ def upload(request):
             root_path = os.path.join(CROPDUSTER_UPLOAD_PATH, path)
             ext = request.GET['ext']
             if os.path.exists(os.path.join(root_path, '_preview' + '.' + ext)):
-                orig_image = os.path.join(path, 'original' + '.' + ext)
+                relative_url = relpath(settings.MEDIA_ROOT, CROPDUSTER_UPLOAD_PATH)
+                orig_image = u"%s/original.%s" % (path, ext)
                 context_data['orig_image'] = orig_image
-                preview_url = settings.STATIC_URL + '/' + path + '/_preview' + '.' + ext
+                preview_url = settings.MEDIA_URL + '/' + relative_url + '/' + path + '/_preview' + '.' + ext
                 # Remove double '/'s
                 preview_url = re.sub(r'(?<!:)/+', '/', preview_url)
                 context_data['image'] = preview_url

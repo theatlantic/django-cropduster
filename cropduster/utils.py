@@ -73,8 +73,7 @@ def validate_sizes(sizes):
             raise ValueError("The '%s' size has a width or height that is not a positive integer." % size_name)
 
 def get_largest_size(sizes):
-    if isinstance(sizes, str) or isinstance(sizes, unicode):
-        sizes = simplejson.loads(sizes)
+
     validate_sizes(sizes)
     max_w = 0
     max_h = 0
@@ -92,7 +91,11 @@ def get_min_size(*args):
     min_w = 0
     min_h = 0
     for sizes in args:
-        if sizes is None or sizes == u'null':
+        if sizes == u'null':
+            continue
+        if isinstance(sizes, basestring):
+            sizes = simplejson.loads(sizes)
+        if not sizes:
             continue
         # The min width and height for
         # the image = the largest
