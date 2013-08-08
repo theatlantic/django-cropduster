@@ -8,7 +8,6 @@
        class="cropduster-data-field cropduster-text-field"
        data-sizes="{{ final_attrs.sizes }}"
        data-auto-sizes="{{ final_attrs.auto_sizes }}"
-       data-default-thumb="{{ default_thumb }}"
        data-aspect-ratio="{{ aspect_ratio }}"
        data-min-size="{{ min_size }}"
        data-prefix="{{ prefix }}"
@@ -18,7 +17,8 @@
     <div class="rounded-button">Upload Image</div>
     <div style="clear:both; height:3px"></div>
 
-    <div class="cropduster-preview help" id="preview_{{ final_attrs.id }}">
+
+    <div class="cropduster-preview help" id="preview_{{ final_attrs.id }}" style="display:none">
         {% for name, url in thumbs.items %}
         <script type="text/javascript">
             var timestamp = (new Date()).getTime().toString(36);
@@ -30,6 +30,12 @@
         {% endfor %}
     </div>
 </a>
+
+<div class="manual_images cropduster-image-group">
+    <div class="thumbs cropduster-images"></div>
+</div>
+
+<div style="clear:both"></div>
 
 {% include "cropduster/inline.html" %}
 

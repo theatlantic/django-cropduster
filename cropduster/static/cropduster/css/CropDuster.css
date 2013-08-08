@@ -1,54 +1,10 @@
-/*
-.cropduster-form .path,
-.cropduster-form .crop_x,
-.cropduster-form .crop_y,
-.cropduster-form .crop_w,
-.cropduster-form .crop_h,
-.cropduster-form ._extension,
-.cropduster-form .default_thumb,
-.cropduster-form .thumbs,
-.cropduster-form .DELETE {
-  display: none;
-}
-*/
-.cropduster-form .inline-related .delete {
-    padding-top: 7px;
-    position: absolute;
-    right: 10px;
-    width: 53px;
+.cropduster-form {
+    display: none;
 }
 
-.cropduster-form .inline-related .delete input {
-    float: left;
-    margin-right: 5px;
-}
-.cropduster-form .inline-related .delete label {
-    margin-top: 0;
-}
-
-.cropduster-form.pre-delete fieldset div {
-    background: #F2E6E6 !important;
-}
-
-.cropduster-form .help img.preview {
-    margin-right: 8px;
-    margin-bottom: 8px;
-    float: left;
-}
-
-.cropduster-form .help img.preview.first {
-    margin: 0 8px 8px 0;
-}
 .cropduster-customfield img{
     border: 0;
 }
-
-.cropduster-customfield .cropduster-upload-button {
-    background: transparent url('../img/cropduster_icon_upload_select.png') no-repeat top left;
-    width: 26px;
-    height: 22px;
-}
-
 
 .cropduster-preview {
     _display: inline;
@@ -225,4 +181,24 @@ table.striped tfoot .rounded-button:visited {
 }
 table.striped tfoot .rounded-button:active {
 	padding: 5px 6px 4px;
+}
+
+.cropduster-image span {
+    background-repeat: none;
+    background-position: 0 0;
+    background-size: 100%;
+}
+.cropduster-image span {
+    display: block;
+    float: left;
+    -webkit-box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.8);
+       -moz-box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.8);
+            box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.cropduster-images .cropduster-image {
+    display: none;
+}
+.cropduster-images .cropduster-image:first-child {
+    display: block;
 }

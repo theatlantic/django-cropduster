@@ -18,15 +18,10 @@ class CropDusterFormField(forms.Field):
 
     sizes = None
     auto_sizes = None
-    default_thumb = None
 
-    def __init__(self, sizes=None, auto_sizes=None, default_thumb=None, *args, **kwargs):
+    def __init__(self, sizes=None, auto_sizes=None, *args, **kwargs):
         self.sizes = sizes or self.sizes
         self.auto_sizes = auto_sizes or self.auto_sizes
-        self.default_thumb = default_thumb or self.default_thumb
-
-        if self.default_thumb is None:
-            raise ValueError("default_thumb attribute must be defined.")
 
         try:
             self._sizes_validate(self.sizes)
@@ -37,13 +32,9 @@ class CropDusterFormField(forms.Field):
             except:
                 raise e  # raise the original exception
 
-        if self.default_thumb not in (self.sizes.keys() + (self.auto_sizes or {}).keys()):
-            raise ValueError("default_thumb attribute does not exist in either sizes or auto_sizes dict.")
-
         kwargs['widget'] = CropDusterWidget(field=self,
             sizes=self.sizes,
-            auto_sizes=self.auto_sizes,
-            default_thumb=self.default_thumb)
+            auto_sizes=self.auto_sizes)
         super(CropDusterFormField, self).__init__(*args, **kwargs)
 
     def _sizes_validate(self, sizes, is_auto=False):
@@ -68,13 +59,12 @@ class CropDusterFormField(forms.Field):
         return value
 
 
-def cropduster_formfield_factory(sizes, auto_sizes, default_thumb, widget=None, related=None):
-    widget = widget or cropduster_widget_factory(sizes, auto_sizes, default_thumb, related=related)
+def cropduster_formfield_factory(sizes, auto_sizes, widget=None, related=None):
+    widget = widget or cropduster_widget_factory(sizes, auto_sizes, related=related)
     return type('CropDusterFormField', (CropDusterFormField,), {
         '__module__': CropDusterFormField.__module__,
         'sizes': sizes,
         'auto_sizes': auto_sizes,
-        'default_thumb': default_thumb,
         'widget': widget,
         'related': related,
         'parent_model': getattr(related, 'model', None),
@@ -103,12 +93,11 @@ class AbstractInlineFormSet(BaseGenericInlineFormSet):
 
     model = Image
     fields = ('crop_x', 'crop_y', 'crop_w', 'crop_h',
-               'path', '_extension', 'default_thumb', 'thumbs',)
+               'path', '_extension', 'thumbs',)
     extra_fields = None
     exclude = None
     sizes = None
     auto_sizes = None
-    default_thumb = None
     exclude = ["content_type", "object_id"]
     max_num = 1
     can_order = False
@@ -121,7 +110,6 @@ class AbstractInlineFormSet(BaseGenericInlineFormSet):
     def __init__(self, *args, **kwargs):
         self.label = kwargs.pop('label', None) or self.label
         self.sizes = kwargs.pop('sizes', None) or self.sizes
-        self.default_thumb = kwargs.pop('default_thumb', None) or self.default_thumb
         self.extra = kwargs.pop('extra', None) or self.extra
         self.extra_fields = kwargs.pop('extra_fields', None) or self.extra_fields
         if hasattr(self.extra_fields, 'iter'):
@@ -268,7 +256,5 @@ def cropduster_formset_factory(sizes=None, auto_sizes=None, **kwargs):
         inline_formset_attrs['sizes'] = sizes
     if auto_sizes is not None:
         inline_formset_attrs['auto_sizes'] = auto_sizes
-    if kwargs.get('default_thumb') is not None:
-        inline_formset_attrs['default_thumb'] = kwargs['default_thumb']
 
     return type('BaseInlineFormSet', (AbstractInlineFormSet, ), inline_formset_attrs)

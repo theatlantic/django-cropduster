@@ -10,7 +10,6 @@ def cropduster_inline_factory(field=None, **kwargs):
     attrs = {
         'sizes': getattr(field, 'sizes', kwargs.get('sizes')),
         'auto_sizes': getattr(field, 'auto_sizes', kwargs.get('auto_sizes')),
-        'default_thumb': getattr(field, 'default_thumb', kwargs.get('default_thumb')),
         'model': getattr(getattr(field, 'rel', None), 'to', None) or kwargs.get('model', Image),
         'default_prefix': getattr(field, 'name', kwargs.get('name')),
         'field': field,
@@ -20,7 +19,6 @@ def cropduster_inline_factory(field=None, **kwargs):
 
         sizes = attrs['sizes']
         auto_sizes = attrs['auto_sizes']
-        default_thumb = attrs['default_thumb']
         model = attrs['model']
         default_prefix = attrs['default_prefix']
 
@@ -38,7 +36,7 @@ def cropduster_inline_factory(field=None, **kwargs):
 
         fieldsets = (('Image', {
             'fields': ('crop_x', 'crop_y', 'crop_w', 'crop_h',
-                       'path', '_extension', 'default_thumb', 'thumbs',),
+                       'path', '_extension', 'thumbs',),
             }),)
 
         def formfield_for_manytomany(self, db_field, request=None, **kwargs):
@@ -54,7 +52,6 @@ def cropduster_inline_factory(field=None, **kwargs):
                 prefix=self.default_prefix,
                 sizes=self.sizes,
                 auto_sizes=self.auto_sizes,
-                default_thumb=self.default_thumb,
                 model=self.model,
                 formfield_callback=curry(self.formfield_for_dbfield, request=request))
             if getattr(self, 'default_prefix', None):

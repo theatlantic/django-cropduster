@@ -20,18 +20,19 @@ class CropDusterWidget(Input):
 
     sizes = None
     auto_sizes = None
-    default_thumb = None
     field = None
 
     class Media:
         css = {'all': (u'%scropduster/css/CropDuster.css' % settings.STATIC_URL,),}
-        js = (u'%scropduster/js/CropDuster.js' % settings.STATIC_URL,)
+        js = (
+            u'%scropduster/js/jsrender.js' % settings.STATIC_URL,
+            u'%scropduster/js/CropDuster.js' % settings.STATIC_URL,
+        )
 
-    def __init__(self, field=None, sizes=None, auto_sizes=None, default_thumb=None, attrs=None):
+    def __init__(self, field=None, sizes=None, auto_sizes=None, attrs=None):
         self.field = field
         self.sizes = sizes or self.sizes
         self.auto_sizes = auto_sizes or self.auto_sizes
-        self.default_thumb = default_thumb or self.default_thumb
 
         if attrs is not None:
             self.attrs = attrs.copy()
@@ -79,7 +80,7 @@ class CropDusterWidget(Input):
             if obj is None:
                 obj = Image.objects.get(pk=value)
             if obj is not None:
-                for thumb in obj.thumbs.filter(name=self.default_thumb).order_by('-width'):
+                for thumb in obj.thumbs.all().order_by('-width'):
                     size_name = thumb.name
                     thumbs[size_name] = obj.get_image_url(size_name)
 
@@ -98,7 +99,6 @@ class CropDusterWidget(Input):
             'static_url': json.dumps(u'%s/%s/' % (settings.MEDIA_URL, relative_path)),
             'min_size': jsonutil.dumps(get_min_size(self.sizes, self.auto_sizes)),
             'aspect_ratio': jsonutil.dumps(get_aspect_ratios(self.sizes)[0]),
-            'default_thumb': self.default_thumb or '',
             'final_attrs': final_attrs,
             'thumbs': thumbs,
             'image_path': u'%s/%s' % (relative_path, image_value),
@@ -134,11 +134,10 @@ class CropDusterWidget(Input):
             fieldsets, readonly_fields=readonly, model_admin=root_admin)
 
 
-def cropduster_widget_factory(sizes, auto_sizes, default_thumb, related=None):
+def cropduster_widget_factory(sizes, auto_sizes, related=None):
     return type('CropDusterWidget', (CropDusterWidget,), {
         'sizes': sizes,
         'auto_sizes': auto_sizes,
-        'default_thumb': default_thumb,
         '__module__': CropDusterWidget.__module__,
         'related': related,
         'parent_model': getattr(related, 'model', None),

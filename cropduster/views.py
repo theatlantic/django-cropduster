@@ -377,7 +377,6 @@ def crop(request):
     except Exception, e:
         return _json_error(request, 'crop', action="creating cropped image", errors=[e], log_error=True)
     
-    default_thumb = request.POST['default_thumb']
     rel_url_path = get_relative_media_url(request.POST['orig_image'])
 
     file_path, file_full_name = os.path.split(rel_url_path)
@@ -389,7 +388,6 @@ def crop(request):
         db_image.crop_y = y
         db_image.crop_w = w
         db_image.crop_h = h        
-        db_image.default_thumb = default_thumb
     except:
         try:
             db_image = CropDusterImage(
@@ -397,9 +395,7 @@ def crop(request):
                 crop_y = y,
                 crop_w = w,
                 crop_h = h,
-                path = get_relative_media_url(request.POST['orig_image']),
-                default_thumb = default_thumb
-            )
+                path = get_relative_media_url(request.POST['orig_image']))
             db_image.path = file_path
             file_name, db_image.extension = os.path.splitext(file_full_name)
         except Exception, e:
@@ -443,7 +439,6 @@ def crop(request):
         'sizes': request.POST['sizes'],
         'image': request.POST['orig_image'],
         'thumb_urls': jsonutil.dumps(thumb_urls),
-        'default_thumb': db_image.default_thumb,
         'filename': db_image.get_base_dir_name() + db_image.extension,
         'extension': db_image._extension,
         'path': db_image.path,

@@ -248,9 +248,6 @@
             if (data.autoSizes) {
                 $('#crop-auto-sizes,#upload-auto-sizes').val(JSON.stringify(data.autoSizes));
             }
-            if (data.defaultThumb) {
-                $('#default-thumb').val(data.defaultThumb);
-            }
         }
 
         var progressBar = new ProgressBarClass();

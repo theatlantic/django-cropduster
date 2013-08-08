@@ -61,8 +61,6 @@ class Image(models.Model):
     path = models.CharField(max_length=255, db_index=True)
     _extension = models.CharField(max_length=4, db_column='extension')
 
-    default_thumb = models.CharField(max_length=255)
-
     thumbs = models.ManyToManyField('cropduster.Thumb',
         related_name='thumbs',
         verbose_name='thumbs',
@@ -205,22 +203,13 @@ class CropDusterField(CropDusterGenericRelation):
 
     sizes = None
     auto_sizes = None
-    default_thumb = None
 
     def __init__(self, verbose_name=None, **kwargs):
         sizes = kwargs.pop('sizes', None)
         auto_sizes = kwargs.pop('auto_sizes', None)
-        default_thumb = kwargs.pop('default_thumb', None)
-
-        if default_thumb is None:
-            raise ValueError("default_thumb attribute must be defined.")
-
-        default_thumb_key_exists = False
 
         try:
             self._sizes_validate(sizes)
-            if default_thumb in sizes.keys():
-                default_thumb_key_exists = True
         except ValueError as e:
             # Maybe the sizes is none and the auto_sizes is valid, let's
             # try that
@@ -232,15 +221,9 @@ class CropDusterField(CropDusterGenericRelation):
 
         if auto_sizes is not None:
             self._sizes_validate(auto_sizes, is_auto=True)
-            if default_thumb in auto_sizes.keys():
-                default_thumb_key_exists = True
-
-        if not default_thumb_key_exists:
-            raise ValueError("default_thumb attribute does not exist in either sizes or auto_sizes dict.")
 
         self.sizes = sizes
         self.auto_sizes = auto_sizes
-        self.default_thumb = default_thumb
 
         kwargs['to'] = Image
         super(CropDusterField, self).__init__(verbose_name=verbose_name, **kwargs)
@@ -259,7 +242,6 @@ class CropDusterField(CropDusterGenericRelation):
         factory_kwargs = {
             'sizes': self.sizes,
             'auto_sizes': self.auto_sizes,
-            'default_thumb': self.default_thumb,
             'related': self.related,
         }
         widget = cropduster_widget_factory(**factory_kwargs)
@@ -294,7 +276,6 @@ else:
                 "blank": ["blank", {"default": True}],
                 "sizes": ["sizes", {}],
                 "auto_sizes": ["auto_sizes", {"default": None}],
-                "default_thumb": ["default_thumb", {}],
             },
         ),
     ], patterns=["^cropduster\.models\.CropDusterField"])

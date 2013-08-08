@@ -3,6 +3,38 @@ window.CropDuster = {};
 
 (function($) {
 
+    var image_css = function(src, width, height, opts, is_ie) {
+        var css = '';
+        css += 'background-image:url(' + src + ');';
+        css += 'width:' + width + 'px;';
+        css += 'height:' + height + 'px;';
+        if (is_ie) {
+            var filter = 'progid:DXImageTransform.Microsoft.AlphaImageLoader(src=\'' + src + '\', sizingMethod=\'scale\')';
+            css += 'filter:' + filter + ';';
+            css += '-ms-filter:"' + filter + '";';
+        }
+        return css;
+    };
+
+    // jsrender templates
+    if ($.views) {
+        $.views.helpers({
+            image_css: image_css,
+            ie_image_css: function(src, width, height, opts) {
+                return image_css.call(this, src, width, height, opts, true);
+            }
+        });
+
+        $.templates({
+            cropdusterImage: '<a target="_blank" class="cropduster-image cropduster-image-{{>size_slug}}" href="{{>image_url}}">' +
+                '<!' + '--[if lt IE 9]' + '>' +
+                '<span style="{{>~ie_image_css(image_url, width, height)}}"></span>' +
+                '<![endif]--><![if gte IE 9]>' +
+                '   <span style="{{>~image_css(image_url, width, height)}}"></span>' +
+                '<![endif]></a>'
+        });
+    }
+
     CropDuster = {
 
         staticUrl: '',
@@ -40,7 +72,7 @@ window.CropDuster = {};
                 var thumbId = thumbs[sizeName];
                 var option = $(document.createElement('OPTION'));
                 option.attr('value', thumbId);
-                option.html(sizeName + ' (' + thumbId + ')');
+                option.html(sizeName);
                 $select.append(option);
                 option.selected = true;
                 option.attr('selected', 'selected');
@@ -56,7 +88,6 @@ window.CropDuster = {};
                 'crop_w': data.w,
                 'crop_h': data.h,
                 'path': data.path,
-                'default_thumb': data.default_thumb,
                 '_extension': data.extension
             };
             $input.val(data.relpath);
@@ -72,27 +103,10 @@ window.CropDuster = {};
                 thumbs = $.parseJSON(data.thumbs);
                 CropDuster.setThumbnails(prefix, thumbs);
             }
-            if (data.thumb_urls) {
-                var thumbUrls = $.parseJSON(data.thumb_urls);
-                CropDuster.renderThumbnails($input, thumbUrls);
-            }
+            CropDuster.createThumbnails(prefix, true);
         },
 
-        renderThumbnails: function($input, thumbUrls) {
-            var html = '';
-            var data = $input.data();
-            for (var name in thumbUrls) {
-                if (name != data.defaultThumb) {
-                    continue;
-                }
-                var url = thumbUrls[name];
-                var className = "preview" + ((!html.length) ? " first" : "");
-                // Append random get variable so that it refreshes
-                html += '<img id="id_' + data.prefix + '_image_' + name + '"' +
-                        ' src="' + url + '?rand=' + CropDuster.generateRandomId() + '"' +
-                        ' class="' + className + '" />';
-            }
-            $('#preview_id_' + data.prefix).html(html);
+        renderThumbnails: function($input, thumbData) {
         },
 
         /**
@@ -117,7 +131,7 @@ window.CropDuster = {};
 
             var $inlineForm = $input.parent().find('.cropduster-form').first();
 
-            CropDuster.staticUrl = $inlineForm.attr('data-static-url');
+            CropDuster.staticUrl = $inlineForm.data('staticUrl').replace(/^"/, '').replace(/"$/, '');
 
             var name = $input.attr('name');
             var matches = name.match(/(?:\d+|__prefix__|empty)\-([^\-]+)$/);
@@ -149,27 +163,46 @@ window.CropDuster = {};
             // that the cropduster admin form doesn't have an image id but has thumbnails
             // (for example when a new image is uploaded and the post is saved, but there is
             // a validation error on the page)
-            $inlineForm.find('.id').each(function(i, el) {
-                if ($(el).closest('.inline-related').hasClass('empty-form')) {
+            CropDuster.createThumbnails(data.prefix);
+
+        },
+
+        createThumbnails: function(prefix, preview) {
+            $input = $("input[data-prefix='" + prefix + "']");
+            var data = $input.data();
+            if (!$input.length) {
+                return;
+            }
+            var path = $('#id_' + prefix + '-0-path').val();
+            var ext = $('#id_' + prefix + '-0-_extension').val();
+
+            var thumbData = {};
+
+            $('#id_' + prefix + '-0-thumbs option:selected').each(function(i, el) {
+                var name = $(el).html();
+                var slug = name;
+                if (!data.sizes[name]) {
                     return;
                 }
-                var path = $('#id_' + data.prefix + '-0-path').val();
-                var ext = $('#id_' + data.prefix + '-0-_extension').val();
-
-                var thumbUrls = {};
-
-                $('#id_' + data.prefix + '-0-thumbs option:selected').each(function(i, el) {
-                    var name = $(el).html();
-                    var url = CropDuster.staticUrl + '/' + path + '/' + name + '.' + ext;
-                    // This is in place of a negative lookbehind. It replaces all
-                    // double slashes that don't follow a colon.
-                    url = url.replace(/(:)?\/+/g, function($0, $1) { return $1 ? $0 : '/'; });
-                    thumbUrls[name] = url;
-                });
-
-                CropDuster.renderThumbnails($input, thumbUrls);
+                if (preview) {
+                    name += "_tmp";
+                }
+                var url = CropDuster.staticUrl + '/' + path + '/' + name + '.' + ext;
+                // This is in place of a negative lookbehind. It replaces all
+                // double slashes that don't follow a colon.
+                url = url.replace(/(:)?\/+/g, function($0, $1) { return $1 ? $0 : '/'; });
+                thumbData[name] = {
+                    'image_url': url,
+                    'size_slug': slug,
+                    'width': data.sizes[slug][0],
+                    'height': data.sizes[slug][1]
+                };
             });
-
+            var $thumb = $input.closest('.row,.grp-row').find('.cropduster-images');
+            $thumb.find('a').remove();
+            for (var name in thumbData) {
+                $thumb.html($thumb.html() + $.render.cropdusterImage(thumbData[name]));
+            }
         },
 
         generateRandomId: function() {
