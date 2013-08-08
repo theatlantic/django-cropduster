@@ -72,7 +72,7 @@ def monkeypatch(func=None, obj=None, name=None, avoid_doublewrap=True):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(original_callable, *args, **kwargs)
-        
+
     # set attributes, for future unwrapping and to avoid double-wrapping
     wrapper.original = call
     wrapper.wrapper = func

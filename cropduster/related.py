@@ -121,7 +121,7 @@ class CropDusterDescriptor(object):
         try:
             if self.is_image_field:
                 image_val = instance.__dict__[self.image_field.name]
-                raise AttributeError("Lookup related field")                
+                raise AttributeError("Lookup related field")
             else:
                 return getattr(instance, cache_name)
         except AttributeError:

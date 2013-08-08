@@ -21,7 +21,7 @@ class Thumb(models.Model):
 
     def __unicode__(self):
         return self.name
-    
+
     class Meta:
         app_label = cropduster_settings.CROPDUSTER_APP_LABEL
         db_table = '%s_thumb' % cropduster_settings.CROPDUSTER_DB_PREFIX
@@ -78,21 +78,21 @@ class Image(models.Model):
 
     def __unicode__(self):
         return self.get_image_url()
-    
+
     @property
     def extension(self):
         ''' returns the file extension with a dot (.) prepended to it '''
         return '.' + self._extension
-        
+
     @extension.setter
     def extension(self, val):
         """ ensures that file extension is lower case and doesn't have a double dot (.) """
         self._extension = val.lower().replace('.', '')
-        
+
     def get_image_path(self, size_name=None, use_temp=False):
         if size_name is None:
             size_name = 'original'
-        
+
         if use_temp:
             size_name += '_tmp'
 
@@ -109,7 +109,7 @@ class Image(models.Model):
             return False
         else:
             return True
-    
+
     def save(self, **kwargs):
         if not self.pk:
             has_changed = True
@@ -130,19 +130,19 @@ class Image(models.Model):
                     pass
 
         return super(Image, self).save(**kwargs)
-        
-    
+
+
     def get_image_url(self, size_name=None, use_temp=False):
-        
+
         if self.path is None:
             return ''
-        
+
         if size_name is None:
             size_name = 'original'
-        
+
         if use_temp:
             size_name += '_tmp'
-        
+
         relative_path = relpath(settings.MEDIA_ROOT, cropduster_settings.CROPDUSTER_UPLOAD_PATH)
         if re.match(r'\.\.', relative_path):
             raise Exception("Upload path is outside of static root")
@@ -150,16 +150,16 @@ class Image(models.Model):
         url = url_root + self.path + '/' + size_name + self.extension
         url = re.sub(r'(?<!:)/+', '/', url)
         return url
-    
+
     def get_base_dir_name(self):
-        ''' 
-        returns the directory that contain the various sizes of images, based off of the 
+        '''
+        returns the directory that contain the various sizes of images, based off of the
         original file name
         '''
-        
+
         path, dir_name = os.path.split(self.path)
         return dir_name
-    
+
     def get_image_size(self, size_name=None):
         """
         Returns tuple of a thumbnail's size (width, height).
@@ -182,7 +182,7 @@ class Image(models.Model):
     def save_thumb(self, name, width, height):
         """
         Check if a thumbnail already exists for the current image,
-        otherwise 
+        otherwise
         """
         thumb = None
         try:
@@ -246,7 +246,7 @@ class CropDusterField(CropDusterGenericRelation):
         super(CropDusterField, self).__init__(verbose_name=verbose_name, **kwargs)
 
     def _sizes_validate(self, sizes, is_auto=False):
-        validate_sizes(sizes)    
+        validate_sizes(sizes)
         if not is_auto:
             aspect_ratios = get_aspect_ratios(sizes)
             if len(aspect_ratios) > 1:

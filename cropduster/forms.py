@@ -47,7 +47,7 @@ class CropDusterFormField(forms.Field):
         super(CropDusterFormField, self).__init__(*args, **kwargs)
 
     def _sizes_validate(self, sizes, is_auto=False):
-        validate_sizes(sizes)    
+        validate_sizes(sizes)
         if not is_auto:
             aspect_ratios = get_aspect_ratios(sizes)
             if len(aspect_ratios) > 1:
@@ -122,7 +122,7 @@ class AbstractInlineFormSet(BaseGenericInlineFormSet):
         self.label = kwargs.pop('label', None) or self.label
         self.sizes = kwargs.pop('sizes', None) or self.sizes
         self.default_thumb = kwargs.pop('default_thumb', None) or self.default_thumb
-        self.extra = kwargs.pop('extra', None) or self.extra        
+        self.extra = kwargs.pop('extra', None) or self.extra
         self.extra_fields = kwargs.pop('extra_fields', None) or self.extra_fields
         if hasattr(self.extra_fields, 'iter'):
             for field in self.extra_fields:
@@ -156,7 +156,7 @@ class AbstractInlineFormSet(BaseGenericInlineFormSet):
                 self.instance._default_manager.invalidate(self.instance)
             except AttributeError:
                 pass
-        
+
         qset_ids = [o.pk for o in self.queryset]
         if obj is not None and obj.pk not in qset_ids:
             qset_ids.append(obj.pk)
