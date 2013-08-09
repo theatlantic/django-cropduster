@@ -89,7 +89,7 @@ class CropDusterThumbField(ModelMultipleChoiceField):
         return value
 
 
-class AbstractInlineFormSet(BaseGenericInlineFormSet):
+class BaseCropDusterInlineFormSet(BaseGenericInlineFormSet):
 
     model = Image
     fields = ('crop_x', 'crop_y', 'crop_w', 'crop_h',
@@ -119,14 +119,14 @@ class AbstractInlineFormSet(BaseGenericInlineFormSet):
         if self.prefix_override:
             kwargs['prefix'] = self.prefix_override
 
-        super(AbstractInlineFormSet, self).__init__(*args, **kwargs)
+        super(BaseCropDusterInlineFormSet, self).__init__(*args, **kwargs)
 
     @classmethod
     def get_default_prefix(cls):
         if cls.prefix_override:
             return cls.prefix_override
         else:
-            return super(AbstractInlineFormSet, cls).get_default_prefix()
+            return super(BaseCropDusterInlineFormSet, cls).get_default_prefix()
 
     def _construct_form(self, i, **kwargs):
         try:
@@ -151,7 +151,7 @@ class AbstractInlineFormSet(BaseGenericInlineFormSet):
             self.queryset = self._queryset = obj._default_manager.filter(pk__in=qset_ids)
 
         self._pre_construct_form(i, **kwargs)
-        form = super(AbstractInlineFormSet, self)._construct_form(i, **kwargs)
+        form = super(BaseCropDusterInlineFormSet, self)._construct_form(i, **kwargs)
 
         # Load in initial data if we have it from a previously submitted
         # (but apparently invalidated) form
@@ -233,11 +233,11 @@ def cropduster_formset_factory(sizes=None, auto_sizes=None, **kwargs):
         "model": model,
         "formfield_callback": formfield_for_dbfield,
         "Meta": type('Meta', (object,), {
-            "fields": AbstractInlineFormSet.fields,
+            "fields": BaseCropDusterInlineFormSet.fields,
             "exclude": exclude,
             "model": model,
         }),
-        '__module__': AbstractInlineFormSet.__module__,
+        '__module__': BaseCropDusterInlineFormSet.__module__,
     }
 
     CropDusterForm = ModelFormMetaclass('CropDusterForm', (forms.ModelForm,), form_class_attrs)
@@ -249,7 +249,7 @@ def cropduster_formset_factory(sizes=None, auto_sizes=None, **kwargs):
         "exclude": exclude,
         "form": CropDusterForm,
         "model": model,
-        '__module__': AbstractInlineFormSet.__module__,
+        '__module__': BaseCropDusterInlineFormSet.__module__,
         'prefix_override': kwargs.get('prefix'),
     }
     if sizes is not None:
@@ -257,4 +257,5 @@ def cropduster_formset_factory(sizes=None, auto_sizes=None, **kwargs):
     if auto_sizes is not None:
         inline_formset_attrs['auto_sizes'] = auto_sizes
 
-    return type('BaseInlineFormSet', (AbstractInlineFormSet, ), inline_formset_attrs)
+    return type('CropDusterInlineFormSet',
+        (BaseCropDusterInlineFormSet,), inline_formset_attrs)
