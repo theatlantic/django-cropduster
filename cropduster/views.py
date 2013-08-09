@@ -22,11 +22,10 @@ import PIL.Image
 
 # from .handlers import UploadProgressCachedHandler
 from .models import Image as CropDusterImage
-from .settings import CROPDUSTER_UPLOAD_PATH
 from .utils import (
     rescale, get_relative_media_url, get_upload_foldername,
     get_image_extension, get_media_path, get_media_url, get_min_size,
-    create_cropped_image, relpath)
+    create_cropped_image)
 from .exceptions import json_error, CropDusterViewException
 
 import json
@@ -35,6 +34,7 @@ import re
 
 # For validation
 class UploadForm(forms.Form):
+
     picture = forms.ImageField(required=True)
 
 
@@ -52,6 +52,7 @@ def upload(request):
             'y': request.GET.get('y', 0),
             'w': request.GET.get('w', 0),
             'h': request.GET.get('h', 0),
+            'upload_to': request.GET.get('upload_to', '')
         }
 
         if request.GET.get('id'):
@@ -63,7 +64,7 @@ def upload(request):
                 orig_w, orig_h = image.get_image_size()
                 context_data.update({
                     'image_id': image.pk,
-                    'orig_image': os.path.join(image.path, 'original' + image.extension),
+                    'orig_image': u'/'.join([image.path, 'original' + image.extension]),
                     'image': image.get_image_url('_preview'),
                     'orig_w': orig_w,
                     'orig_h': orig_h,
@@ -72,13 +73,12 @@ def upload(request):
         # If we have a new image that hasn't been saved yet
         if request.GET.get('path'):
             path = request.GET['path']
-            root_path = os.path.join(CROPDUSTER_UPLOAD_PATH, path)
+            root_path = os.path.join(settings.MEDIA_ROOT, path)
             ext = request.GET.get('ext', '')
             if os.path.exists(os.path.join(root_path, '_preview.%s' % ext)):
-                relative_url = relpath(settings.MEDIA_ROOT, CROPDUSTER_UPLOAD_PATH)
                 orig_image = u"%s/original.%s" % (path, ext)
                 context_data['orig_image'] = orig_image
-                preview_url = u'/'.join([settings.MEDIA_URL, relative_url, path, '_preview.%s' % ext])
+                preview_url = u'/'.join([settings.MEDIA_URL, path, '_preview.%s' % ext])
                 # Remove double '/'s
                 preview_url = re.sub(r'(?<!:)/+', '/', preview_url)
                 try:
@@ -90,8 +90,7 @@ def upload(request):
                     context_data.update({
                         'image': preview_url,
                         'orig_w': orig_w,
-                        'orig_h': orig_h,
-                    })
+                        'orig_h': orig_h, })
 
         try:
             import custom_admin
@@ -110,19 +109,21 @@ def upload(request):
         # if hasattr(settings, 'CACHE_BACKEND'):
         #     request.upload_handlers.insert(0, UploadProgressCachedHandler(request))
 
+        upload_to = request.GET.get('upload_to', None)
         form = UploadForm(request.POST, request.FILES)
 
         if not form.is_valid():
-            return json_error(request, 'upload', action="uploading file", errors=form['picture'].errors)
+            return json_error(request, 'upload', action="uploading file",
+                    errors=form['picture'].errors)
 
-        file_ = request.FILES['picture'];
-        extension = os.path.splitext(file_.name)[1].lower()
-        folder_path = get_upload_foldername(file_.name)
+        img_file = request.FILES['picture']
+        extension = os.path.splitext(img_file.name)[1].lower()
+        folder_path = get_upload_foldername(img_file.name, upload_to=upload_to)
 
         tmp_file_path = os.path.join(folder_path, '__tmp' + extension)
 
         with open(tmp_file_path, 'wb+') as f:
-            for chunk in file_.chunks():
+            for chunk in img_file.chunks():
                 f.write(chunk)
 
         img = PIL.Image.open(tmp_file_path)

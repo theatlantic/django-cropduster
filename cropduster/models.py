@@ -10,7 +10,7 @@ import PIL.Image
 from jsonutil import jsonutil
 
 from .related import CropDusterGenericRelation
-from .utils import relpath, get_aspect_ratios, validate_sizes
+from .utils import get_aspect_ratios, validate_sizes
 from . import settings as cropduster_settings
 
 
@@ -31,18 +31,13 @@ class ImageManager(models.Manager):
 
     def get_by_relpath(self, relative_path):
         """
-        Images are stored relative to the CROPDUSTER_UPLOAD_PATH.
         This method accepts a path relative to MEDIA_ROOT and
         does the relative path conversion for the get() call.
         """
         if relative_path[0] == '/':
             relative_path = relative_path[1:]
-        media_path = os.path.join(settings.MEDIA_ROOT, relative_path)
-        cropduster_rel_path = relpath(cropduster_settings.CROPDUSTER_UPLOAD_PATH,
-            media_path)
-        cropduster_rel_path = re.sub(r'/original\.[^/]+$', '',
-            cropduster_rel_path)
-        return self.get(path=cropduster_rel_path)
+        relative_path = re.sub(r'/original\.[^/]+$', '', relative_path)
+        return self.get(path=relative_path)
 
 
 class Image(models.Model):
@@ -87,18 +82,15 @@ class Image(models.Model):
         """ ensures that file extension is lower case and doesn't have a double dot (.) """
         self._extension = val.lower().replace('.', '')
 
-    def get_image_path(self, size_name=None, use_temp=False):
-        if size_name is None:
-            size_name = 'original'
-
+    def get_image_path(self, size_name='original', use_temp=False):
         if use_temp:
             size_name += '_tmp'
+        return os.path.join(settings.MEDIA_ROOT, self.path, size_name + self.extension)
 
-        return os.path.join(cropduster_settings.CROPDUSTER_UPLOAD_PATH, self.path, size_name + self.extension)
-
-    def get_relative_image_path(self, size_name=None, use_temp=False):
-        img_path = self.get_image_path(size_name, use_temp)
-        return relpath(settings.MEDIA_ROOT, img_path)
+    def get_relative_image_path(self, size_name='original', use_temp=False):
+        if use_temp:
+            size_name += '_tmp'
+        return u'/'.join([self.path, size_name + self.extension])
 
     def has_thumb(self, size_name):
         try:
@@ -110,53 +102,31 @@ class Image(models.Model):
 
     def save(self, **kwargs):
         if not self.pk:
-            has_changed = True
+            has_changed = False
         else:
             orig = Image.objects.get(pk=self.pk)
-            fields = self._meta.fields
-            has_changed = any([getattr(orig, f.attname) != getattr(self, f.attname)
-                               for f in fields])
+            attnames = [f.attname for f in self._meta.fields]
+            has_changed = any([getattr(orig, n) != getattr(self, n) for n in attnames])
 
         if has_changed:
             for thumb in self.thumbs.all():
                 try:
                     os.rename(
                         self.get_image_path(thumb.name, use_temp=True),
-                        self.get_image_path(thumb.name)
-                    )
+                        self.get_image_path(thumb.name))
                 except:
                     pass
 
         return super(Image, self).save(**kwargs)
 
 
-    def get_image_url(self, size_name=None, use_temp=False):
-
+    def get_image_url(self, size_name='original', use_temp=False):
         if self.path is None:
             return ''
-
-        if size_name is None:
-            size_name = 'original'
-
         if use_temp:
             size_name += '_tmp'
-
-        relative_path = relpath(settings.MEDIA_ROOT, cropduster_settings.CROPDUSTER_UPLOAD_PATH)
-        if re.match(r'\.\.', relative_path):
-            raise Exception("Upload path is outside of static root")
-        url_root = settings.MEDIA_URL + '/' + relative_path + '/'
-        url = url_root + self.path + '/' + size_name + self.extension
-        url = re.sub(r'(?<!:)/+', '/', url)
-        return url
-
-    def get_base_dir_name(self):
-        '''
-        returns the directory that contain the various sizes of images, based off of the
-        original file name
-        '''
-
-        path, dir_name = os.path.split(self.path)
-        return dir_name
+        url = u'/'.join([settings.MEDIA_URL, self.path, size_name + self.extension])
+        return re.sub(r'(?<!:)/+', '/', url)
 
     def get_image_size(self, size_name=None):
         """
@@ -168,34 +138,32 @@ class Image(models.Model):
             # Get the original size
             try:
                 img = PIL.Image.open(self.get_image_path())
-                return img.size
             except:
-                pass
+                return (0, 0)
+            else:
+                return img.size
         try:
             thumb = self.thumbs.get(name=size_name)
-            return (thumb.width, thumb.height)
-        except:
+        except Thumb.DoesNotExist:
             return (0, 0)
+        else:
+            return (thumb.width, thumb.height)
 
     def save_thumb(self, name, width, height):
         """
         Check if a thumbnail already exists for the current image,
         otherwise
         """
-        thumb = None
-        try:
-            thumb = self.thumbs.get(name=name)
-            thumb.width = width
-            thumb.height = height
-            thumb.name = name
-            thumb.save()
-        except:
-            thumb = Thumb(
-                width = width,
-                height = height,
-                name = name
-            )
-            thumb.save()
+        thumb = Thumb()
+        if self.pk:
+            try:
+                thumb = self.thumbs.get(name=name)
+            except Thumb.DoesNotExist:
+                pass
+        thumb.width = width
+        thumb.height = height
+        thumb.name = name
+        thumb.save()
         return thumb
 
 

@@ -65,7 +65,7 @@
 {% block content %}
 <h1 id="step-header">Upload, Crop, and Generate Thumbnails</h1>
 <div id="content-main">
-    <form id="upload" action="{{ request.path }}" method="POST">
+    <form id="upload" action="{{ request.path }}?upload_to={{ upload_to|urlencode }}" method="POST">
         <input type="hidden" id="image-element-id" name="image_element_id" value="{{ image_element_id }}" />
         <input type="hidden" id="upload-sizes" name="sizes" value="[]" />
         <input type="hidden" id="upload-auto-sizes" name="auto_sizes" value="[]" />

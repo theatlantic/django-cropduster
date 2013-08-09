@@ -31,7 +31,8 @@
 
             progressInterval = setInterval(function() {
                 var url = $('#form-upload-progress').attr('action');
-                $.getJSON(url + '?X-Progress-ID=' + uploadId, function(data) {
+                var arg = (url.indexOf('?') >= 0) ? '&' : '?';
+                $.getJSON(url + arg + 'X-Progress-ID=' + uploadId, function(data) {
                     if (data == null) {
                         $("#uploadprogressbar").progressbar("destroy");
                         clearInterval(progressInterval);
@@ -253,6 +254,7 @@
         var progressBar = new ProgressBarClass();
 
         var actionUrl = $('#upload').attr('action');
+        var arg = (actionUrl.indexOf('?') >= 0) ? '&' : '?';
 
         var imageId = $('#image-id').val();
         var origImage = $('#crop-orig-image').val();
@@ -273,9 +275,10 @@
             cropBox.onSuccess(data, 'success');
         }
 
+
         $('#upload').ajaxForm({
           dataType: 'json',
-          url: actionUrl +'?X-Progress-ID='+$('#X-Progress-ID').val(),
+          url: actionUrl + arg + 'X-Progress-ID='+$('#X-Progress-ID').val(),
           beforeSubmit: function() { progressBar.show(); },
           success: function(data, responseType) {
             cropBox.onSuccess(data, responseType);
@@ -301,7 +304,7 @@
         window.uploadSubmit = function() {
             $('#upload').ajaxSubmit({
               dataType: 'json',
-              url: actionUrl +'?X-Progress-ID='+$('#X-Progress-ID').val(),
+              url: actionUrl + arg + 'X-Progress-ID='+$('#X-Progress-ID').val(),
               beforeSubmit: function() { progressBar.show(); },
               success: function(data, responseType) {
                 cropBox.onSuccess(data, responseType);

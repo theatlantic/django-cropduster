@@ -1,4 +1,3 @@
-import os
 from django.conf import settings
 
 
@@ -13,16 +12,3 @@ try:
     CROPDUSTER_DB_PREFIX = getattr(settings, 'CROPDUSTER_V4_DB_PREFIX')
 except AttributeError:
     CROPDUSTER_DB_PREFIX = getattr(settings, 'CROPDUSTER_DB_PREFIX', 'cropduster4')
-
-CROPDUSTER_UPLOAD_PATH = getattr(settings, 'CROPDUSTER_UPLOAD_PATH', settings.MEDIA_ROOT)
-
-if not CROPDUSTER_UPLOAD_PATH.startswith('/'): # Sorry Windows people
-    CROPDUSTER_UPLOAD_PATH = os.path.join(settings.MEDIA_ROOT, CROPDUSTER_UPLOAD_PATH)
-
-
-from .utils import relpath
-
-
-CROPDUSTER_RELATIVE_PATH = relpath(settings.MEDIA_ROOT, CROPDUSTER_UPLOAD_PATH)
-if '..' in CROPDUSTER_RELATIVE_PATH:
-    raise Exception("CROPDUSTER_UPLOAD_PATH is outside of MEDIA_ROOT")

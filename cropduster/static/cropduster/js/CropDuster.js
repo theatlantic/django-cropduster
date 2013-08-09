@@ -37,7 +37,7 @@ window.CropDuster = {};
 
     CropDuster = {
 
-        staticUrl: '',
+        mediaUrl: '',
 
         // open upload window
         show: function(prefix, uploadUrl) {
@@ -126,12 +126,18 @@ window.CropDuster = {};
                     return;
                 }
                 var fieldName = $targetInput.attr('name');
-                CropDuster.show(fieldName, $target.attr('data-upload-url'));
+                var inputData = $targetInput.data();
+                var uploadUrl = $target.data('uploadUrl');
+                var arg = (uploadUrl.indexOf('?') >= 0) ? '&' : '?';
+                if (inputData.uploadTo) {
+                    uploadUrl += arg + 'upload_to=' + encodeURI(inputData.uploadTo);
+                }
+                CropDuster.show(fieldName, uploadUrl);
             });
 
             var $inlineForm = $input.parent().find('.cropduster-form').first();
 
-            CropDuster.staticUrl = $inlineForm.data('staticUrl').replace(/^"/, '').replace(/"$/, '');
+            CropDuster.mediaUrl = $inlineForm.data('mediaUrl');
 
             var name = $input.attr('name');
             var matches = name.match(/(?:\d+|__prefix__|empty)\-([^\-]+)$/);
@@ -187,7 +193,7 @@ window.CropDuster = {};
                 if (preview) {
                     name += "_tmp";
                 }
-                var url = CropDuster.staticUrl + '/' + path + '/' + name + '.' + ext;
+                var url = CropDuster.mediaUrl + '/' + path + '/' + name + '.' + ext;
                 // This is in place of a negative lookbehind. It replaces all
                 // double slashes that don't follow a colon.
                 url = url.replace(/(:)?\/+/g, function($0, $1) { return $1 ? $0 : '/'; });

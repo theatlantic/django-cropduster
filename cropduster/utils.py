@@ -11,8 +11,6 @@ from django.template.defaultfilters import slugify
 import PIL.Image
 import json
 
-from .settings import CROPDUSTER_UPLOAD_PATH
-
 
 MEDIA_ROOT = os.path.abspath(settings.MEDIA_ROOT)
 
@@ -84,7 +82,7 @@ def validate_sizes(sizes):
             raise ValueError((
                 u"The '%(size_name)s' size is not a two-valued tuple, i.e. "
                 u"'(width, height)'") % {'size_name': size_name})
-        if (any([isinstance(sz, (int, long)) or sz <= 0 for sz in size])):
+        if (any([not(isinstance(sz, (int, long))) or sz <= 0 for sz in size])):
             raise ValueError((
                 u"The '%s' size has a width or height that is not a positive "
                 u"integer.") % size_name)
@@ -122,19 +120,19 @@ def get_min_size(*args):
 
 def get_media_path(url):
     """Determine media URL's system file."""
-    path = MEDIA_ROOT + '/' + re_media_url.replace('', url)
+    path = MEDIA_ROOT + '/' + re_media_url.sub('', url)
     return re_path_slashes.sub('', path)
 
 
 def get_relative_media_url(path):
     """Determine system file's media URL without MEDIA_URL prepended."""
-    url = re_media_root.replace('', path)
+    url = re_media_root.sub('', path)
     return re_url_slashes.sub('', url)
 
 
 def get_media_url(path):
     """Determine system file's media URL."""
-    url = settings.MEDIA_URL + re_media_root.replace('', os.path.abspath(path))
+    url = settings.MEDIA_URL + re_media_root.sub('', os.path.abspath(path))
     return re_path_slashes.sub('', url)
 
 
@@ -161,12 +159,12 @@ def get_available_name(dir_name, file_name):
     return name
 
 
-def get_upload_foldername(file_name):
+def get_upload_foldername(file_name, upload_to=None):
     # Generate date based path to put uploaded file.
     date_path = datetime.now().strftime('%Y/%m')
 
-    # Complete upload path (upload_path + date_path).
-    upload_path = os.path.join(CROPDUSTER_UPLOAD_PATH, date_path)
+    paths = filter(None, [settings.MEDIA_ROOT, upload_to, date_path])
+    upload_path = os.path.join(*paths)
 
     # Make sure upload_path exists.
     if not os.path.exists(upload_path):
@@ -221,33 +219,3 @@ def create_cropped_image(path=None, x=0, y=0, w=0, h=0):
     img = img.crop((x, y, x + w, y + h))
     img.load()
     return img
-
-
-def pathsplit(p, rest=[]):
-    h, t = os.path.split(p)
-    if len(h) < 1:
-        return [t] + rest
-    if len(t) < 1:
-        return [h] + rest
-    return pathsplit(h, [t] + rest)
-
-
-def commonpath(l1, l2, common=[]):
-    if len(l1) < 1:
-        return (common, l1, l2)
-    if len(l2) < 1:
-        return (common, l1, l2)
-    if l1[0] != l2[0]:
-        return (common, l1, l2)
-    return commonpath(l1[1:], l2[1:], common + [l1[0]])
-
-
-def relpath(p1, p2):
-    """
-    Compute the relative path of one directory to another
-    """
-    (common, l1, l2) = commonpath(pathsplit(p1), pathsplit(p2))
-    p = filter(None, ['../' * len(l1)]) + l2
-    if len(p) == 0:
-        return './'
-    return os.path.join(*p)

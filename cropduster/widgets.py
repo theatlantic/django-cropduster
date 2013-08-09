@@ -1,7 +1,9 @@
-import re
-import json
-
 from jsonutil import jsonutil
+
+try:
+    from collections import OrderedDict
+except ImportError:
+    from django.utils.datastructures import SortedDict as OrderedDict
 
 from django.forms.widgets import Input
 from django.conf import settings
@@ -12,8 +14,7 @@ from django.template.loader import render_to_string
 
 from .admin import cropduster_inline_factory
 from .models import Image
-from .settings import CROPDUSTER_UPLOAD_PATH
-from .utils import OrderedDict, get_aspect_ratios, get_min_size, relpath
+from .utils import get_aspect_ratios, get_min_size
 
 
 class CropDusterWidget(Input):
@@ -87,21 +88,22 @@ class CropDusterWidget(Input):
         final_attrs['sizes'] = jsonutil.dumps(self.sizes)
         final_attrs['auto_sizes'] = jsonutil.dumps(self.auto_sizes)
 
-        relative_path = relpath(settings.MEDIA_ROOT, CROPDUSTER_UPLOAD_PATH)
-        if re.match(r'\.\.', relative_path):
-            raise Exception("Upload path is outside of static root")
+        formfield = getattr(bound_field, 'field', None)
+        related = getattr(formfield, 'related', None)
+        dbfield = getattr(related, 'field', None)
+        image_field = getattr(dbfield, 'image_field', None)
 
         formset = self.get_inline_admin_formset(name, value, instance=obj, bound_field=bound_field)
         return render_to_string("cropduster/custom_field.html", {
+            'upload_to': getattr(image_field, 'upload_to', ''),
             'image_value': image_value,
             'inline_admin_formset': formset,
             'prefix': name,
-            'static_url': json.dumps(u'%s/%s/' % (settings.MEDIA_URL, relative_path)),
+            'media_url': settings.MEDIA_URL,
             'min_size': jsonutil.dumps(get_min_size(self.sizes, self.auto_sizes)),
             'aspect_ratio': jsonutil.dumps(get_aspect_ratios(self.sizes)[0]),
             'final_attrs': final_attrs,
             'thumbs': thumbs,
-            'image_path': u'%s/%s' % (relative_path, image_value),
         })
 
     def get_inline_admin_formset(self, name, value, instance=None, bound_field=None):
