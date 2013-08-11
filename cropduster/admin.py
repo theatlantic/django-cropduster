@@ -36,7 +36,7 @@ def cropduster_inline_factory(field=None, **kwargs):
 
         fieldsets = (('Image', {
             'fields': ('crop_x', 'crop_y', 'crop_w', 'crop_h',
-                       'path', '_extension', 'thumbs',),
+                       'image', 'thumbs',),
             }),)
 
         def formfield_for_manytomany(self, db_field, request=None, **kwargs):

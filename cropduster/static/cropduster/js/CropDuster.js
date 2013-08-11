@@ -47,8 +47,7 @@ window.CropDuster = {};
                 'y': 'crop_y',
                 'w': 'crop_w',
                 'h': 'crop_h',
-                'path': 'path',
-                'ext': '_extension',
+                'path': 'image',
                 'id': 'id'
             };
             var hasData = false;
@@ -87,8 +86,7 @@ window.CropDuster = {};
                 'crop_y': data.y,
                 'crop_w': data.w,
                 'crop_h': data.h,
-                'path': data.path,
-                '_extension': data.extension
+                'image': data.path,
             };
             $input.val(data.relpath);
 
@@ -104,9 +102,6 @@ window.CropDuster = {};
                 CropDuster.setThumbnails(prefix, thumbs);
             }
             CropDuster.createThumbnails(prefix, true);
-        },
-
-        renderThumbnails: function($input, thumbData) {
         },
 
         /**
@@ -179,8 +174,13 @@ window.CropDuster = {};
             if (!$input.length) {
                 return;
             }
-            var path = $('#id_' + prefix + '-0-path').val();
-            var ext = $('#id_' + prefix + '-0-_extension').val();
+            var image = $('#id_' + prefix + '-0-image').val();
+            var matches = image.match(/^(.*)(\/(?:[^\/](?!\.[^\.\/\?]+))*[^\.\/\?])(\.[^\.\/\?]+)?$/);
+            if (!matches) {
+                return;
+            }
+            var path = matches[1];
+            var ext = matches[3];
 
             var thumbData = {};
 
@@ -193,7 +193,7 @@ window.CropDuster = {};
                 if (preview) {
                     name += "_tmp";
                 }
-                var url = CropDuster.mediaUrl + '/' + path + '/' + name + '.' + ext;
+                var url = [CropDuster.mediaUrl, path, name + ext].join('/');
                 // This is in place of a negative lookbehind. It replaces all
                 // double slashes that don't follow a colon.
                 url = url.replace(/(:)?\/+/g, function($0, $1) { return $1 ? $0 : '/'; });

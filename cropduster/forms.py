@@ -93,7 +93,7 @@ class BaseCropDusterInlineFormSet(BaseGenericInlineFormSet):
 
     model = Image
     fields = ('crop_x', 'crop_y', 'crop_w', 'crop_h',
-               'path', '_extension', 'thumbs',)
+               'image', 'thumbs',)
     extra_fields = None
     exclude = None
     sizes = None
@@ -220,12 +220,13 @@ def cropduster_formset_factory(sizes=None, auto_sizes=None, **kwargs):
     def formfield_for_dbfield(db_field, **kwargs):
         if isinstance(db_field, models.ManyToManyField) and db_field.rel.to == Thumb:
             return db_field.formfield(form_class=CropDusterThumbField)
+        elif isinstance(db_field, models.ImageField) and db_field.model == Image:
+            kwargs['widget'] = forms.TextInput
+        kwargs.pop('request', None)
+        if formfield_callback is not None:
+            return formfield_callback(db_field, **kwargs)
         else:
-            kwargs.pop('request', None)
-            if formfield_callback is not None:
-                return formfield_callback(db_field, **kwargs)
-            else:
-                return db_field.formfield(**kwargs)
+            return db_field.formfield(**kwargs)
 
     model = kwargs.get('model', Image)
 

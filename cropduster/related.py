@@ -174,8 +174,8 @@ class CropDusterDescriptor(object):
                     val = None
             else:
                 setattr(instance, cache_name, manager)
-                if val.path:
-                    image_val = val.get_relative_image_path()
+                if val.image:
+                    image_val = val.image.path
                 if not self.is_image_field:
                     return manager
 
@@ -231,12 +231,12 @@ class CropDusterDescriptor(object):
             if value is None:
                 return
             if isinstance(value, Image):
-                image_val = value.get_relative_image_path()
+                image_val = value.image.path if value.image else None
                 setattr(instance, self.field.image_field_name, image_val)
                 manager.add(value)
             else:
                 for obj in value:
-                    image_val = obj.get_relative_image_path()
+                    image_val = obj.image.path if obj.image else None
                     setattr(instance, self.field.image_field_name, image_val)
                     manager.add(obj)
 

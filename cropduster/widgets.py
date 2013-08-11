@@ -1,3 +1,4 @@
+import re
 from jsonutil import jsonutil
 
 try:
@@ -53,10 +54,12 @@ class CropDusterWidget(Input):
         if isinstance(value, ImageFieldFile):
             obj = value.cropduster_image
             image_value = value.name
+            if image_value.startswith('/') and obj.image:
+                image_value = obj.image.name
             value = getattr(obj, 'pk', None)
         elif isinstance(value, basestring) and not value.isdigit():
             try:
-                obj = Image.objects.get_by_relpath(value)
+                obj = Image.objects.get(image=value)
             except Image.DoesNotExist:
                 obj = None
                 image_value = value
@@ -64,12 +67,25 @@ class CropDusterWidget(Input):
             else:
                 image_value = value
                 value = obj.pk
+        elif isinstance(value, (long, int)) or (isinstance(value, basestring) and value.isdigit()):
+            try:
+                obj = Image.objects.get(pk=value)
+            except Image.DoesNotExist:
+                pass
+            else:
+                if obj.image:
+                    image_value = obj.image.name
         else:
             obj = value
             try:
-                value = value.pk
+                value = obj.pk
             except AttributeError:
                 obj = None
+        if image_value and image_value.startswith(settings.MEDIA_ROOT):
+            image_value = re.sub(r'^%s/?' % re.compile(settings.MEDIA_ROOT), '', image_value)
+
+        if isinstance(obj, Image) and not obj.image and image_value:
+            obj.image = image_value
 
         self.value = value
         thumbs = OrderedDict({})

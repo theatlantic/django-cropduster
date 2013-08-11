@@ -27,22 +27,7 @@ class Thumb(models.Model):
         db_table = '%s_thumb' % cropduster_settings.CROPDUSTER_DB_PREFIX
 
 
-class ImageManager(models.Manager):
-
-    def get_by_relpath(self, relative_path):
-        """
-        This method accepts a path relative to MEDIA_ROOT and
-        does the relative path conversion for the get() call.
-        """
-        if relative_path[0] == '/':
-            relative_path = relative_path[1:]
-        relative_path = re.sub(r'/original\.[^/]+$', '', relative_path)
-        return self.get(path=relative_path)
-
-
 class Image(models.Model):
-
-    objects = ImageManager()
 
     content_type = models.ForeignKey(ContentType)
     object_id = models.PositiveIntegerField()
@@ -53,8 +38,15 @@ class Image(models.Model):
     crop_w = models.PositiveIntegerField(default=0, blank=True, null=True)
     crop_h = models.PositiveIntegerField(default=0, blank=True, null=True)
 
-    path = models.CharField(max_length=255, db_index=True)
-    _extension = models.CharField(max_length=4, db_column='extension')
+    width = models.PositiveIntegerField(blank=True, null=True)
+    height = models.PositiveIntegerField(blank=True, null=True)
+
+    @staticmethod
+    def generate_filename(instance, filename):
+        return filename
+
+    image = models.ImageField(db_index=True, upload_to=generate_filename, db_column='path',
+        width_field='width', height_field='height')
 
     thumbs = models.ManyToManyField('cropduster.Thumb',
         related_name='thumbs',
@@ -73,32 +65,24 @@ class Image(models.Model):
         return self.get_image_url()
 
     @property
+    def path(self):
+        return self.image.name if self.image else None
+
+    @property
     def extension(self):
         ''' returns the file extension with a dot (.) prepended to it '''
-        return '.' + self._extension
-
-    @extension.setter
-    def extension(self, val):
-        """ ensures that file extension is lower case and doesn't have a double dot (.) """
-        self._extension = val.lower().replace('.', '')
+        if not self.image:
+            return u''
+        return os.path.splitext(self.image.path)[1]
 
     def get_image_path(self, size_name='original', use_temp=False):
+        if not self.image:
+            return u''
         if use_temp:
             size_name += '_tmp'
-        return os.path.join(settings.MEDIA_ROOT, self.path, size_name + self.extension)
-
-    def get_relative_image_path(self, size_name='original', use_temp=False):
-        if use_temp:
-            size_name += '_tmp'
-        return u'/'.join([self.path, size_name + self.extension])
-
-    def has_thumb(self, size_name):
-        try:
-            self.thumbs.get(name=size_name)
-        except Thumb.DoesNotExist:
-            return False
-        else:
-            return True
+        path, basename = os.path.split(self.image.path)
+        filename, extension = os.path.splitext(basename)
+        return os.path.join(settings.MEDIA_ROOT, path, size_name + extension)
 
     def save(self, **kwargs):
         if not self.pk:
@@ -121,11 +105,15 @@ class Image(models.Model):
 
 
     def get_image_url(self, size_name='original', use_temp=False):
-        if self.path is None:
-            return ''
+        if not self.image:
+            return u''
+
         if use_temp:
             size_name += '_tmp'
-        url = u'/'.join([settings.MEDIA_URL, self.path, size_name + self.extension])
+
+        rel_path, basename = os.path.split(self.image.name)
+        filename, extension = os.path.splitext(basename)
+        url = u'/'.join([settings.MEDIA_URL, rel_path, size_name + extension])
         return re.sub(r'(?<!:)/+', '/', url)
 
     def get_image_size(self, size_name=None):
@@ -134,20 +122,26 @@ class Image(models.Model):
         When first parameter unspecified returns a tuple of the size of
         the original image.
         """
-        if size_name is None:
-            # Get the original size
+        if size_name is not None:
             try:
-                img = PIL.Image.open(self.get_image_path())
-            except:
+                thumb = self.thumbs.get(name=size_name)
+            except Thumb.DoesNotExist:
+                return (0, 0)
+            else:
+                return (thumb.width, thumb.height)
+
+        # Get the original size
+        if not self.image or not os.path.exists(self.image.path):
+            return (0, 0)
+        elif self.width and self.height:
+            return (self.width, self.height)
+        else:
+            try:
+                img = PIL.Image.open(self.image.path)
+            except (IOError, ValueError, TypeError):
                 return (0, 0)
             else:
                 return img.size
-        try:
-            thumb = self.thumbs.get(name=size_name)
-        except Thumb.DoesNotExist:
-            return (0, 0)
-        else:
-            return (thumb.width, thumb.height)
 
     def save_thumb(self, name, width, height):
         """
