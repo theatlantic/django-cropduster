@@ -62,6 +62,8 @@
                 this.jcrop.destroy();
             } catch (e) { }
 
+            var $cropbox = $('#cropbox');
+
             var minSize = [0, 0];
             var aspectRatio = null;
 
@@ -86,6 +88,12 @@
                 minSize[1] = Math.max(minSize[1], min_h);
             });
 
+            var scalex = $cropbox.width()  / this.data.orig_width;
+            var scaley = $cropbox.height() / this.data.orig_height;
+
+            minSize[0] = minSize[0] * scalex;
+            minSize[1] = minSize[1] * scaley;
+
             var opts = {
                 setSelect: this.getCropSelect(aspectRatio),
                 aspectRatio: aspectRatio,
@@ -108,6 +116,9 @@
             };
 
             var imgAspect = (imgDim.width / imgDim.height);
+            if (!aspectRatio) {
+                aspectRatio = imgAspect;
+            }
 
             if (this.data.initial) {
                 // If we have initial dimensions onload

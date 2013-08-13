@@ -104,8 +104,15 @@ class Thumb(models.Model):
                 self.height = min(int(round(height)), crop.bounds.h)
             return fit.create_image(width=self.width, height=self.height)
         else:
-            self.width = w or crop_box.w
-            self.height = h or crop_box.h
+            if w and h:
+                self.width = w
+                self.height = h
+            elif w:
+                height = crop_box.h * (w / crop_box.w)
+                self.height = min(int(round(height)), crop.bounds.h)
+            elif h:
+                width = crop_box.h * (h / crop_box.h)
+                self.width = min(int(round(width)), crop.bounds.w)
             return crop.create_image(width=self.width, height=self.height)
 
 
