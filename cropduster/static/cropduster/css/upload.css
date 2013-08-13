@@ -1,0 +1,32 @@
+body.cropduster-form ul.errorlist {
+    color: #fff;
+}
+
+body.cropduster-form .errornote > ul.errorlist > li {
+    overflow: hidden;
+    position: relative;
+}
+
+body.cropduster-form .errornote .error-field {
+    display: block;
+    width: 80px;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+body.cropduster-form .errornote .error-field:after {
+    content: ":";
+}
+body.cropduster-form .errornote .error-field.error-__all__ {
+    display: none;
+}
+body.cropduster-form .errornote .error-field.error-__all__ + ul.errorlist {
+    padding-left: 0;
+}
+
+body.cropduster-form ul.errorlist ul.errorlist {
+    float: left;
+    padding-left: 100px;
+    margin: 0;
+}

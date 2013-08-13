@@ -5,7 +5,6 @@ import errno
 
 from django.http import HttpResponse
 
-from .utils import json, get_relative_media_url
 
 
 logger = logging.getLogger('root')
@@ -25,6 +24,8 @@ if SentryHandler:
 
 
 def format_error(error):
+    from .utils import get_relative_media_url
+
     if isinstance(error, basestring):
         return error
     elif isinstance(error, IOError):
@@ -109,6 +110,8 @@ def log_error(request, view, action, errors):
 
 
 def json_error(request, view, action, errors, log_error=False):
+    from .utils import json
+
     if log_error:
         log_error(request, view, action, errors)
 
@@ -139,4 +142,7 @@ class CropDusterImageException(CropDusterException):
     pass
 
 class CropDusterFileException(CropDusterException):
+    pass
+
+class CropDusterResizeException(CropDusterException):
     pass

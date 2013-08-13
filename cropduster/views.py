@@ -12,6 +12,7 @@ except ImportError:
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.utils.safestring import mark_safe
 from django.http import HttpResponse
 from django.shortcuts import render_to_response
 from django.template import RequestContext
@@ -23,7 +24,7 @@ from .models import Thumb, Image as CropDusterImage
 from .utils import (
     json, rescale, get_relative_media_url, get_upload_foldername,
     get_image_extension, get_media_url, get_min_size)
-from .exceptions import json_error, CropDusterViewException
+from .exceptions import json_error, CropDusterViewException, CropDusterResizeException
 
 
 # For validation
@@ -153,7 +154,7 @@ def upload(request):
         form = UploadForm(request.POST, request.FILES)
         if not form.is_valid():
             return json_error(request, 'upload', action="uploading file",
-                    errors=form['picture'].errors)
+                    errors=[unicode(form['picture'].errors)])
 
         img_file = request.FILES['picture']
         extension = os.path.splitext(img_file.name)[1].lower()
@@ -244,7 +245,12 @@ def crop(request):
 
     form = ThumbForm(request.POST, request.FILES, prefix='thumb', **form_kwargs)
     if not form.is_valid():
-        raise json_error(request, 'crop', action='form submission', errors=form.errors)
+        for k in sorted(form.errors.keys()):
+            v = form.errors.pop(k)
+            k = mark_safe('<span class="error-field error-%(k)s">%(k)s</span>' % {'k': k})
+            form.errors[k] = v
+        return json_error(request, 'crop', action='submitting form',
+                errors=[unicode(form.errors)])
     crop_thumb = form.save(commit=False)
     data = form.cleaned_data
 
@@ -258,7 +264,11 @@ def crop(request):
             pass
     db_image.image = data['orig_image']
 
-    thumbs = db_image.save_size(data['size'], crop_thumb, tmp=True)
+    try:
+        thumbs = db_image.save_size(data['size'], crop_thumb, tmp=True)
+    except CropDusterResizeException as e:
+        return json_error(request, 'crop', action='creating crops', errors=[unicode(e)])
+
     thumb_data = OrderedDict({})
     for name, thumb in thumbs.iteritems():
         thumb_data[name] = {

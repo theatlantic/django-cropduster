@@ -2,6 +2,9 @@ from __future__ import division
 import math
 import PIL.Image
 
+from django.core.exceptions import ImproperlyConfigured
+from .exceptions import CropDusterResizeException
+
 
 __all__ = ('Size', 'Box', 'Crop')
 
@@ -12,7 +15,7 @@ class Size(object):
 
     def __init__(self, name, w=None, h=None, retina=False, auto=None, min_w=None, min_h=None):
         if not w and not h:
-            raise Exception("At least one of the kwargs `w` or `h` must be defined")
+            raise ImproperlyConfigured("At least one of the kwargs `w` or `h` must be defined")
 
         self.min_w = max(w, min_w)
         self.min_h = max(h, min_h)
@@ -27,7 +30,7 @@ class Size(object):
                 for auto_size in auto:
                     auto_size.parent = self
                     if auto_size.auto:
-                        raise Exception("The `auto` kwarg cannot be used recursively")
+                        raise ImproperlyConfigured("The `auto` kwarg cannot be used recursively")
         self.name = name
         self.auto = auto
         self.retina = retina
@@ -143,7 +146,8 @@ class Crop(object):
         new_image.load()
         new_w, new_h = new_image.size
         if new_w < width or new_h < height:
-            raise Exception("Crop box (%dx%d) too small for resize (%dx%d)" % (new_w, new_h, width, height))
+            raise CropDusterResizeException(
+                u"Crop box (%dx%d) is too small for resize to (%dx%d)" % (new_w, new_h, width, height))
         elif new_w > width or new_h > height:
             new_image = new_image.resize((width, height), PIL.Image.ANTIALIAS)
         return new_image
