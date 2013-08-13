@@ -5,49 +5,6 @@
                           'ATMOProgrammers@theatlantic.com' +
                           '</a>';
 
-    var ProgressBarClass = Class.extend({
-        init: function() {
-            this.id = CropDuster.generateRandomId();
-            $('#X-Progress-ID').val(this.id);
-        },
-        show: function() {
-            $('#progressbar-container').html('<div id="uploadprogressbar"></div>');
-            $('#progressbar-container').find('#uploadprogressbar').progressbar();
-            this.startUpdate();
-        },
-        startUpdate: function() {
-            $("#uploadprogressbar").fadeIn();
-            if(typeof progressInterval !== 'undefined') {
-                try {
-                    $("#uploadprogressbar").progressbar("destroy");
-                } catch (e) { }
-                clearInterval(progressInterval);
-                $("#progress-wrapper").hide();
-            }
-
-            $("#progress-wrapper").show();
-
-            var uploadId = this.id;
-
-            progressInterval = setInterval(function() {
-                var url = $('#form-upload-progress').attr('action');
-                var arg = (url.indexOf('?') >= 0) ? '&' : '?';
-                $.getJSON(url + arg + 'X-Progress-ID=' + uploadId, function(data) {
-                    if (data == null) {
-                        $("#uploadprogressbar").progressbar("destroy");
-                        clearInterval(progressInterval);
-                        $("#progress-wrapper").hide();
-                        progressInterval = undefined;
-                        return;
-                    }
-                    var percentage = Math.floor(100 * parseInt(data.uploaded, 10) / parseInt(data.length, 10));
-                    $("#uploadprogressbar").progressbar({ value: percentage });
-                    $('#progress-percent').html(percentage + '%');
-                });
-            }, 100);
-        }
-    });
-
     function updateCoords(c) {
         $('#id_thumb-crop_x').val(c.x);
         $('#id_thumb-crop_y').val(c.y);
@@ -252,11 +209,6 @@
             }
         }
 
-        var progressBar = new ProgressBarClass();
-
-        var actionUrl = $('#upload').attr('action');
-        var arg = (actionUrl.indexOf('?') >= 0) ? '&' : '?';
-
         var imageId = $('#id_thumb-image_id').val();
         var origImage = $('#id_thumb-orig_image').val();
 
@@ -279,8 +231,7 @@
 
         $('#upload').ajaxForm({
           dataType: 'json',
-          url: actionUrl + arg + 'X-Progress-ID='+$('#X-Progress-ID').val(),
-          beforeSubmit: function() { progressBar.show(); },
+          url: $('#upload').attr('action'),
           success: function(data, responseType) {
             cropBox.onSuccess(data, responseType);
           }
@@ -305,8 +256,7 @@
         window.uploadSubmit = function() {
             $('#upload').ajaxSubmit({
               dataType: 'json',
-              url: actionUrl + arg + 'X-Progress-ID='+$('#X-Progress-ID').val(),
-              beforeSubmit: function() { progressBar.show(); },
+              url: $('#upload').attr('action'),
               success: function(data, responseType) {
                 cropBox.onSuccess(data, responseType);
               }

@@ -7,5 +7,4 @@ except ImportError:
 urlpatterns = patterns('cropduster.views',
     url(r'^crop/', 'crop', name='cropduster-crop'),
     url(r'^upload/', 'upload', name='cropduster-upload'),
-    url(r'^upload_progress/', 'upload_progress', name='cropduster-upload_progress'),
 )

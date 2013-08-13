@@ -7,36 +7,6 @@
 {% block stylesheets %}
     {{ block.super }}
     <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/jquery.Jcrop.css" type="text/css" />
-    <style type="text/css">
-
-    #progress-wrapper {
-        position: relative;
-        height: 20px;
-        width: inherit;
-        display: none;
-    }
-
-    #progressbar-container {
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        right: 35px;
-    }
-    #progress-percent-container {
-        position: absolute;
-        right: 0;
-        top: 0;
-        bottom: 0;
-        width: 30px;
-    }
-    #progress-percent {
-        line-height: 20px;
-    }
-    .ui-progressbar { height:2em; text-align: left; }
-    .ui-progressbar .ui-progressbar-value {margin: -1px; height:100%; }
-    .ui-progressbar-value { background-image: url({{ STATIC_URL }}cropduster/img/progressbar.gif); }
-    </style>
 {% endblock %}
 
 <!-- JAVASCRIPTS -->
@@ -46,7 +16,6 @@
     <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.class.js"></script>
     <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.form.js?v=1"></script>
     <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.Jcrop.js?v=2"></script>
-    <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.progressbar.js"></script>
     <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/upload.js"></script>
     <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/CropDuster.js"></script>
 {% endblock %}
@@ -68,19 +37,11 @@
     <form id="upload" action="{{ request.path }}?upload_to={{ upload_to|urlencode }}" method="POST">
         <input type="hidden" id="image-element-id" name="image_element_id" value="{{ image_element_id }}" />
         <input type="hidden" id="upload-sizes" name="sizes" value="[]" />
-        <input type="hidden" id="upload-auto-sizes" name="auto_sizes" value="[]" />
         <fieldset class="module aligned">
             <div class="row">
                 <input type="file" name="picture" id="picture" />
             </div>
         </fieldset>
-        <div id="progress-wrapper">
-            <div id="progressbar-container"></div>
-            <div id="progress-percent-container">
-                <span id="progress-percent"></div>
-            </div>
-        <input type="hidden" id="X-Progress-ID" name="X-Progress-ID" value=""/>
-        <input type="hidden" id="id" name="id" value=""/>
         <div class="module footer" id="upload-footer"{% if image_id %} style="display: none"{% endif %}>
             <ul class="submit-row">
                 <li class="submit-button-container">
@@ -93,8 +54,6 @@
     <div id="error-container" style="display:none">
         <p class="errornote"></p>
     </div>
-
-    <form id="form-upload-progress" action="{% url cropduster.views.upload_progress %}" method="POST"></form>
 
     <form action="{% url cropduster.views.crop %}" method="POST" id="crop-form">
         <div id="image-container">

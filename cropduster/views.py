@@ -12,15 +12,13 @@ except ImportError:
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.http import HttpResponse, HttpResponseServerError
+from django.http import HttpResponse
 from django.shortcuts import render_to_response
 from django.template import RequestContext
-from django.core.cache import cache
 from django.views.decorators.csrf import csrf_exempt
 
 import PIL.Image
 
-# from .handlers import UploadProgressCachedHandler
 from .models import Thumb, Image as CropDusterImage
 from .utils import (
     json, rescale, get_relative_media_url, get_upload_foldername,
@@ -152,8 +150,6 @@ def upload(request):
         })
         return render_to_response('cropduster/upload.html', RequestContext(request, ctx))
     else:
-        # if hasattr(settings, 'CACHE_BACKEND'):
-        #     request.upload_handlers.insert(0, UploadProgressCachedHandler(request))
         form = UploadForm(request.POST, request.FILES)
         if not form.is_valid():
             return json_error(request, 'upload', action="uploading file",
@@ -230,23 +226,6 @@ def upload(request):
             'orig_url': orig_url,
         }
         return HttpResponse(json.dumps(data))
-
-
-def upload_progress(request):
-    """
-    Return JSON object with information about the progress of an upload.
-    """
-    progress_id = ''
-    if 'X-Progress-ID' in request.GET:
-        progress_id = request.GET['X-Progress-ID']
-    elif 'X-Progress-ID' in request.META:
-        progress_id = request.META['X-Progress-ID']
-    if progress_id:
-        cache_key = "%s_%s" % (request.META['REMOTE_ADDR'], progress_id)
-        data = cache.get(cache_key)
-        return HttpResponse(json.dumps(data))
-    else:
-        return HttpResponseServerError('Server Error: You must provide X-Progress-ID header or query param.')
 
 
 @csrf_exempt
