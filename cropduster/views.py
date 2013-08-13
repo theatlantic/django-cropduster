@@ -2,6 +2,7 @@
 from __future__ import division
 
 import os
+import re
 
 try:
     from collections import OrderedDict
@@ -10,26 +11,21 @@ except ImportError:
 
 from django import forms
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.http import HttpResponse, HttpResponseServerError
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.core.cache import cache
-from django.utils.datastructures import MultiValueDictKeyError
 from django.views.decorators.csrf import csrf_exempt
-from jsonutil import jsonutil
 
 import PIL.Image
 
 # from .handlers import UploadProgressCachedHandler
-from .models import Image as CropDusterImage
+from .models import Thumb, Image as CropDusterImage
 from .utils import (
-    rescale, get_relative_media_url, get_upload_foldername,
-    get_image_extension, get_media_path, get_media_url, get_min_size,
-    create_cropped_image)
+    json, rescale, get_relative_media_url, get_upload_foldername,
+    get_image_extension, get_media_url, get_min_size)
 from .exceptions import json_error, CropDusterViewException
-
-import json
-import re
 
 
 # For validation
@@ -38,22 +34,79 @@ class UploadForm(forms.Form):
     picture = forms.ImageField(required=True)
 
 
+class ThumbForm(forms.ModelForm):
+
+    id = forms.IntegerField(required=False, widget=forms.HiddenInput)
+    image_id = forms.IntegerField(required=False)
+    orig_image = forms.CharField(max_length=512)
+    orig_w = forms.IntegerField(required=False)
+    orig_h = forms.IntegerField(required=False)
+    sizes = forms.CharField()
+
+    class Meta:
+        model = Thumb
+        fields = (
+            'id', 'image_id', 'name', 'width', 'height',
+            'orig_image', 'orig_w', 'orig_h',
+            'crop_x', 'crop_y', 'crop_w', 'crop_h')
+
+    def clean_sizes(self):
+        sizes = self.cleaned_data.get('sizes')
+        return json.loads(sizes)
+
+    def clean(self):
+        data = super(ThumbForm, self).clean()
+        sizes = dict([[sz.name, sz] for sz in data['sizes']])
+        name = data['name']
+        try:
+            data['size'] = sizes[name]
+        except IndexError:
+            raise ValidationError(u"Size %s is missing from sizes field" % name)
+        return data
+
+
+def get_admin_base_template():
+    try:
+        import custom_admin
+    except ImportError:
+        try:
+            import admin_mod
+        except ImportError:
+            return 'admin/base.html'
+        else:
+            return 'admin_mod/base.html'
+    else:
+        return 'custom_admin/base.html'
+
+
 @csrf_exempt
 def upload(request):
     if request.method == "GET":
-        image_element_id = request.GET.get('el_id', '')
-
-        context_data = {
+        ctx = {
             'is_popup': True,
-            'image_element_id': image_element_id,
-            'image': u"%scropduster/img/blank.gif" % settings.STATIC_URL,
+            'image_element_id': request.GET.get('el_id', ''),
             'orig_image': '',
-            'x': request.GET.get('x', 0),
-            'y': request.GET.get('y', 0),
-            'w': request.GET.get('w', 0),
-            'h': request.GET.get('h', 0),
-            'upload_to': request.GET.get('upload_to', '')
+            'upload_to': request.GET.get('upload_to', ''),
+            'thumb_name': request.GET.get('thumb_name', ''),
+            'parent_template': get_admin_base_template(),
         }
+
+        thumb_ids = request.GET.get('thumbs', '')
+        if thumb_ids:
+            thumb_ids = filter(None, request.GET['thumbs'].split(','))
+            try:
+                thumb_ids = map(int, thumb_ids)
+            except TypeError:
+                thumb_ids = []
+
+        thumb = Thumb(name=ctx['thumb_name'])
+        if thumb_ids:
+            try:
+                thumb = Thumb.objects.get(pk__in=thumb_ids, name=ctx['thumb_name'])
+            except Thumb.DoesNotExist:
+                pass
+
+        initial = {}
 
         if request.GET.get('id'):
             try:
@@ -62,63 +115,54 @@ def upload(request):
                 pass
             else:
                 orig_w, orig_h = image.get_image_size()
-                context_data.update({
+                image_path = os.path.split(image.image.name)[0]
+                initial.update({
                     'image_id': image.pk,
-                    'orig_image': u'/'.join([image.path, 'original' + image.extension]),
-                    'image': image.get_image_url('_preview'),
+                    'orig_image': u'/'.join([image_path, 'original' + image.extension]),
                     'orig_w': orig_w,
-                    'orig_h': orig_h,
+                    'orig_h': orig_h,                    
                 })
+                ctx['image'] = image.get_image_url('_preview')
 
         # If we have a new image that hasn't been saved yet
-        if request.GET.get('path'):
-            path = request.GET['path']
-            root_path = os.path.join(settings.MEDIA_ROOT, path)
-            ext = request.GET.get('ext', '')
-            if os.path.exists(os.path.join(root_path, '_preview.%s' % ext)):
-                orig_image = u"%s/original.%s" % (path, ext)
-                context_data['orig_image'] = orig_image
-                preview_url = u'/'.join([settings.MEDIA_URL, path, '_preview.%s' % ext])
-                # Remove double '/'s
-                preview_url = re.sub(r'(?<!:)/+', '/', preview_url)
+        if request.GET.get('image'):
+            image_path, basename = os.path.split(request.GET['image'])
+            root_path = os.path.join(settings.MEDIA_ROOT, image_path)
+            ext = os.path.splitext(basename)[1]
+            if os.path.exists(os.path.join(root_path, '_preview%s' % ext)):
+                preview_url = u'/'.join([settings.MEDIA_URL, image_path, '_preview%s' % ext])
+                preview_url = re.sub(r'(?<!:)/+', '/', preview_url) # Remove double '/'
+                orig_image = u"%s/original%s" % (image_path, ext)
                 try:
-                    img = PIL.Image.open(os.path.join(settings.STATIC_ROOT, orig_image))
+                    img = PIL.Image.open(os.path.join(settings.MEDIA_ROOT, orig_image))
                 except:
                     pass
                 else:
-                    (orig_w, orig_h) = img.size
-                    context_data.update({
-                        'image': preview_url,
+                    orig_w, orig_h = img.size
+                    initial.update({
+                        'orig_image': orig_image,
                         'orig_w': orig_w,
-                        'orig_h': orig_h, })
+                        'orig_h': orig_h,
+                    })
+                    ctx['image'] = preview_url
 
-        try:
-            import custom_admin
-        except ImportError:
-            try:
-                import admin_mod
-            except ImportError:
-                context_data['parent_template'] = 'admin/base.html'
-            else:
-                context_data['parent_template'] = 'admin_mod/base.html'
-        else:
-            context_data['parent_template'] = 'custom_admin/base.html'
-
-        return render_to_response('cropduster/upload.html', RequestContext(request, context_data))
+        ctx.update({
+            'thumb_form': ThumbForm(instance=thumb, initial=initial, prefix='thumb'),
+            'image': ctx.pop('image', u"%scropduster/img/blank.gif" % settings.STATIC_URL),
+        })
+        return render_to_response('cropduster/upload.html', RequestContext(request, ctx))
     else:
         # if hasattr(settings, 'CACHE_BACKEND'):
         #     request.upload_handlers.insert(0, UploadProgressCachedHandler(request))
-
-        upload_to = request.GET.get('upload_to', None)
         form = UploadForm(request.POST, request.FILES)
-
         if not form.is_valid():
             return json_error(request, 'upload', action="uploading file",
                     errors=form['picture'].errors)
 
         img_file = request.FILES['picture']
         extension = os.path.splitext(img_file.name)[1].lower()
-        folder_path = get_upload_foldername(img_file.name, upload_to=upload_to)
+        folder_path = get_upload_foldername(img_file.name,
+                upload_to=request.GET.get('upload_to', None))
 
         tmp_file_path = os.path.join(folder_path, '__tmp' + extension)
 
@@ -128,9 +172,8 @@ def upload(request):
 
         img = PIL.Image.open(tmp_file_path)
 
-        (w, h) = img.size
-        (orig_w, orig_h) = img.size
-        (min_w, min_h) = get_min_size(request.POST['sizes'], request.POST['auto_sizes'])
+        (w, h) = (orig_w, orig_h) = img.size
+        (min_w, min_h) = get_min_size(request.POST['sizes'])
 
         if (orig_w < min_w or orig_h < min_h):
             return json_error(request, 'upload', action="uploading file", errors=[(
@@ -179,6 +222,7 @@ def upload(request):
 
         data = {
             'url': get_media_url(preview_file_path),
+            'orig_image': get_relative_media_url(preview_file_path),
             'orig_width': orig_w,
             'orig_height': orig_h,
             'width': w,
@@ -200,7 +244,7 @@ def upload_progress(request):
     if progress_id:
         cache_key = "%s_%s" % (request.META['REMOTE_ADDR'], progress_id)
         data = cache.get(cache_key)
-        return HttpResponse(jsonutil.dumps(data))
+        return HttpResponse(json.dumps(data))
     else:
         return HttpResponseServerError('Server Error: You must provide X-Progress-ID header or query param.')
 
@@ -210,116 +254,43 @@ def crop(request):
     try:
         if request.method == "GET":
             raise CropDusterViewException("Form submission invalid")
-        path = get_media_path(request.POST['orig_image'])
     except CropDusterViewException as e:
         return json_error(request, 'crop',
             action="cropping image", errors=[e], log_error=True)
-    except MultiValueDictKeyError as e:
-        return json_error(request, 'crop',
-            action="cropping image", errors=["Form submission contained no data"])
 
-    #@todo Check orig_image is in fact a path before passing it to create_cropped_image
-    file_root, file_ext = os.path.splitext(path)
+    thumb_id = request.POST.get('thumb-id')
+    form_kwargs = {}
+    if thumb_id:
+        form_kwargs['instance'] = Thumb.objects.get(pk=thumb_id)
 
-    # all we need is the folder name, not the last file name
-    file_dir, file_prefix = os.path.split(file_root)
+    form = ThumbForm(request.POST, request.FILES, prefix='thumb', **form_kwargs)
+    if not form.is_valid():
+        raise json_error(request, 'crop', action='form submission', errors=form.errors)
+    crop_thumb = form.save(commit=False)
+    data = form.cleaned_data
 
+    db_image = CropDusterImage()
     try:
-        x = int(request.POST['x'])
-        y = int(request.POST['y'])
-        w = int(request.POST['w'])
-        h = int(request.POST['h'])
-    except TypeError as e:
-        return json_error(request, 'crop', action="parsing crop parameters", errors=[e], log_error=True)
-
-    try:
-        img = create_cropped_image(path, x=x, y=y, w=w, h=h)
-    except Exception as e:
-        return json_error(request, 'crop', action="creating cropped image", errors=[e], log_error=True)
-
-    rel_url_path = get_relative_media_url(request.POST['orig_image'])
-    file_path, file_full_name = os.path.split(rel_url_path)
-
-    # If the path passed matches an existing cropduster.Image, update it
-    try:
-        db_image = CropDusterImage.objects.get(path=file_path)
+        db_image = CropDusterImage.objects.get(pk=data['image_id'])
     except CropDusterImage.DoesNotExist:
-        db_image = CropDusterImage()
-        db_image.path = file_path
-        db_image.extension = os.path.splitext(file_full_name)[1]
-    db_image.crop_x = x
-    db_image.crop_y = y
-    db_image.crop_w = w
-    db_image.crop_h = h
+        try:
+            db_image = CropDusterImage.objects.get(image=data['orig_image'])
+        except CropDusterImage.DoesNotExist:
+            pass
+    db_image.image = data['orig_image']
 
-    try:
-        sizes = jsonutil.loads(request.POST['sizes'])
-        auto_sizes = jsonutil.loads(request.POST['auto_sizes'])
-    except Exception as e:
-        return json_error(request, 'crop', action="reading POST data", errors=[e])
+    thumbs = db_image.save_size(data['size'], crop_thumb, tmp=True)
+    thumb_data = OrderedDict({})
+    for name, thumb in thumbs.iteritems():
+        thumb_data[name] = {
+            'id': thumb.pk,
+            'width': thumb.width,
+            'height': thumb.height,
+        }
 
-    thumb_ids = OrderedDict({})
-
-    try:
-        new_ids = _generate_and_save_thumbs(db_image, sizes, img, file_dir, file_ext)
-        thumb_ids.update(new_ids)
-        if auto_sizes is not None:
-            new_ids = _generate_and_save_thumbs(db_image, auto_sizes, img, file_dir, file_ext, is_auto=True)
-            thumb_ids.update(new_ids)
-    except Exception as e:
-        return json_error(request, 'crop', action="generating cropped thumbnails", errors=[e])
-
-    thumb_urls = OrderedDict({})
-    for size_name in thumb_ids:
-        thumb_urls[size_name] = db_image.get_image_url(size_name, use_temp=True)
-
-    data = {
-        'id': db_image.pk or request.POST.get('image_id', ''),
-        'sizes': request.POST['sizes'],
-        'image': request.POST['orig_image'],
-        'thumb_urls': jsonutil.dumps(thumb_urls),
-        'filename': os.path.split(db_image.path)[1] + db_image.extension,
-        'extension': db_image._extension,
-        'path': db_image.path,
-        'relpath': db_image.image.name if db_image.image else None,
-        'thumbs': jsonutil.dumps(thumb_ids),
-        'x': request.POST['x'],
-        'y': request.POST['y'],
-        'w': request.POST['w'],
-        'h': request.POST['h'],
+    response_data = {
+        'id': db_image.pk or data['image_id'],
+        'image': db_image.image.name if db_image.image else None,
+        'thumbs': json.dumps(thumb_data),
     }
-    return HttpResponse(jsonutil.dumps(data))
-
-
-def _generate_and_save_thumbs(db_image, sizes, img, file_dir, file_ext, is_auto=False):
-    '''
-    Loops through the sizes given and saves a thumbnail for each one. Returns
-    a dict of key value pairs with size_name, thumbnail_id
-    '''
-    thumb_ids = {}
-
-    img_save_params = {}
-    if img.format == 'JPEG':
-        img_save_params['quality'] = 95
-
-    for size_name in sizes:
-        size = sizes[size_name]
-        thumb_w, thumb_h = map(int, size)
-        thumb = rescale(img.copy(), thumb_w, thumb_h, crop=is_auto)
-
-        # Save to the real thumb_path if the image is new
-        thumb_path = file_dir + '/' + size_name + file_ext
-        if not os.path.exists(thumb_path):
-            thumb.save(thumb_path, **img_save_params)
-
-        thumb_tmp_path = file_dir + '/' + size_name + '_tmp' + file_ext
-
-        thumb.save(thumb_tmp_path, **img_save_params)
-
-        db_thumb = db_image.save_thumb(
-            width=thumb_w,
-            height=thumb_h,
-            name=size_name)
-        thumb_ids[size_name] = db_thumb.id
-
-    return thumb_ids
+    return HttpResponse(json.dumps(response_data))

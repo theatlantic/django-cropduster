@@ -49,31 +49,30 @@
     });
 
     function updateCoords(c) {
-        $('#x').val(c.x);
-        $('#y').val(c.y);
-        $('#w').val(c.w);
-        $('#h').val(c.h);
+        $('#id_thumb-crop_x').val(c.x);
+        $('#id_thumb-crop_y').val(c.y);
+        $('#id_thumb-crop_w').val(c.w);
+        $('#id_thumb-crop_h').val(c.h);
     }
 
     var CropBoxClass = Class.extend({
 
         jcrop: null,
-
-        aspectRatio: null,
-
         error: false,
-
-        minSize: [0, 0],
+        sizes: {},
 
         init: function(data) {
             if (typeof data != 'object' || !data) {
                 return;
             }
-            if (data.aspectRatio) {
-                this.aspectRatio = data.aspectRatio;
-            }
-            if (data.minSize) {
-                this.minSize = data.minSize;
+            if (data.sizes) {
+                for (var i = 0; i < data.sizes.length; i++) {
+                    var size = data.sizes[i];
+                    if (size.is_auto) {
+                        continue;
+                    }
+                    this.sizes[size.name] = size;
+                }
             }
         },
 
@@ -106,26 +105,33 @@
                 this.jcrop.destroy();
             } catch (e) { }
 
-            var imgDim = {
-                width: $('#cropbox').width(),
-                height: $('#cropbox').height()
-            };
-
-            var scalex = imgDim.width  / this.data.orig_width;
-            var scaley = imgDim.height / this.data.orig_height;
-
             var minSize = [0, 0];
+            var aspectRatio = null;
 
-            if (Object.prototype.toString.call(this.minSize) == '[object Array]') {
-                if (this.minSize.length == 2) {
-                    minSize[0] = Math.floor(this.minSize[0] * scalex);
-                    minSize[1] = Math.floor(this.minSize[1] * scaley);
-                }
+            var thumbName = $('#id_thumb-name').val();
+            if (!thumbName || !this.sizes[thumbName]) {
+                return;
+            }
+            var size = this.sizes[thumbName];
+            if (!size || typeof size != 'object') {
+                return;
             }
 
+            if (size.w && size.h) {
+                aspectRatio = size.w / size.h;
+            }
+            minSize[0] = size.min_w || size.w || 0;
+            minSize[1] = size.min_h || size.h || 0;
+            $.each(size.auto || [], function(i, autoSize) {
+                var min_w = autoSize.min_w || autoSize.w || 0;
+                var min_h = autoSize.min_h || autoSize.h || 0;
+                minSize[0] = Math.max(minSize[0], min_w);
+                minSize[1] = Math.max(minSize[1], min_h);
+            });
+
             var opts = {
-                setSelect: this.getCropSelect(),
-                aspectRatio: this.aspectRatio,
+                setSelect: this.getCropSelect(aspectRatio),
+                aspectRatio: aspectRatio,
                 onSelect: updateCoords,
                 trueSize: [ this.data.orig_width, this.data.orig_height ],
                 minSize: minSize
@@ -136,7 +142,7 @@
             $('#upload-footer').hide();
             $('#crop-footer').show();
         },
-        getCropSelect: function() {
+        getCropSelect: function(aspectRatio) {
             var x, y, w, h;
 
             var imgDim = {
@@ -152,18 +158,18 @@
                 y = this.data.y;
                 w = this.data.width;
                 h = this.data.height;
-            } else if (imgAspect < this.aspectRatio) {
+            } else if (imgAspect < aspectRatio) {
                 // The uploaded image is taller than the needed aspect ratio
                 x = 0;
                 w = imgDim.width;
-                var newHeight = imgDim.width / this.aspectRatio;
+                var newHeight = imgDim.width / aspectRatio;
                 y = Math.round((imgDim.height - newHeight) / 2);
                 h = Math.round(newHeight);
             } else {
                 // The uploaded image is wider than the needed aspect ratio
                 y = 0;
                 h = imgDim.height;
-                var newWidth = imgDim.height * this.aspectRatio;
+                var newWidth = imgDim.height * aspectRatio;
                 x = Math.round((imgDim.width - newWidth) / 2);
                 w = Math.round(newWidth);
             }
@@ -216,8 +222,7 @@
         // Save dimensions for current aspect ratio
         // to hidden input in crop form
         _setHiddenInputs: function() {
-            $('#crop-uploaded-image').val(this.data.url);
-            $('#crop-orig-image').val(this.data.orig_url);
+            $('#id_thumb-orig_image').val(this.data.orig_url);
             $('#cropbox').attr('src', this.data.url);
         }
 
@@ -226,7 +231,6 @@
 
     $(document).ready(function(){
         var imageElementId = $('#image-element-id').val();
-
 
         var $P;
         if (window.opener) {
@@ -244,10 +248,7 @@
 
         if (typeof data == 'object') {
             if (data.sizes) {
-                $('#crop-sizes,#upload-sizes').val(JSON.stringify(data.sizes));
-            }
-            if (data.autoSizes) {
-                $('#crop-auto-sizes,#upload-auto-sizes').val(JSON.stringify(data.autoSizes));
+                $('#upload-sizes,#id_thumb-sizes').val(JSON.stringify(data.sizes));
             }
         }
 
@@ -256,25 +257,25 @@
         var actionUrl = $('#upload').attr('action');
         var arg = (actionUrl.indexOf('?') >= 0) ? '&' : '?';
 
-        var imageId = $('#image-id').val();
-        var origImage = $('#crop-orig-image').val();
+        var imageId = $('#id_thumb-image_id').val();
+        var origImage = $('#id_thumb-orig_image').val();
+
         // We already have an image, initiate a jcrop instance
         if (imageId || origImage) {
             // Mimic the data returned from a POST to the upload action
             var data = {
                 initial: true,
                 image_id:    parseInt(imageId, 10),
-                orig_width:  parseInt($('#orig-w').val(), 10),
-                orig_height: parseInt($('#orig-h').val(), 10),
-                width:       parseInt($('#w').val(), 10),
-                height:      parseInt($('#h').val(), 10),
-                x:           parseInt($('#x').val(), 10),
-                y:           parseInt($('#y').val(), 10),
+                orig_width:  parseInt($('#id_thumb-orig_w').val(), 10),
+                orig_height: parseInt($('#id_thumb-orig_h').val(), 10),
+                width:       parseInt($('#id_thumb-width').val(), 10),
+                height:      parseInt($('#id_thumb-height').val(), 10),
+                x:           parseInt($('#id_thumb-crop_x').val(), 10),
+                y:           parseInt($('#id_thumb-crop_y').val(), 10),
                 url: $('#cropbox').attr('src')
             };
             cropBox.onSuccess(data, 'success');
         }
-
 
         $('#upload').ajaxForm({
           dataType: 'json',

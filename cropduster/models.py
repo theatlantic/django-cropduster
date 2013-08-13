@@ -1,5 +1,7 @@
+from __future__ import division
 import os
 import re
+from datetime import datetime
 
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
@@ -7,24 +9,104 @@ from django.db import models
 from django.conf import settings
 
 import PIL.Image
-from jsonutil import jsonutil
 
 from .related import CropDusterGenericRelation
-from .utils import get_aspect_ratios, validate_sizes
+from .resizing import Size, Box, Crop
 from . import settings as cropduster_settings
 
 
-class Thumb(models.Model):
-    name = models.CharField(max_length=255, db_index=True)
-    height = models.PositiveIntegerField(default=0, blank=True, null=True)
-    width = models.PositiveIntegerField(default=0, blank=True, null=True)
+__all__ = ('Image', 'Thumb', 'CropDusterField', 'Size', 'Box', 'Crop')
 
-    def __unicode__(self):
-        return self.name
+
+class Thumb(models.Model):
+
+    name = models.CharField(max_length=255, db_index=True)
+    width = models.PositiveIntegerField(default=0, blank=True, null=True)
+    height = models.PositiveIntegerField(default=0, blank=True, null=True)
+
+    # For a given thumbnail, it either has crop data or it references
+    # another thumbnail with crop data
+    reference_thumb = models.ForeignKey('Thumb', blank=True, null=True)
+
+    crop_x = models.PositiveIntegerField(blank=True, null=True)
+    crop_y = models.PositiveIntegerField(blank=True, null=True)
+    crop_w = models.PositiveIntegerField(blank=True, null=True)
+    crop_h = models.PositiveIntegerField(blank=True, null=True)
+
+    date_modified = models.DateTimeField(auto_now=True)
 
     class Meta:
         app_label = cropduster_settings.CROPDUSTER_APP_LABEL
         db_table = '%s_thumb' % cropduster_settings.CROPDUSTER_DB_PREFIX
+
+    def __unicode__(self):
+        return self.name
+
+    def get_crop_box(self):
+        if self.reference_thumb:
+            ref_thumb = self.reference_thumb
+        else:
+            ref_thumb = self
+        x1, y1 = ref_thumb.crop_x, ref_thumb.crop_y
+        x2, y2 = x1 + ref_thumb.crop_w, y1 + ref_thumb.crop_h
+        if any([getattr(ref_thumb, 'crop_%s' % a) is None for a in ['x', 'y', 'w', 'h']]):
+            return None
+        return Box(x1, y1, x2, y2)
+
+    def crop(self, original_image=None, w=None, h=None, min_w=None, min_h=None):
+        if original_image is None:
+            if not self.pk:
+                raise Exception(
+                    u"The `original_image` argument is required for"
+                    u" thumbnails which have not yet been saved")
+
+            images = self.image_set.all()
+            try:
+                original_image = images[0]
+            except IndexError:
+                raise Exception(
+                    u"The `original_image` argument is required for"
+                    u" thumbnails which are not associated with an image")
+            else:
+                # Throw exception if there is more than one image associated
+                # with the thumb
+                try:
+                    images[1]
+                except IndexError:
+                    pass
+                else:
+                    raise Exception(
+                        u"Thumb has more than one image associated with it")
+
+        crop_box = self.get_crop_box()
+        if crop_box is None:
+            raise Exception("Cannot crop thumbnail without crop data")
+        crop = Crop(crop_box, original_image)
+
+        self.width = w or None
+        self.height = h or None
+
+        if self.reference_thumb:
+            best_fit_kwargs = {
+                'min_w': min_w or self.width,
+                'min_h': min_h or self.height,
+            }
+            if self.width and self.height:
+                best_fit_kwargs.update({'w': self.width, 'h': self.height})
+            fit = crop.best_fit(**best_fit_kwargs)
+            if not self.width and not self.height:
+                self.width, self.height = fit.box.size
+            elif not self.width:
+                width = fit.box.w * (self.height / fit.box.h)
+                self.width = min(int(round(width)), crop.bounds.w)
+            elif not self.height:
+                height = fit.box.h * (self.width / fit.box.w)
+                self.height = min(int(round(height)), crop.bounds.h)
+            return fit.create_image(width=self.width, height=self.height)
+        else:
+            self.width = w or crop_box.w
+            self.height = h or crop_box.h
+            return crop.create_image(width=self.width, height=self.height)
 
 
 class Image(models.Model):
@@ -33,17 +115,12 @@ class Image(models.Model):
     object_id = models.PositiveIntegerField()
     content_object = generic.GenericForeignKey('content_type', 'object_id')
 
-    crop_x = models.PositiveIntegerField(default=0, blank=True, null=True)
-    crop_y = models.PositiveIntegerField(default=0, blank=True, null=True)
-    crop_w = models.PositiveIntegerField(default=0, blank=True, null=True)
-    crop_h = models.PositiveIntegerField(default=0, blank=True, null=True)
-
-    width = models.PositiveIntegerField(blank=True, null=True)
-    height = models.PositiveIntegerField(blank=True, null=True)
-
     @staticmethod
     def generate_filename(instance, filename):
         return filename
+
+    width = models.PositiveIntegerField(blank=True, null=True)
+    height = models.PositiveIntegerField(blank=True, null=True)
 
     image = models.ImageField(db_index=True, upload_to=generate_filename, db_column='path',
         width_field='width', height_field='height')
@@ -53,6 +130,9 @@ class Image(models.Model):
         verbose_name='thumbs',
         null=True,
         blank=True)
+
+    date_created = models.DateTimeField(auto_now_add=True)
+    date_modified = models.DateTimeField(auto_now=True)
 
     attribution = models.CharField(max_length=255, blank=True, null=True)
 
@@ -85,24 +165,19 @@ class Image(models.Model):
         return os.path.join(settings.MEDIA_ROOT, path, size_name + extension)
 
     def save(self, **kwargs):
-        if not self.pk:
-            has_changed = False
-        else:
-            orig = Image.objects.get(pk=self.pk)
-            attnames = [f.attname for f in self._meta.fields]
-            has_changed = any([getattr(orig, n) != getattr(self, n) for n in attnames])
-
-        if has_changed:
+        self.date_modified = datetime.now()
+        if self.pk:
+            original = Image.objects.get(pk=self.pk)
+            old_date_modified = original.date_modified or datetime.min
             for thumb in self.thumbs.all():
-                try:
-                    os.rename(
-                        self.get_image_path(thumb.name, use_temp=True),
-                        self.get_image_path(thumb.name))
-                except:
-                    pass
-
+                if thumb.date_modified > old_date_modified:
+                    try:
+                        os.rename(
+                            self.get_image_path(thumb.name, use_temp=True),
+                            self.get_image_path(thumb.name))
+                    except (IOError, OSError):
+                        pass
         return super(Image, self).save(**kwargs)
-
 
     def get_image_url(self, size_name='original', use_temp=False):
         if not self.image:
@@ -143,59 +218,83 @@ class Image(models.Model):
             else:
                 return img.size
 
-    def save_thumb(self, name, width, height):
-        """
-        Check if a thumbnail already exists for the current image,
-        otherwise
-        """
-        thumb = Thumb()
-        if self.pk:
-            try:
-                thumb = self.thumbs.get(name=name)
-            except Thumb.DoesNotExist:
-                pass
-        thumb.width = width
-        thumb.height = height
-        thumb.name = name
+    def save_size(self, size, thumb=None, image=None, tmp=False):
+        thumbs = {}
+        if not image and not self.image:
+            raise Exception("Cannot save sizes without an image")
+        image = image or PIL.Image.open(self.image.path)
+
+        for sz in Size.flatten([size]):
+            if sz.is_auto:
+                new_thumb = self.save_thumb(sz, image, ref_thumb=thumb, tmp=tmp)
+            else:
+                new_thumb = self.save_thumb(sz, image, thumb, tmp=tmp)
+            if new_thumb:
+                thumbs[sz.name] = new_thumb
+        return thumbs
+
+    def save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False):
+        img_save_params = {}
+        if image.format == 'JPEG':
+            img_save_params['quality'] = 95
+        if not thumb:
+            thumb = Thumb()
+            if self.pk:
+                try:
+                    thumb = self.thumbs.get(name=size.name)
+                except Thumb.DoesNotExist:
+                    pass
+
+        thumb.name = size.name
+        if size.is_auto:
+            ref_thumb = ref_thumb or thumb.reference_thumb
+            if ref_thumb:
+                crop_box = ref_thumb.get_crop_box()
+        elif thumb:
+            crop_box = thumb.get_crop_box()
+        if not crop_box:
+            return None
+
+        thumb.reference_thumb = ref_thumb
+        thumb_image = thumb.crop(image, w=size.width, h=size.height, min_w=size.min_w, min_h=size.min_h)
+        thumb_path = self.get_image_path(size.name, use_temp=tmp)
+        thumb_image.save(thumb_path, **img_save_params)
         thumb.save()
         return thumb
+
+
+def thumbs_added(sender, **kwargs):
+    if kwargs.get('action') != 'pre_add':
+        return
+    instance = kwargs.get('instance')
+    pk_set = kwargs.get('pk_set')
+    if isinstance(instance, Thumb):
+        thumbs = [instance]
+        image_id = list(pk_set)[0]
+        image = Image.objects.get(pk=image_id)
+    else:
+        thumbs = Thumb.objects.filter(pk__in=pk_set)
+        image = instance
+    for thumb in thumbs:
+        try:
+            os.rename(
+                image.get_image_path(thumb.name, use_temp=True),
+                image.get_image_path(thumb.name))
+        except (IOError, OSError):
+            pass
+
+
+models.signals.m2m_changed.connect(thumbs_added, sender=Image.thumbs.through)
 
 
 class CropDusterField(CropDusterGenericRelation):
 
     sizes = None
-    auto_sizes = None
 
     def __init__(self, verbose_name=None, **kwargs):
-        sizes = kwargs.pop('sizes', None)
-        auto_sizes = kwargs.pop('auto_sizes', None)
-
-        try:
-            self._sizes_validate(sizes)
-        except ValueError as e:
-            # Maybe the sizes is none and the auto_sizes is valid, let's
-            # try that
-            try:
-                self._sizes_validate(auto_sizes, is_auto=True)
-            except:
-                # raise the original exception
-                raise e
-
-        if auto_sizes is not None:
-            self._sizes_validate(auto_sizes, is_auto=True)
-
-        self.sizes = sizes
-        self.auto_sizes = auto_sizes
-
-        kwargs['to'] = Image
+        self.sizes = kwargs.pop('sizes', None)
+        kwargs['to'] = kwargs.pop('to', Image)
         super(CropDusterField, self).__init__(verbose_name=verbose_name, **kwargs)
-
-    def _sizes_validate(self, sizes, is_auto=False):
-        validate_sizes(sizes)
-        if not is_auto:
-            aspect_ratios = get_aspect_ratios(sizes)
-            if len(aspect_ratios) > 1:
-                raise ValueError("More than one aspect ratio: %s" % jsonutil.dumps(aspect_ratios))
 
     def formfield(self, **kwargs):
         from .forms import cropduster_formfield_factory
@@ -203,7 +302,6 @@ class CropDusterField(CropDusterGenericRelation):
 
         factory_kwargs = {
             'sizes': self.sizes,
-            'auto_sizes': self.auto_sizes,
             'related': self.related,
         }
         widget = cropduster_widget_factory(**factory_kwargs)
@@ -237,7 +335,6 @@ else:
                 "content_type_field": ["content_type_field_name", {"default": "content_type"}],
                 "blank": ["blank", {"default": True}],
                 "sizes": ["sizes", {}],
-                "auto_sizes": ["auto_sizes", {"default": None}],
             },
         ),
     ], patterns=["^cropduster\.models\.CropDusterField"])

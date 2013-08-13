@@ -1,4 +1,8 @@
 .cropduster-form {
+    border: 0 !important;
+}
+
+.cropduster-form fieldset {
     display: none;
 }
 

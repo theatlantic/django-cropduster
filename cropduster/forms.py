@@ -1,48 +1,27 @@
 import re
-from jsonutil import jsonutil
 
 from django import forms
 from django.contrib.contenttypes.generic import BaseGenericInlineFormSet
 from django.core import validators
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import models
 from django.forms.forms import BoundField
 from django.forms.models import ModelMultipleChoiceField, ModelFormMetaclass
 from django.core.exceptions import ValidationError
 
 from .models import Image, Thumb
-from .utils import get_aspect_ratios, validate_sizes
-from .widgets import cropduster_widget_factory, CropDusterWidget
+from .widgets import cropduster_widget_factory, CropDusterWidget, CropDusterThumbWidget
 
 
 class CropDusterFormField(forms.Field):
 
     sizes = None
-    auto_sizes = None
 
-    def __init__(self, sizes=None, auto_sizes=None, *args, **kwargs):
+    def __init__(self, sizes=None, *args, **kwargs):
         self.sizes = sizes or self.sizes
-        self.auto_sizes = auto_sizes or self.auto_sizes
 
-        try:
-            self._sizes_validate(self.sizes)
-        except ValueError as e:
-            # Maybe the sizes is None and the auto_sizes is valid
-            try:
-                self._sizes_validate(self.auto_sizes, is_auto=True)
-            except:
-                raise e  # raise the original exception
-
-        kwargs['widget'] = CropDusterWidget(field=self,
-            sizes=self.sizes,
-            auto_sizes=self.auto_sizes)
+        kwargs['widget'] = CropDusterWidget(field=self, sizes=self.sizes)
         super(CropDusterFormField, self).__init__(*args, **kwargs)
-
-    def _sizes_validate(self, sizes, is_auto=False):
-        validate_sizes(sizes)
-        if not is_auto:
-            aspect_ratios = get_aspect_ratios(sizes)
-            if len(aspect_ratios) > 1:
-                raise ValueError("More than one aspect ratio: %s" % jsonutil.dumps(aspect_ratios))
 
     def to_python(self, value):
         value = super(CropDusterFormField, self).to_python(value)
@@ -59,12 +38,11 @@ class CropDusterFormField(forms.Field):
         return value
 
 
-def cropduster_formfield_factory(sizes, auto_sizes, widget=None, related=None):
-    widget = widget or cropduster_widget_factory(sizes, auto_sizes, related=related)
+def cropduster_formfield_factory(sizes, widget=None, related=None):
+    widget = widget or cropduster_widget_factory(sizes, related=related)
     return type('CropDusterFormField', (CropDusterFormField,), {
         '__module__': CropDusterFormField.__module__,
         'sizes': sizes,
-        'auto_sizes': auto_sizes,
         'widget': widget,
         'related': related,
         'parent_model': getattr(related, 'model', None),
@@ -73,6 +51,8 @@ def cropduster_formfield_factory(sizes, auto_sizes, widget=None, related=None):
 
 
 class CropDusterThumbField(ModelMultipleChoiceField):
+
+    widget = CropDusterThumbWidget
 
     def clean(self, value):
         """
@@ -92,12 +72,10 @@ class CropDusterThumbField(ModelMultipleChoiceField):
 class BaseCropDusterInlineFormSet(BaseGenericInlineFormSet):
 
     model = Image
-    fields = ('crop_x', 'crop_y', 'crop_w', 'crop_h',
-               'image', 'thumbs',)
+    fields = ('image', 'thumbs',)
     extra_fields = None
     exclude = None
     sizes = None
-    auto_sizes = None
     exclude = ["content_type", "object_id"]
     max_num = 1
     can_order = False
@@ -164,7 +142,6 @@ class BaseCropDusterInlineFormSet(BaseGenericInlineFormSet):
                 field_name = match.group(1)
                 if field_name in form.fields:
                     form.fields[field_name].initial = self.data.get(key)
-
         return form
 
     def _pre_construct_form(self, i, **kwargs):
@@ -209,7 +186,7 @@ class CropDusterBoundField(BoundField):
         return widget.render(name, self.value(), **widget_kwargs)
 
 
-def cropduster_formset_factory(sizes=None, auto_sizes=None, **kwargs):
+def cropduster_formset_factory(sizes=None, **kwargs):
     model = kwargs.get('model', Image)
     ct_field = model._meta.get_field("content_type")
     ct_fk_field = model._meta.get_field("object_id")
@@ -230,8 +207,12 @@ def cropduster_formset_factory(sizes=None, auto_sizes=None, **kwargs):
 
     model = kwargs.get('model', Image)
 
+    def has_changed(self): return True
+
     form_class_attrs = {
+        'has_changed': has_changed,
         "model": model,
+        "image": forms.CharField(required=False),
         "formfield_callback": formfield_for_dbfield,
         "Meta": type('Meta', (object,), {
             "fields": BaseCropDusterInlineFormSet.fields,
@@ -255,8 +236,6 @@ def cropduster_formset_factory(sizes=None, auto_sizes=None, **kwargs):
     }
     if sizes is not None:
         inline_formset_attrs['sizes'] = sizes
-    if auto_sizes is not None:
-        inline_formset_attrs['auto_sizes'] = auto_sizes
 
     return type('CropDusterInlineFormSet',
         (BaseCropDusterInlineFormSet,), inline_formset_attrs)

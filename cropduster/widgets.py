@@ -1,27 +1,59 @@
 import re
-from jsonutil import jsonutil
 
 try:
     from collections import OrderedDict
 except ImportError:
     from django.utils.datastructures import SortedDict as OrderedDict
 
+from django import forms
 from django.forms.widgets import Input
+from django.forms.util import flatatt
+from django.utils.html import escape, conditional_escape
 from django.conf import settings
 from django.contrib.admin import helpers
 from django.contrib.admin.sites import site
 from django.db.models.fields.files import ImageFieldFile
 from django.template.loader import render_to_string
+from django.utils.encoding import force_unicode
 
 from .admin import cropduster_inline_factory
-from .models import Image
-from .utils import get_aspect_ratios, get_min_size
+from .models import Image, Thumb
+from .utils import json
+
+
+class CropDusterThumbWidget(forms.SelectMultiple):
+
+    def render_option(self, selected_choices, option_value, option_label):
+        attrs = {}
+        try:
+            value = Thumb.objects.get(pk=option_value)
+        except (TypeError, Thumb.DoesNotExist):
+            pass
+        else:
+            attrs = {
+                'data-width': value.width,
+                'data-height': value.height,
+            }
+        option_value = force_unicode(option_value)
+        if option_value in selected_choices:
+            selected_html = u' selected="selected"'
+            if not self.allow_multiple_selected:
+                # Only allow for a single selection.
+                selected_choices.remove(option_value)
+        else:
+            selected_html = ''
+        return (
+            u'<option value="%(value)s"%(selected)s%(attrs)s>%(label)s</option>') % {
+                'value': escape(option_value),
+                'selected': selected_html,
+                'attrs': flatatt(attrs),
+                'label': conditional_escape(force_unicode(option_label)),
+        }
 
 
 class CropDusterWidget(Input):
 
     sizes = None
-    auto_sizes = None
     field = None
 
     class Media:
@@ -31,10 +63,9 @@ class CropDusterWidget(Input):
             u'%scropduster/js/CropDuster.js' % settings.STATIC_URL,
         )
 
-    def __init__(self, field=None, sizes=None, auto_sizes=None, attrs=None):
+    def __init__(self, field=None, sizes=None, attrs=None):
         self.field = field
         self.sizes = sizes or self.sizes
-        self.auto_sizes = auto_sizes or self.auto_sizes
 
         if attrs is not None:
             self.attrs = attrs.copy()
@@ -87,13 +118,9 @@ class CropDusterWidget(Input):
         if isinstance(obj, Image) and not obj.image and image_value:
             obj.image = image_value
 
-        self.value = value
         thumbs = OrderedDict({})
 
-        if value is None or value == "":
-            final_attrs['value'] = ""
-        else:
-            final_attrs['value'] = value
+        if value:
             if obj is None:
                 obj = Image.objects.get(pk=value)
             if obj is not None:
@@ -101,8 +128,10 @@ class CropDusterWidget(Input):
                     size_name = thumb.name
                     thumbs[size_name] = obj.get_image_url(size_name)
 
-        final_attrs['sizes'] = jsonutil.dumps(self.sizes)
-        final_attrs['auto_sizes'] = jsonutil.dumps(self.auto_sizes)
+        final_attrs.update({
+            'value': value or u"",
+            'sizes': json.dumps(self.sizes),
+        })
 
         formfield = getattr(bound_field, 'field', None)
         related = getattr(formfield, 'related', None)
@@ -116,8 +145,6 @@ class CropDusterWidget(Input):
             'inline_admin_formset': formset,
             'prefix': name,
             'media_url': settings.MEDIA_URL,
-            'min_size': jsonutil.dumps(get_min_size(self.sizes, self.auto_sizes)),
-            'aspect_ratio': jsonutil.dumps(get_aspect_ratios(self.sizes)[0]),
             'final_attrs': final_attrs,
             'thumbs': thumbs,
         })
@@ -152,10 +179,9 @@ class CropDusterWidget(Input):
             fieldsets, readonly_fields=readonly, model_admin=root_admin)
 
 
-def cropduster_widget_factory(sizes, auto_sizes, related=None):
+def cropduster_widget_factory(sizes, related=None):
     return type('CropDusterWidget', (CropDusterWidget,), {
         'sizes': sizes,
-        'auto_sizes': auto_sizes,
         '__module__': CropDusterWidget.__module__,
         'related': related,
         'parent_model': getattr(related, 'model', None),

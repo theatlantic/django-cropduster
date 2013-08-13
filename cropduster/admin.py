@@ -9,7 +9,6 @@ def cropduster_inline_factory(field=None, **kwargs):
 
     attrs = {
         'sizes': getattr(field, 'sizes', kwargs.get('sizes')),
-        'auto_sizes': getattr(field, 'auto_sizes', kwargs.get('auto_sizes')),
         'model': getattr(getattr(field, 'rel', None), 'to', None) or kwargs.get('model', Image),
         'default_prefix': getattr(field, 'name', kwargs.get('name')),
         'field': field,
@@ -18,7 +17,6 @@ def cropduster_inline_factory(field=None, **kwargs):
     class CropDusterImageInline(GenericInlineModelAdmin):
 
         sizes = attrs['sizes']
-        auto_sizes = attrs['auto_sizes']
         model = attrs['model']
         default_prefix = attrs['default_prefix']
 
@@ -35,9 +33,8 @@ def cropduster_inline_factory(field=None, **kwargs):
         max_num = 1
 
         fieldsets = (('Image', {
-            'fields': ('crop_x', 'crop_y', 'crop_w', 'crop_h',
-                       'image', 'thumbs',),
-            }),)
+            'fields': ('image', 'thumbs',),
+        }),)
 
         def formfield_for_manytomany(self, db_field, request=None, **kwargs):
             """Override default ManyToManyField form field for thumbs."""
@@ -51,7 +48,6 @@ def cropduster_inline_factory(field=None, **kwargs):
                 field=attrs['field'],
                 prefix=self.default_prefix,
                 sizes=self.sizes,
-                auto_sizes=self.auto_sizes,
                 model=self.model,
                 formfield_callback=curry(self.formfield_for_dbfield, request=request))
             if getattr(self, 'default_prefix', None):

@@ -5,7 +5,8 @@ window.CropDuster = {};
 
     var image_css = function(src, width, height, opts, is_ie) {
         var css = '';
-        css += 'background-image:url(' + src + ');';
+        src = encodeURI(src || '') + '?v=' + CropDuster.generateRandomId();
+        css += 'background-image:url("' + src + '");';
         css += 'width:' + width + 'px;';
         css += 'height:' + height + 'px;';
         if (is_ie) {
@@ -41,23 +42,25 @@ window.CropDuster = {};
 
         // open upload window
         show: function(prefix, uploadUrl) {
-            var href = uploadUrl;
             var params = {
-                'x': 'crop_x',
-                'y': 'crop_y',
-                'w': 'crop_w',
-                'h': 'crop_h',
-                'path': 'image',
-                'id': 'id'
+                'image': 'image',
+                'id': 'id',
+                'thumbs': 'thumbs'
             };
-            var hasData = false;
+            var data = {};
             for (var paramName in params) {
-                var val = encodeURI($('#id_' + prefix + '-0-' + params[paramName]).val() || '');
-                href += '&' + paramName + '=' + val;
-                hasData = hasData || !!val;
+                var val = $('#id_' + prefix + '-0-' + params[paramName]).val();
+                data[paramName] = ($.isArray(val)) ? val.join(',') : val;
             }
-            if (hasData) {
-                uploadUrl = href;
+            var sizes = $('#id_' + prefix).data('sizes') || [];
+            if ($.isArray(sizes) && sizes.length && typeof sizes[0] == 'object') {
+                data['thumb_name'] = sizes[0].name;
+            }
+            for (var paramName in data) {
+                var val = data[paramName];
+                if (val) {
+                    uploadUrl += '&' + paramName + '=' + encodeURI(val || '');
+                }
             }
             uploadUrl += '&el_id=' + encodeURI(prefix);
             var windowName = String(prefix).replace(/\-/g,"____").split(".").join("___");
@@ -68,38 +71,26 @@ window.CropDuster = {};
             var $select = $('#id_' + prefix + '-0-thumbs');
             $select.find('option').detach();
             for (var sizeName in thumbs) {
-                var thumbId = thumbs[sizeName];
-                var option = $(document.createElement('OPTION'));
-                option.attr('value', thumbId);
-                option.html(sizeName);
-                $select.append(option);
-                option.selected = true;
-                option.attr('selected', 'selected');
+                var thumbData = thumbs[sizeName];
+                var $option = $(document.createElement('OPTION'));
+                $option.attr('value', thumbData.id);
+                $option.html(sizeName);
+                $option.attr('data-width', thumbData.width);
+                $option.attr('data-height', thumbData.height);
+                $select.append($option);
+                $option.selected = true;
+                $option.attr('selected', 'selected');
             }
         },
 
         complete: function(prefix, data) {
-            var $input = $('#id_' + prefix);
-            var formData = {
-                'id': data.id,
-                'crop_x': data.x,
-                'crop_y': data.y,
-                'crop_w': data.w,
-                'crop_h': data.h,
-                'image': data.path,
-            };
-            $input.val(data.relpath);
-
-            for (var fieldName in formData) {
-                var value = formData[fieldName];
-                $('#id_' + prefix + '-0-' + fieldName).val(value);
+            $('#id_' + prefix).val(data.image);
+            for (var k in data) {
+                $('#id_' + prefix + '-0-' + k).val(data[k]);
             }
             $('#id_' + prefix + '-TOTAL_FORMS').val('1');
-            var thumbs;
-
             if (data.thumbs) {
-                thumbs = $.parseJSON(data.thumbs);
-                CropDuster.setThumbnails(prefix, thumbs);
+                CropDuster.setThumbnails(prefix, $.parseJSON(data.thumbs));
             }
             CropDuster.createThumbnails(prefix, true);
         },
@@ -184,10 +175,17 @@ window.CropDuster = {};
 
             var thumbData = {};
 
+            var sizes = {};
+            $.each(data.sizes, function(i, size) {
+                sizes[size.name] = size;
+            });
+
             $('#id_' + prefix + '-0-thumbs option:selected').each(function(i, el) {
-                var name = $(el).html();
+                var $el = $(el);
+                var name = $el.html();
                 var slug = name;
-                if (!data.sizes[name]) {
+                var sizeData = $el.data() || {};
+                if (!sizeData.width || !sizeData.height) {
                     return;
                 }
                 if (preview) {
@@ -197,17 +195,20 @@ window.CropDuster = {};
                 // This is in place of a negative lookbehind. It replaces all
                 // double slashes that don't follow a colon.
                 url = url.replace(/(:)?\/+/g, function($0, $1) { return $1 ? $0 : '/'; });
-                thumbData[name] = {
+                thumbData[slug] = {
                     'image_url': url,
                     'size_slug': slug,
-                    'width': data.sizes[slug][0],
-                    'height': data.sizes[slug][1]
+                    'width': sizeData.width,
+                    'height': sizeData.height
                 };
             });
             var $thumb = $input.closest('.row,.grp-row').find('.cropduster-images');
             $thumb.find('a').remove();
+
             for (var name in thumbData) {
-                $thumb.html($thumb.html() + $.render.cropdusterImage(thumbData[name]));
+                if (sizes[name]) {
+                    $thumb.html($thumb.html() + $.render.cropdusterImage(thumbData[name]));
+                }
             }
         },
 

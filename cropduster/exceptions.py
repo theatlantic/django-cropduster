@@ -2,11 +2,10 @@ import os
 import sys
 import logging
 import errno
-import json
 
 from django.http import HttpResponse
 
-from .utils import get_relative_media_url
+from .utils import json, get_relative_media_url
 
 
 logger = logging.getLogger('root')

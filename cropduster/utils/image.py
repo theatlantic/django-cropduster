@@ -3,7 +3,7 @@ from __future__ import division
 import PIL.Image
 
 
-__all__ = ('get_image_extension', 'rescale', 'create_cropped_image')
+__all__ = ('get_image_extension', 'rescale')
 
 
 IMAGE_EXTENSIONS = {
@@ -66,18 +66,4 @@ def rescale(img, w=0, h=0, crop=True):
 
     img = img.resize((dst_w, dst_h), PIL.Image.ANTIALIAS)
 
-    return img
-
-
-def create_cropped_image(path=None, x=0, y=0, w=0, h=0):
-    if path is None:
-        raise ValueError("A path must be specified")
-    if w <= 0 or h <= 0:
-        raise ValueError("Width and height must be greater than zero")
-
-    img = PIL.Image.open(path)
-    img.copy()
-    img.load()
-    img = img.crop((x, y, x + w, y + h))
-    img.load()
     return img
