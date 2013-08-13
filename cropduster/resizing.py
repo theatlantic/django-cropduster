@@ -78,6 +78,21 @@ class Size(object):
             return None
         return self.width / self.height
 
+    def fit_to_crop(self, crop, original_image=None):
+        from cropduster.models import Thumb
+
+        if isinstance(crop, Thumb):
+            crop_box = crop.get_crop_box()
+            crop = Crop(crop_box, original_image)
+
+        best_fit_kwargs = {
+            'min_w': self.min_w or self.width,
+            'min_h': self.min_h or self.height,
+        }
+        if self.width and self.height:
+            best_fit_kwargs.update({'w': self.width, 'h': self.height})
+        return crop.best_fit(**best_fit_kwargs)
+
     def __serialize__(self):
         data = {
             'name': self.name,

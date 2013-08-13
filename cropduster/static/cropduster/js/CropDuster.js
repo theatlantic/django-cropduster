@@ -90,7 +90,7 @@ window.CropDuster = {};
             }
             $('#id_' + prefix + '-TOTAL_FORMS').val('1');
             if (data.thumbs) {
-                CropDuster.setThumbnails(prefix, $.parseJSON(data.thumbs));
+                CropDuster.setThumbnails(prefix, data.thumbs);
             }
             CropDuster.createThumbnails(prefix, true);
         },

@@ -17,6 +17,7 @@
         jcrop: null,
         error: false,
         sizes: {},
+        data: {},
 
         init: function(data) {
             if (typeof data != 'object' || !data) {
@@ -39,8 +40,15 @@
                 error = unknownErrorMsg;
             } else if (data.error) {
                 error = data.error;
-            } else if (!data.url) {
+            } else if (!data.url && !data.x) {
                 error = unknownErrorMsg;
+            }
+
+            if (data.w && !data.width) {
+                data.width = data.w;
+            }
+            if (data.h && !data.height) {
+                data.height = data.h;
             }
 
             if (error) {
@@ -48,34 +56,31 @@
                 $('#error-container').show();
             } else {
                 $('#error-container').hide();
-                this.data = data;
+                this.data = $.extend({}, this.data, data);
 
                 if (!data.initial) {
                     this._setHiddenInputs();
                 }
-
-                this._waitForImageLoad();
+                if (data.url) {
+                    this._waitForImageLoad();
+                } else if (data.initial && this.jcrop) {
+                    var opts = this.getCropOptions(data.name);
+                    this.jcrop.setOptions(opts);
+                    var rect = this.getCropSelect(opts.aspectRatio);
+                    this.jcrop.setSelect(rect);
+                }
             }
         },
-        onImageLoad: function() {
-            try {
-                this.jcrop.destroy();
-            } catch (e) { }
-
+        getCropOptions: function(size) {
+            var aspectRatio, minSize = [0, 0];
             var $cropbox = $('#cropbox');
 
-            var minSize = [0, 0];
-            var aspectRatio = null;
-
-            var thumbName = $('#id_thumb-name').val();
-            if (!thumbName || !this.sizes[thumbName]) {
-                return;
+            if (typeof size == 'string') {
+                size = this.sizes[size];
             }
-            var size = this.sizes[thumbName];
             if (!size || typeof size != 'object') {
                 return;
             }
-
             if (size.w && size.h) {
                 aspectRatio = size.w / size.h;
             }
@@ -93,14 +98,22 @@
 
             minSize[0] = minSize[0] * scalex;
             minSize[1] = minSize[1] * scaley;
-
-            var opts = {
-                setSelect: this.getCropSelect(aspectRatio),
-                aspectRatio: aspectRatio,
-                onSelect: updateCoords,
-                trueSize: [ this.data.orig_width, this.data.orig_height ],
-                minSize: minSize
+            return {
+                'minSize': minSize,
+                'aspectRatio': aspectRatio
             };
+        },
+        onImageLoad: function() {
+            try {
+                this.jcrop.destroy();
+            } catch (e) { }
+            var thumbName = $('#id_thumb-name').val() || '';
+            var opts = this.getCropOptions(thumbName);
+            opts = $.extend({}, opts, {
+                setSelect: this.getCropSelect(opts['aspectRatio']),
+                onSelect: updateCoords,
+                trueSize: [this.data.orig_width, this.data.orig_height]
+            });
 
             this.jcrop = $.Jcrop('#cropbox', opts);
 
@@ -109,7 +122,6 @@
         },
         getCropSelect: function(aspectRatio) {
             var x, y, w, h;
-
             var imgDim = {
                 width: $('#cropbox').width(),
                 height: $('#cropbox').height()
@@ -146,12 +158,14 @@
             var scaley = imgDim.height / this.data.orig_height;
 
             if (this.data.initial) {
-                // setSelect autoscales the x, y, w, and h that it feeds the
-                // function, so we need to scale our data to mimic this effect
-                w = Math.round((w + x) * scalex);
-                h = Math.round((h + y) * scaley);
-                x = Math.round(x * scalex);
-                y = Math.round(y * scaley);
+                if (!this.jcrop) {
+                    // setSelect autoscales the x, y, w, and h that it feeds the
+                    // function, so we need to scale our data to mimic this effect
+                    w = Math.round((w + x) * scalex);
+                    h = Math.round((h + y) * scaley);
+                    x = Math.round(x * scalex);
+                    y = Math.round(y * scaley);              
+                }
                 // Our data is no longer initial
                 this.data.initial = false;
             } else {
@@ -231,8 +245,8 @@
                 image_id:    parseInt(imageId, 10),
                 orig_width:  parseInt($('#id_thumb-orig_w').val(), 10),
                 orig_height: parseInt($('#id_thumb-orig_h').val(), 10),
-                width:       parseInt($('#id_thumb-width').val(), 10),
-                height:      parseInt($('#id_thumb-height').val(), 10),
+                width:       parseInt($('#id_thumb-crop_w').val(), 10),
+                height:      parseInt($('#id_thumb-crop_h').val(), 10),
                 x:           parseInt($('#id_thumb-crop_x').val(), 10),
                 y:           parseInt($('#id_thumb-crop_y').val(), 10),
                 url: $('#cropbox').attr('src')
@@ -245,6 +259,11 @@
           url: $('#upload').attr('action'),
           success: function(data, responseType) {
             cropBox.onSuccess(data, responseType);
+            var initialThumb = $('#id_thumb-name').data('initialValue');
+            if (initialThumb) {
+                $('#id_thumb-name').val(initialThumb);
+            }
+            $('#id_thumb-thumbs').val('{}');
           }
         });
 
@@ -257,8 +276,17 @@
                         $('#error-container').show();
                     } else {
                         $('#error-container').hide();
-                        window.opener.CropDuster.complete(imageElementId, data);
-                        window.close();
+                        if (data.next_thumb && data.initial_crop) {
+                            $('#id_thumb-name').data('initialValue', $('#id_thumb-name').val());
+                            $('#id_thumb-name').val(data.next_thumb);
+                            $('#id_thumb-thumbs').val(JSON.stringify(data.thumbs));
+                            $('#id_thumb-thumb_id').val(data.initial_crop.thumb_id);
+                            cropBox.onSuccess(data.initial_crop, responseType);
+                            updateCoords(data.initial_crop);
+                        } else {
+                            window.opener.CropDuster.complete(imageElementId, data);
+                            window.close();
+                        }
                     }
                 }
             }

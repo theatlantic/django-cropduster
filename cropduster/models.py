@@ -235,7 +235,7 @@ class Image(models.Model):
             if sz.is_auto:
                 new_thumb = self.save_thumb(sz, image, ref_thumb=thumb, tmp=tmp)
             else:
-                new_thumb = self.save_thumb(sz, image, thumb, tmp=tmp)
+                thumb = new_thumb = self.save_thumb(sz, image, thumb, tmp=tmp)
             if new_thumb:
                 thumbs[sz.name] = new_thumb
         return thumbs
@@ -244,11 +244,12 @@ class Image(models.Model):
         img_save_params = {}
         if image.format == 'JPEG':
             img_save_params['quality'] = 95
+        old_thumb = thumb
         if not thumb:
             thumb = Thumb()
             if self.pk:
                 try:
-                    thumb = self.thumbs.get(name=size.name)
+                    old_thumb = thumb = self.thumbs.get(name=size.name)
                 except Thumb.DoesNotExist:
                     pass
 
@@ -266,6 +267,11 @@ class Image(models.Model):
         thumb_image = thumb.crop(image, w=size.width, h=size.height, min_w=size.min_w, min_h=size.min_h)
         thumb_path = self.get_image_path(size.name, use_temp=tmp)
         thumb_image.save(thumb_path, **img_save_params)
+
+        cmp_keys = ['crop_x', 'crop_y', 'crop_w', 'crop_h', 'width', 'height']
+        if old_thumb:
+            if any([getattr(thumb, k) != getattr(old_thumb, k) for k in cmp_keys]):
+                thumb.pk = None
         thumb.save()
         return thumb
 

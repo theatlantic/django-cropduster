@@ -41,6 +41,7 @@ class ThumbForm(forms.ModelForm):
     orig_w = forms.IntegerField(required=False)
     orig_h = forms.IntegerField(required=False)
     sizes = forms.CharField()
+    thumbs = forms.CharField(required=False)
 
     class Meta:
         model = Thumb
@@ -52,6 +53,13 @@ class ThumbForm(forms.ModelForm):
     def clean_sizes(self):
         sizes = self.cleaned_data.get('sizes')
         return json.loads(sizes)
+
+    def clean_thumbs(self):
+        thumbs = self.cleaned_data.get('thumbs')
+        try:
+            return json.loads(thumbs)
+        except:
+            return {}
 
     def clean(self):
         data = super(ThumbForm, self).clean()
@@ -89,7 +97,7 @@ def upload(request):
             'thumb_name': request.GET.get('thumb_name', ''),
             'parent_template': get_admin_base_template(),
         }
-
+        initial = {}
         thumb_ids = request.GET.get('thumbs', '')
         if thumb_ids:
             thumb_ids = filter(None, request.GET['thumbs'].split(','))
@@ -104,8 +112,10 @@ def upload(request):
                 thumb = Thumb.objects.get(pk__in=thumb_ids, name=ctx['thumb_name'])
             except Thumb.DoesNotExist:
                 pass
-
-        initial = {}
+            else:
+                thumbs = Thumb.objects.filter(pk__in=thumb_ids).values('id', 'name', 'width', 'height')
+                thumbs_data = dict([(t['name'], t) for t in thumbs])
+                initial['thumbs'] =  json.dumps(thumbs_data)
 
         if request.GET.get('id'):
             try:
@@ -255,31 +265,84 @@ def crop(request):
     data = form.cleaned_data
 
     db_image = CropDusterImage()
-    try:
-        db_image = CropDusterImage.objects.get(pk=data['image_id'])
-    except CropDusterImage.DoesNotExist:
-        try:
-            db_image = CropDusterImage.objects.get(image=data['orig_image'])
-        except CropDusterImage.DoesNotExist:
-            pass
     db_image.image = data['orig_image']
 
     try:
-        thumbs = db_image.save_size(data['size'], crop_thumb, tmp=True)
+        new_thumbs = db_image.save_size(data['size'], crop_thumb, tmp=True)
     except CropDusterResizeException as e:
         return json_error(request, 'crop', action='creating crops', errors=[unicode(e)])
 
-    thumb_data = OrderedDict({})
-    for name, thumb in thumbs.iteritems():
+    thumb_data = data['thumbs']
+    thumb_objs = {}
+    for name in thumb_data:
+        try:
+            thumb_objs[name] = Thumb.objects.get(pk=thumb_data[name]['id'])
+        except Thumb.DoesNotExist:
+            pass
+
+    for name, thumb in new_thumbs.iteritems():
+        thumb_objs[name] = thumb
         thumb_data[name] = {
             'id': thumb.pk,
+            'name': name,
             'width': thumb.width,
             'height': thumb.height,
+            'changed': True,
         }
+
+    next_size = next_thumb = None
+    sizes = []
+    try:
+        sizes = list(data['sizes'])
+    except TypeError:
+        pass
+
+    for i, size in enumerate(sizes):
+        if size.name == data['name']:
+            try:
+                next_size = sizes[i + 1]
+            except IndexError:
+                pass
+            else:
+                next_thumb = next_size.name
+
+    try:
+        pil_image = PIL.Image.open(db_image.image.path)
+    except IOError:
+        pil_image = None
+
+    initial_crop = None
+    if next_thumb:
+        if thumb_objs.get(next_thumb) and thumb_objs[next_thumb].crop_w:
+            thumb_obj = thumb_objs[next_thumb]
+            initial_crop = {
+                'thumb_id': thumb_obj.pk,
+                'x': thumb_obj.crop_x,
+                'y': thumb_obj.crop_y,
+                'w': thumb_obj.crop_w,
+                'h': thumb_obj.crop_h,
+                'name': next_thumb,
+                'initial': True,
+            }
+        elif thumb_objs.get(data['name']):
+            old_thumb_obj = thumb_objs[data['name']]
+            best_fit = next_size.fit_to_crop(old_thumb_obj, original_image=pil_image)
+            if best_fit:
+                initial_crop = {
+                    'thumb_id': '',
+                    'x': best_fit.box.x1,
+                    'y': best_fit.box.y1,
+                    'w': best_fit.box.w,
+                    'h': best_fit.box.h,
+                    'name': next_thumb,
+                    'initial': True,
+                }
 
     response_data = {
         'id': db_image.pk or data['image_id'],
         'image': db_image.image.name if db_image.image else None,
-        'thumbs': json.dumps(thumb_data),
+        'thumbs': thumb_data,
+        'next_thumb': next_thumb,
+        'initial_crop': initial_crop,
     }
     return HttpResponse(json.dumps(response_data))
