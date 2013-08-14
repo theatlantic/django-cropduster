@@ -1,13 +1,13 @@
-body.cropduster-form ul.errorlist {
+body.cropduster-upload-form ul.errorlist {
     color: #fff;
 }
 
-body.cropduster-form .errornote > ul.errorlist > li {
+body.cropduster-upload-form .errornote > ul.errorlist > li {
     overflow: hidden;
     position: relative;
 }
 
-body.cropduster-form .errornote .error-field {
+body.cropduster-upload-form .errornote .error-field {
     display: block;
     width: 80px;
     position: absolute;
@@ -15,18 +15,35 @@ body.cropduster-form .errornote .error-field {
     left: 0;
 }
 
-body.cropduster-form .errornote .error-field:after {
+body.cropduster-upload-form .errornote .error-field:after {
     content: ":";
 }
-body.cropduster-form .errornote .error-field.error-__all__ {
+body.cropduster-upload-form .errornote .error-field.error-__all__ {
     display: none;
 }
-body.cropduster-form .errornote .error-field.error-__all__ + ul.errorlist {
+body.cropduster-upload-form .errornote .error-field.error-__all__ + ul.errorlist {
     padding-left: 0;
 }
 
-body.cropduster-form ul.errorlist ul.errorlist {
+body.cropduster-upload-form ul.errorlist ul.errorlist {
     float: left;
     padding-left: 100px;
     margin: 0;
+}
+
+body.cropduster-upload-form .submit-button-container {
+    border: 0 !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    -moz-box-shadow: none !important;
+    background: transparent !important;
+    -webkit-border-radius: 0 !important;
+    -moz-border-radius: 0 !important;
+    border-radius: 0 !important;
+}
+
+body.cropduster-upload-form .module.footer,
+body.cropduster-upload-form .grp-module.grp-footer,
+body.cropduster-upload-form .grp-module.grp-fixed-footer {
+    border-top: 1px solid #111;
 }

@@ -6,6 +6,7 @@
 <!-- STYLESHEETS -->
 {% block stylesheets %}
     {{ block.super }}
+    <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/CropDuster.css" type="text/css" />
     <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/jquery.Jcrop.css" type="text/css" />
     <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/upload.css" type="text/css" />
 {% endblock %}
@@ -24,7 +25,7 @@
 <!-- Get rid of nav -->
 {% block nav-global %}{% endblock %}
 
-{% block bodyclass %}{{ block.super }} cropduster-form absolute-pos{% endblock %}
+{% block bodyclass %}{{ block.super }} cropduster-upload-form absolute-pos{% endblock %}
 
 {% block content-class %}content-flexible{% endblock %}
 
@@ -46,7 +47,7 @@
         <div class="module footer" id="upload-footer"{% if image_id %} style="display: none"{% endif %}>
             <ul class="submit-row">
                 <li class="submit-button-container">
-                    <input id="upload-button" class="default" type="submit" name="_save" value='Upload' />
+                    <input id="upload-button" class="rounded-button disabled" type="submit" name="_save" value='Upload' />
                 </li>
             </ul>
         </div>
@@ -64,10 +65,10 @@
         <div class="module footer" id="crop-footer"{% if not image_id %} style="display:none"{% endif %}>
             <ul class="submit-row">
                 <li class="submit-button-container">
-                    <input id="crop-button" class="default" type="submit" name="crop" value="Crop and Generate Thumbs" />
+                    <input id="crop-button" class="rounded-button" type="submit" name="crop" value="Crop and Generate Thumbs" />
                 </li>
                 <li class="submit-button-container">
-                    <input id="reupload-button" type="submit" name="_save" value='Re-Upload' onclick="return uploadSubmit();" />
+                    <input id="reupload-button" class="rounded-button disabled" type="submit" name="_save" value='Re-Upload' onclick="return uploadSubmit();" />
                 </li>
             </ul>
         </div>

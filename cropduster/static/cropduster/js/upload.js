@@ -164,7 +164,7 @@
                     w = Math.round((w + x) * scalex);
                     h = Math.round((h + y) * scaley);
                     x = Math.round(x * scalex);
-                    y = Math.round(y * scaley);              
+                    y = Math.round(y * scaley);
                 }
                 // Our data is no longer initial
                 this.data.initial = false;
@@ -210,7 +210,6 @@
 
     });
 
-
     $(document).ready(function(){
         var imageElementId = $('#image-element-id').val();
 
@@ -252,7 +251,27 @@
                 url: $('#cropbox').attr('src')
             };
             cropBox.onSuccess(data, 'success');
+        } else {
+            // We don't have initial data, disable the crop button
+            $('#crop-button').addClass('disabled');
         }
+
+        // Don't propagate clicks on disabled buttons
+        $(document.body).on('click', 'input[type="submit"].disabled', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+
+        // Enable upload and reupload buttons after the user has picked a file
+        $('#picture').on('change', function(e) {
+            var $input = $(this);
+            if ($input.val()) {
+                $('#upload-button,reupload-button').removeClass('disabled');
+            } else {
+                $('#upload-button,reupload-button').addClass('disabled');
+            }
+        });
 
         $('#upload').ajaxForm({
           dataType: 'json',
@@ -264,6 +283,7 @@
                 $('#id_thumb-name').val(initialThumb);
             }
             $('#id_thumb-thumbs').val('{}');
+            $('#crop-button').removeClass('disabled');
           }
         });
 
