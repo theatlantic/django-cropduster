@@ -19,14 +19,22 @@
 .cropduster-upload-form .rounded-button,
 .cropduster-upload-form .rounded-button:visited,
 .cropduster-upload-form .rounded-button:hover,
-.cropduster-upload-form .rounded-button:active {
+.cropduster-upload-form .rounded-button:active,
+.cropduster-upload-form input[type="submit"].rounded-button,
+.cropduster-upload-form input[type="submit"].rounded-button:visited,
+.cropduster-upload-form input[type="submit"].rounded-button:hover,
+.cropduster-upload-form input[type="submit"].rounded-button:active,
+.cropduster-upload-form input[type="button"].rounded-button,
+.cropduster-upload-form input[type="button"].rounded-button:visited,
+.cropduster-upload-form input[type="button"].rounded-button:hover,
+.cropduster-upload-form input[type="button"].rounded-button:active {
 	margin: 0;
 	display: inline-block; 
 	padding: 6px 10px 7px 10px;
 	text-decoration: none;
-	-moz-border-radius: 5px; 
-	-webkit-border-radius: 5px;
-	border-radius: 5px;
+	-moz-border-radius: 6px; 
+	-webkit-border-radius: 6px;
+	border-radius: 6px;
 	border-bottom: 1px solid rgba(0,0,0,0.25);
 	position: relative;
 	cursor: pointer;
@@ -36,11 +44,11 @@
 	-o-user-select: none;
 	-moz-user-select: none;
 	-webkit-font-smoothing: subpixel-antialiased !important;
-	background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#ECECEC), to(#d1d1d1));
-	background: -moz-linear-gradient(top, #ECECEC, #d1d1d1);
+	background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#ECECEC), to(#B6B6B6));
+	background: -moz-linear-gradient(top, #ECECEC, #B6B6B6);
 	background-color: #ECECEC;
-	border: 1px solid #a3a3a3;
-	border-bottom: 1px solid #9a9a9a;
+	border: 1px solid rgba(0, 0, 0, 0.3); /* #a3a3a3 */
+	border-bottom: 1px solid rgba(0, 0, 0, 0.4); /* #9a9a9a */
 	color: #000;
 	-webkit-text-shadow: rgba(255,255,255,0.5) 0 -1px 0;
 	-moz-text-shadow: rgba(255,255,255,0.5) 0 -1px 0;
@@ -50,34 +58,54 @@
 	line-height: 1;
 }
 
-.cropduster-upload-form .rounded-button:hover	   {
-	background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#f4f4f4), to(#d6d6d6));
-	background: -moz-linear-gradient(top, #f4f4f4, #d6d6d6);
+.cropduster-upload-form .rounded-button:hover,
+.cropduster-upload-form input[type="submit"].rounded-button:hover,
+.cropduster-upload-form input[type="button"].rounded-button:hover {
+	background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#f4f4f4), to(#CACACA));
+	background: -moz-linear-gradient(top, #f4f4f4, #CACACA);
 	background-color: #f4f4f4;
 }
-.cropduster-upload-form .rounded-button:active	   {
-	background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#d6d6d6), to(#f4f4f4));
-	background: -moz-linear-gradient(top, #d6d6d6, #f4f4f4);
-	background-color: #d6d6d6;
-	border: 1px solid #9a9a9a;
-	border-bottom: 1px solid #a3a3a3;
+.cropduster-upload-form .rounded-button:active,
+.cropduster-upload-form input[type="submit"].rounded-button:active,
+.cropduster-upload-form input[type="button"].rounded-button:active {
+	background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#D6D6D6), to(#f4f4f4));
+	background: -moz-linear-gradient(top, #D6D6D6, #f4f4f4);
+	background-color: #D6D6D6;
+	border: 1px solid rgba(0, 0, 0, 0.4); /* #9a9a9a */
+	border-bottom: 1px solid rgba(0, 0, 0, 0.36); /* #a3a3a3 */
 	padding: 7px 10px 6px 10px;
 }
 
 .cropduster-upload-form .rounded-button.disabled,
 .cropduster-upload-form .rounded-button.disabled:hover,
-.cropduster-upload-form .rounded-button.disabled:active {
+.cropduster-upload-form .rounded-button.disabled:active,
+.cropduster-upload-form input[type="submit"].rounded-button.disabled,
+.cropduster-upload-form input[type="submit"].rounded-button.disabled:hover,
+.cropduster-upload-form input[type="submit"].rounded-button.disabled:active,
+.cropduster-upload-form input[type="button"].rounded-button.disabled,
+.cropduster-upload-form input[type="button"].rounded-button.disabled:hover,
+.cropduster-upload-form input[type="button"].rounded-button.disabled:active {
 	color: #888;
 	cursor: default;
 	background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#ECECEC), to(#d1d1d1));
 	background: -moz-linear-gradient(top, #ECECEC, #d1d1d1);
 	background-color: #ECECEC;
+	border: 1px solid rgba(0, 0, 0, 0.36); /* #a3a3a3 */
+	border-bottom: 1px solid rgba(0, 0, 0, 0.4); /* #9a9a9a */
 }
 
 .cropduster-upload-form .rounded-button.red,
 .cropduster-upload-form .rounded-button.red:visited,
 .cropduster-upload-form .rounded-button.red:hover,
-.cropduster-upload-form .rounded-button.red:active
+.cropduster-upload-form .rounded-button.red:active,
+.cropduster-upload-form input[type="submit"].rounded-button.red,
+.cropduster-upload-form input[type="submit"].rounded-button.red:visited,
+.cropduster-upload-form input[type="submit"].rounded-button.red:hover,
+.cropduster-upload-form input[type="submit"].rounded-button.red:active,
+.cropduster-upload-form input[type="button"].rounded-button.red,
+.cropduster-upload-form input[type="button"].rounded-button.red:visited,
+.cropduster-upload-form input[type="button"].rounded-button.red:hover,
+.cropduster-upload-form input[type="button"].rounded-button.red:active
 {
 	background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#b4463f), to(#731711));
 	background: -moz-linear-gradient(top, #b4463f, #731711);
@@ -90,7 +118,9 @@
 	text-shadow: rgba(0,0,0,0.5) 0 -1px 0;
 	
 }
-.cropduster-upload-form .rounded-button.red:hover  {
+.cropduster-upload-form .rounded-button.red:hover,
+.cropduster-upload-form input[type="submit"].rounded-button.red:hover,
+.cropduster-upload-form input[type="button"].rounded-button.red:hover {
 	color: #fff;
 	background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#c2554e), to(#993129));
 	background: -moz-linear-gradient(top, #c2554e, #993129);
@@ -98,7 +128,9 @@
 	border: 1px solid #ad4e47;
 	border-bottom: 1px solid #a0322a;
 }
-.cropduster-upload-form .rounded-button.red:active {
+.cropduster-upload-form .rounded-button.red:active,
+.cropduster-upload-form input[type="submit"].rounded-button.red:active,
+.cropduster-upload-form input[type="button"].rounded-button.red:active {
 	background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#993129), to(#c2554e));
 	background: -moz-linear-gradient(top, #993129, #c2554e);
 	background-color: #993129;
@@ -109,71 +141,129 @@
 
 .cropduster-upload-form .rounded-button.small,
 .cropduster-upload-form .rounded-button.small:visited,
-.cropduster-upload-form .rounded-button.small:hover {
+.cropduster-upload-form .rounded-button.small:hover,
+.cropduster-upload-form input[type="submit"].rounded-button.small,
+.cropduster-upload-form input[type="submit"].rounded-button.small:visited,
+.cropduster-upload-form input[type="submit"].rounded-button.small:hover,
+.cropduster-upload-form input[type="button"].rounded-button.small,
+.cropduster-upload-form input[type="button"].rounded-button.small:visited,
+.cropduster-upload-form input[type="button"].rounded-button.small:hover {
 	padding: 3px 6px 4px 6px;
 }
 
-.cropduster-upload-form .rounded-button.small:active {
+.cropduster-upload-form .rounded-button.small:active,
+.cropduster-upload-form input[type="submit"].rounded-button.small:active,
+.cropduster-upload-form input[type="button"].rounded-button.small:active {
 	padding: 4px 6px 3px 6px;
 }
 
 .cropduster-upload-form .rounded-button.green,
 .cropduster-upload-form .rounded-button.green:active,
 .cropduster-upload-form .rounded-button.green:hover,
-.cropduster-upload-form .rounded-button.green:visited {
+.cropduster-upload-form .rounded-button.green:visited,
+.cropduster-upload-form input[type="submit"].rounded-button.green,
+.cropduster-upload-form input[type="submit"].rounded-button.green:active,
+.cropduster-upload-form input[type="submit"].rounded-button.green:hover,
+.cropduster-upload-form input[type="submit"].rounded-button.green:visited,
+.cropduster-upload-form input[type="button"].rounded-button.green,
+.cropduster-upload-form input[type="button"].rounded-button.green:active,
+.cropduster-upload-form input[type="button"].rounded-button.green:hover,
+.cropduster-upload-form input[type="button"].rounded-button.green:visited {
 	color: #fff;
 	border: 0;
 	background: #3a4d00 url(../img/button-overlay.png) repeat-x 0 0;
 }
-.cropduster-upload-form .rounded-button.green:hover	{
+.cropduster-upload-form .rounded-button.green:hover,
+.cropduster-upload-form input[type="submit"].rounded-button.green:hover,
+.cropduster-upload-form input[type="button"].rounded-button.green:hover	{
 	background-color: #749a02;
 }
 
 .cropduster-upload-form .rounded-button.blue,
 .cropduster-upload-form .rounded-button.blue:active,
 .cropduster-upload-form .rounded-button.blue:hover,
-.cropduster-upload-form .rounded-button.blue:visited {
+.cropduster-upload-form .rounded-button.blue:visited,
+.cropduster-upload-form input[type="submit"].rounded-button.blue,
+.cropduster-upload-form input[type="submit"].rounded-button.blue:visited,
+.cropduster-upload-form input[type="submit"].rounded-button.blue:hover,
+.cropduster-upload-form input[type="submit"].rounded-button.blue:active,
+.cropduster-upload-form input[type="button"].rounded-button.blue,
+.cropduster-upload-form input[type="button"].rounded-button.blue:visited,
+.cropduster-upload-form input[type="button"].rounded-button.blue:hover,
+.cropduster-upload-form input[type="button"].rounded-button.blue:active {
 	color: #fff;
 	border: 0;
 	background: #162d3e url(../img/button-overlay.png) repeat-x 0 0;
 }
-.cropduster-upload-form .rounded-button.blue:hover	{
+.cropduster-upload-form .rounded-button.blue:hover,
+.cropduster-upload-form input[type="submit"].rounded-button.blue:hover,
+.cropduster-upload-form input[type="button"].rounded-button.blue:hover {
 	background-color: #224660;
 }
 
 .cropduster-upload-form .rounded-button.magenta,
 .cropduster-upload-form .rounded-button.magenta:active,
 .cropduster-upload-form .rounded-button.magenta:hover,
-.cropduster-upload-form .rounded-button.magenta:visited {
+.cropduster-upload-form .rounded-button.magenta:visited,
+.cropduster-upload-form input[type="submit"].rounded-button.magenta,
+.cropduster-upload-form input[type="submit"].rounded-button.magenta:visited,
+.cropduster-upload-form input[type="submit"].rounded-button.magenta:hover,
+.cropduster-upload-form input[type="submit"].rounded-button.magenta:active,
+.cropduster-upload-form input[type="button"].rounded-button.magenta,
+.cropduster-upload-form input[type="button"].rounded-button.magenta:visited,
+.cropduster-upload-form input[type="button"].rounded-button.magenta:hover,
+.cropduster-upload-form input[type="button"].rounded-button.magenta:active {
 	color: #fff;
 	border: 0;
 	background: #a9014b url(../img/button-overlay.png) repeat-x 0 0;
 }
-.cropduster-upload-form .rounded-button.magenta:hover	{
+.cropduster-upload-form .rounded-button.magenta:hover,
+.cropduster-upload-form input[type="submit"].rounded-button.magenta:hover,
+.cropduster-upload-form input[type="button"].rounded-button.magenta:hover {
 	background-color: #630030;
 }
 
 .cropduster-upload-form .rounded-button.orange,
 .cropduster-upload-form .rounded-button.orange:active,
 .cropduster-upload-form .rounded-button.orange:hover,
-.cropduster-upload-form .rounded-button.orange:visited {
+.cropduster-upload-form .rounded-button.orange:visited,
+.cropduster-upload-form input[type="submit"].rounded-button.orange,
+.cropduster-upload-form input[type="submit"].rounded-button.orange:visited,
+.cropduster-upload-form input[type="submit"].rounded-button.orange:hover,
+.cropduster-upload-form input[type="submit"].rounded-button.orange:active,
+.cropduster-upload-form input[type="button"].rounded-button.orange,
+.cropduster-upload-form input[type="button"].rounded-button.orange:visited,
+.cropduster-upload-form input[type="button"].rounded-button.orange:hover,
+.cropduster-upload-form input[type="button"].rounded-button.orange:active {
 	color: #fff;
 	border: 0;
 	background: #ff5c00 url(../img/button-overlay.png) repeat-x 0 0;
 }
-.cropduster-upload-form .rounded-button.orange:hover	{
+.cropduster-upload-form .rounded-button.orange:hover,
+.cropduster-upload-form input[type="submit"].rounded-button.orange:hover,
+.cropduster-upload-form input[type="button"].rounded-button.orange:hover {
 	background-color: #d45500;
 }
 
 .cropduster-upload-form .rounded-button.yellow,
 .cropduster-upload-form .rounded-button.yellow:active,
 .cropduster-upload-form .rounded-button.yellow:hover,
-.cropduster-upload-form .rounded-button.yellow:visited {
+.cropduster-upload-form .rounded-button.yellow:visited,
+.cropduster-upload-form input[type="submit"].rounded-button.yellow,
+.cropduster-upload-form input[type="submit"].rounded-button.yellow:visited,
+.cropduster-upload-form input[type="submit"].rounded-button.yellow:hover,
+.cropduster-upload-form input[type="submit"].rounded-button.yellow:active,
+.cropduster-upload-form input[type="button"].rounded-button.yellow,
+.cropduster-upload-form input[type="button"].rounded-button.yellow:visited,
+.cropduster-upload-form input[type="button"].rounded-button.yellow:hover,
+.cropduster-upload-form input[type="button"].rounded-button.yellow:active {
 	color: #fff;
 	border: 0;
 	background: #ffb515 url(../img/button-overlay.png) repeat-x 0 0;
 }
-.cropduster-upload-form .rounded-button.yellow:hover	{
+.cropduster-upload-form .rounded-button.yellow:hover,
+.cropduster-upload-form input[type="submit"].rounded-button.yellow:hover,
+.cropduster-upload-form input[type="button"].rounded-button.yellow:hover {
 	background-color: #fc9200;
 }
 
