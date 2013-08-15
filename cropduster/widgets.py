@@ -178,6 +178,20 @@ class CropDusterWidget(Input):
         return helpers.InlineAdminFormSet(inline, formset,
             fieldsets, readonly_fields=readonly, model_admin=root_admin)
 
+    def value_from_datadict(self, data, files, name):
+        """
+        During form submission, field.widget.value_from_datadict() is used
+        to get the value from the submitted POST data. The arguments `data`
+        and `files` correspond to `request.POST` and `request.FILES`,
+        respectively.
+
+        This method differs from its parent method in that it checks _both_
+        data and files for ``name`` (the parent checks only data). The value
+        can be in files if the form was submitted using the fallback
+        django.forms.ImageField formfield.
+        """
+        return data.get(name, files.get(name, None))
+
 
 def cropduster_widget_factory(sizes, related=None):
     return type('CropDusterWidget', (CropDusterWidget,), {

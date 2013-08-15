@@ -5,7 +5,9 @@ from datetime import datetime
 
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
+from django.core.files.uploadedfile import UploadedFile
 from django.db import models
+from django.db.models.fields.files import FieldFile
 from django.conf import settings
 
 import PIL.Image
@@ -308,6 +310,19 @@ class CropDusterField(CropDusterGenericRelation):
         self.sizes = kwargs.pop('sizes', None)
         kwargs['to'] = kwargs.pop('to', Image)
         super(CropDusterField, self).__init__(verbose_name=verbose_name, **kwargs)
+
+    def save_form_data(self, instance, data):
+        super(CropDusterField, self).save_form_data(instance, data)
+        # If we have a file uploaded via the fallback ImageField, make
+        # sure that it's saved.
+        if isinstance(data, UploadedFile):
+            value = self.pre_save(instance, False)
+            if value and isinstance(value, FieldFile) and not value._committed:
+                # save=True saves the instance. Since this field (CropDusterField)
+                # is considered a "related field" by Django, its save_form_data()
+                # gets called after the instance has already been saved. We need
+                # to resave it if we have a new image.
+                value.save(value.name, value, save=True)        
 
     def formfield(self, **kwargs):
         from .forms import cropduster_formfield_factory

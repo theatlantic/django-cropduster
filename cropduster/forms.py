@@ -1,10 +1,12 @@
 import re
 
 from django import forms
+from django.contrib.admin.widgets import AdminFileWidget
 from django.contrib.contenttypes.generic import BaseGenericInlineFormSet
 from django.core import validators
-from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.files.uploadedfile import UploadedFile
 from django.db import models
+from django.db.models.fields.files import FieldFile
 from django.forms.forms import BoundField
 from django.forms.models import ModelMultipleChoiceField, ModelFormMetaclass
 from django.core.exceptions import ValidationError
@@ -19,7 +21,6 @@ class CropDusterFormField(forms.Field):
 
     def __init__(self, sizes=None, *args, **kwargs):
         self.sizes = sizes or self.sizes
-
         kwargs['widget'] = CropDusterWidget(field=self, sizes=self.sizes)
         super(CropDusterFormField, self).__init__(*args, **kwargs)
 
@@ -27,6 +28,11 @@ class CropDusterFormField(forms.Field):
         value = super(CropDusterFormField, self).to_python(value)
         if value in validators.EMPTY_VALUES:
             return None
+
+        # value can be an UploadedFile if the form was submitted with the
+        # fallback ImageField formfield
+        if isinstance(value, UploadedFile):
+            return value
 
         if isinstance(value, basestring) and not value.isdigit():
             return value
@@ -99,6 +105,23 @@ class BaseCropDusterInlineFormSet(BaseGenericInlineFormSet):
 
         super(BaseCropDusterInlineFormSet, self).__init__(*args, **kwargs)
 
+    def initial_form_count(self):
+        """
+        In the event that the formset fields never rendered, don't raise a
+        ValidationError, but return the sensible value (0)
+        """
+        try:
+            return super(BaseCropDusterInlineFormSet, self).initial_form_count()
+        except ValidationError:
+            return 0
+
+    def total_form_count(self):
+        """See the docstring for initial_form_count()"""
+        try:
+            return super(BaseCropDusterInlineFormSet, self).total_form_count()
+        except ValidationError:
+            return 0
+
     @classmethod
     def get_default_prefix(cls):
         if cls.prefix_override:
@@ -169,6 +192,32 @@ class BaseCropDusterInlineFormSet(BaseGenericInlineFormSet):
 
 
 class CropDusterBoundField(BoundField):
+
+    def __init__(self, form, field, name):
+        super(CropDusterBoundField, self).__init__(form, field, name)
+        db_field = getattr(getattr(field, 'related', None), 'field', None)
+        db_image_field = getattr(db_field, 'image_field', None)
+        value = self.value()
+        use_image_field = False
+        # If the ImageFieldFile has a filename, but no corresponding
+        # cropduster.Image (as it would, for instance, on instances
+        # with images originally saved with a vanilla models.ImageField)
+        # then we use the standard ImageField formfield.
+        if isinstance(value, FieldFile) and value.name and not value.cropduster_image:
+            use_image_field = True
+        # If this is a form submission from the ImageField formfield (above),
+        # then the value can be a django UploadedFile
+        elif isinstance(value, UploadedFile):
+            use_image_field = True
+        # Swap out the CropDusterFormField with a django.forms.ImageField
+        if use_image_field and db_image_field:
+            self.field = db_image_field.formfield(**{
+                'required': field.required,
+                'label': field.label,
+                'initial': field.initial,
+                'widget': AdminFileWidget,
+                'help_text': field.help_text,
+            })
 
     def as_widget(self, widget=None, attrs=None, only_initial=False):
         widget = widget or self.field.widget
