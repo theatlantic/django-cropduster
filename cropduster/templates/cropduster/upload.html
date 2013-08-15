@@ -6,9 +6,9 @@
 <!-- STYLESHEETS -->
 {% block stylesheets %}
     {{ block.super }}
-    <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/CropDuster.css" type="text/css" />
+    <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/CropDuster.css?v=1" type="text/css" />
     <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/jquery.Jcrop.css" type="text/css" />
-    <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/upload.css" type="text/css" />
+    <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/upload.css?v=1" type="text/css" />
 {% endblock %}
 
 <!-- JAVASCRIPTS -->
@@ -18,8 +18,8 @@
     <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.class.js"></script>
     <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.form.js?v=1"></script>
     <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.Jcrop.js?v=2"></script>
-    <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/upload.js"></script>
-    <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/CropDuster.js"></script>
+    <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/upload.js?v=1"></script>
+    <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/CropDuster.js?v=1"></script>
 {% endblock %}
 
 <!-- Get rid of nav -->
@@ -44,13 +44,6 @@
                 <input type="file" name="picture" id="picture" />
             </div>
         </fieldset>
-        <div class="module footer" id="upload-footer"{% if image_id %} style="display: none"{% endif %}>
-            <ul class="submit-row">
-                <li class="submit-button-container">
-                    <input id="upload-button" class="rounded-button disabled" type="submit" name="_save" value='Upload' />
-                </li>
-            </ul>
-        </div>
     </form>
 
     <div id="error-container" style="display:none">
@@ -61,11 +54,31 @@
         <div id="image-container">
             <img src="{{ image }}" id="cropbox" />
         </div>
-        <div style="display:none">{{ thumb_form.as_p }}</div>
-        <div class="module footer" id="crop-footer"{% if not image_id %} style="display:none"{% endif %}>
-            <ul class="submit-row">
+        <div style="display:none">
+            {{ crop_form.as_p }}
+            <div class="cropduster-thumb-formset" id="{{ thumb_formset.prefix }}-group">
+                {{ thumb_formset.management_form }}
+                {% for thumb_form in thumb_formset %}
+                <div class="cropduster-thumb-form" id="{{ thumb_formset.prefix }}-{{ forloop.counter0 }}">
+                    <table>{{ thumb_form }}</table>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="module footer">
+            <div id="current-thumb-info">
+                <div id="current-thumb-index"></div>
+                <div id="thumb-total-count"></div>
+                <div id="current-thumb-label"></div>
+            </div>
+            <ul class="submit-row" id="upload-footer"{% if not image_id %} style="display: none"{% endif %}>
                 <li class="submit-button-container">
-                    <input id="crop-button" class="rounded-button" type="submit" name="crop" value="Crop and Generate Thumbs" />
+                    <input id="upload-button" class="rounded-button disabled" type="submit" name="_save" value='Upload'  onclick="return uploadSubmit();"/>
+                </li>
+            </ul>
+            <ul class="submit-row" id="crop-footer"{% if image_id %} style="display: none"{% endif %}>
+                <li class="submit-button-container">
+                    <input id="crop-button" class="rounded-button" type="submit" name="crop" value="Crop and Continue" />
                 </li>
                 <li class="submit-button-container">
                     <input id="reupload-button" class="rounded-button disabled" type="submit" name="_save" value='Re-Upload' onclick="return uploadSubmit();" />

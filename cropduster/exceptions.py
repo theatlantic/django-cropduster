@@ -1,10 +1,11 @@
 import os
 import sys
 import logging
+import copy
 import errno
 
 from django.http import HttpResponse
-
+from django.utils.safestring import mark_safe
 
 
 logger = logging.getLogger('root')
@@ -109,8 +110,28 @@ def log_error(request, view, action, errors):
         }, **log_kwargs)
 
 
-def json_error(request, view, action, errors, log_error=False):
+def json_error(request, view, action, errors=None, forms=None, formsets=None, log_error=False):
     from .utils import json
+
+    if forms:
+        formset_errors = [[copy.deepcopy(f.errors) for f in forms]]
+    elif formsets:
+        formset_errors = [copy.deepcopy(f.errors) for f in formsets]
+    else:
+        formset_errors = []
+
+    if not errors and not formset_errors:
+        return
+
+    error_str = u''
+    for forms in formset_errors:
+        for form_errors in forms:
+            for k in sorted(form_errors.keys()):
+                v = form_errors.pop(k)
+                k = mark_safe('<span class="error-field error-%(k)s">%(k)s</span>' % {'k': k})
+                form_errors[k] = v
+            error_str += unicode(form_errors)
+    errors = errors or [error_str]
 
     if log_error:
         log_error(request, view, action, errors)

@@ -1,3 +1,7 @@
+body.cropduster-upload-form #crop-form {
+    margin-top: 15px;
+}
+
 body.cropduster-upload-form ul.errorlist {
     color: #fff;
 }
@@ -46,4 +50,44 @@ body.cropduster-upload-form .module.footer,
 body.cropduster-upload-form .grp-module.grp-footer,
 body.cropduster-upload-form .grp-module.grp-fixed-footer {
     border-top: 1px solid #111;
+}
+
+body.cropduster-upload-form #current-thumb-info {
+    float:left;
+    margin-left:5px;
+    line-height:27px;
+    position:relative;
+}
+body.cropduster-upload-form #current-thumb-info > div {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+body.cropduster-upload-form #current-thumb-info > div#current-thumb-index {
+    width:14px;
+}
+body.cropduster-upload-form #current-thumb-info > div#current-thumb-index {
+    position:absolute;
+    left:17px;
+    width:14px;
+}
+body.cropduster-upload-form #current-thumb-info > div#current-thumb-index:after {
+    content: "/";
+    position: absolute;
+    left: 17px;
+    top: 0;
+    width: 5px;
+}
+body.cropduster-upload-form #current-thumb-info > div#thumb-total-count {
+    position: absolute;
+    left: 44px;
+    top: 0;
+    width: 14px;
+}
+body.cropduster-upload-form #current-thumb-info > div#current-thumb-label {
+    left: 70px;
+    width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -o-text-overflow: ellipsis;
 }

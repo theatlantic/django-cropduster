@@ -53,9 +53,14 @@ window.CropDuster = {};
                 data[paramName] = ($.isArray(val)) ? val.join(',') : val;
             }
             var sizes = $('#id_' + prefix).data('sizes') || [];
-            if ($.isArray(sizes) && sizes.length && typeof sizes[0] == 'object') {
+            sizes = ($.isArray(sizes)) ? sizes : [];
+            if (sizes.length && typeof sizes[0] == 'object') {
                 data['thumb_name'] = sizes[0].name;
+                // var sizeNames = [];
+                // $.each(sizes, function(i, size) { sizeNames.push(size.name); });
+                // data['size_names'] = sizeNames.join(',');
             }
+            data['sizes'] = JSON.stringify(sizes);
             for (var paramName in data) {
                 var val = data[paramName];
                 if (val) {
@@ -70,11 +75,14 @@ window.CropDuster = {};
         setThumbnails: function(prefix, thumbs) {
             var $select = $('#id_' + prefix + '-0-thumbs');
             $select.find('option').detach();
-            for (var sizeName in thumbs) {
-                var thumbData = thumbs[sizeName];
+            for (var i = 0; i < thumbs.length; i++) {
+                var thumbData = thumbs[i];
                 var $option = $(document.createElement('OPTION'));
+                if (!thumbData.id) {
+                    continue;
+                }
                 $option.attr('value', thumbData.id);
-                $option.html(sizeName);
+                $option.html(thumbData.name);
                 $option.attr('data-width', thumbData.width);
                 $option.attr('data-height', thumbData.height);
                 $select.append($option);
@@ -84,14 +92,25 @@ window.CropDuster = {};
         },
 
         complete: function(prefix, data) {
-            $('#id_' + prefix).val(data.image);
-            for (var k in data) {
-                $('#id_' + prefix + '-0-' + k).val(data[k]);
+            var formData = {
+                'id': data.crop.image_id,
+                'image': data.crop.orig_image
+            };
+            $('#id_' + prefix + '-0-id').val(data.crop.image_id);
+            if ($('#id_mt_image-0-image').val() != data.crop.orig_image) {
+                formData['id'] = '';
             }
+            $('#id_' + prefix + '-0-image').val(data.crop.orig_image);
+            $('#id_' + prefix).val(data.crop.orig_image);
             $('#id_' + prefix + '-TOTAL_FORMS').val('1');
-            if (data.thumbs) {
-                CropDuster.setThumbnails(prefix, data.thumbs);
+            if (typeof data.thumbs != 'object') {
+                return;
             }
+            var thumbs = ($.isArray(data.thumbs)) ? data.thumbs : data._thumbs;
+            if (!$.isArray(thumbs)) {
+                return;
+            }
+            CropDuster.setThumbnails(prefix, thumbs);
             CropDuster.createThumbnails(prefix, true);
         },
 

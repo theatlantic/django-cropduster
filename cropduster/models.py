@@ -246,22 +246,23 @@ class Image(models.Model):
         img_save_params = {}
         if image.format == 'JPEG':
             img_save_params['quality'] = 95
-        old_thumb = thumb
         if not thumb:
             thumb = Thumb()
             if self.pk:
                 try:
-                    old_thumb = thumb = self.thumbs.get(name=size.name)
+                    thumb = self.thumbs.get(name=size.name)
                 except Thumb.DoesNotExist:
                     pass
 
         thumb.name = size.name
+
         if size.is_auto:
             ref_thumb = ref_thumb or thumb.reference_thumb
             if ref_thumb:
                 crop_box = ref_thumb.get_crop_box()
         elif thumb:
             crop_box = thumb.get_crop_box()
+
         if not crop_box:
             return None
 
@@ -269,11 +270,6 @@ class Image(models.Model):
         thumb_image = thumb.crop(image, w=size.width, h=size.height, min_w=size.min_w, min_h=size.min_h)
         thumb_path = self.get_image_path(size.name, use_temp=tmp)
         thumb_image.save(thumb_path, **img_save_params)
-
-        cmp_keys = ['crop_x', 'crop_y', 'crop_w', 'crop_h', 'width', 'height']
-        if old_thumb:
-            if any([getattr(thumb, k) != getattr(old_thumb, k) for k in cmp_keys]):
-                thumb.pk = None
         thumb.save()
         return thumb
 

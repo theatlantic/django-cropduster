@@ -1,4 +1,5 @@
 from __future__ import division
+import re
 import math
 import PIL.Image
 
@@ -13,7 +14,7 @@ class Size(object):
 
     parent = None
 
-    def __init__(self, name, w=None, h=None, retina=False, auto=None, min_w=None, min_h=None):
+    def __init__(self, name, label=None, w=None, h=None, retina=False, auto=None, min_w=None, min_h=None):
         if not w and not h:
             raise ImproperlyConfigured("At least one of the kwargs `w` or `h` must be defined")
 
@@ -36,9 +37,10 @@ class Size(object):
         self.retina = retina
         self.width = w
         self.height = h
+        self.label = label or u' '.join(filter(None, re.split(r'[_\-]', name))).title()
 
     def __unicode__(self):
-        name = u'Size: %s' % self.name
+        name = u'Size %s (%s):' % (self.label, self.name)
         if self.auto:
             name = u'%s[auto]' % name
         if self.retina:
@@ -102,6 +104,7 @@ class Size(object):
             'min_h': self.min_h,
             'retina': self.retina,
             'auto': None,
+            'label': self.label,
             '__type__': 'cropduster.resizing.Size',
         }
         if self.auto:
@@ -222,12 +225,12 @@ class Crop(object):
             w = (x2 - x1) * (scale_y / scale_x)
             dw = initial_fit.w - w
             x1 += (dw / 2)
-            x2 -= (dw / 2)
+            x2 = x1 + w
         elif scale_x < scale_y:
             h = (y2 - y1) * (scale_x / scale_y)
             dh = initial_fit.h - h
             y1 += (dh / 2)
-            y2 -= (dh / 2)
+            y2 = y1 + h
 
         w = int(round(w))
         h = int(round(h))
