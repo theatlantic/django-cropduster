@@ -53,6 +53,8 @@
                 error = unknownErrorMsg;
             }
 
+            data = $.extend({}, getFormData(), data);
+
             if (typeof data == 'object' && $.isArray(data.thumbs) && data.thumbs[i]) {
                 data._thumbs = data.thumbs;
                 data = $.extend({}, data, data.thumbs[i]);
@@ -386,19 +388,22 @@
                         $('#id_thumbs-INITIAL_FORMS').val(0);
                     }
 
+                    var thumbCount = $('.cropduster-thumb-form').length;
+
                     var index = (action == 'upload') ? 0 : cropBox.index + 1;
-                    if (data.thumbs && index == cropBox.data._thumbs.length && action == 'crop') {
+                    if (data.thumbs && index == thumbCount && action == 'crop') {
                         window.opener.CropDuster.complete(imageElementId, data);
                         window.close();
                         return;
                     }
                     cropBox.onSuccess(data, index, responseType);
-                    if (cropBox.data._thumbs && cropBox.index == cropBox.data._thumbs.length - 1) {
+
+                    if (cropBox.data._thumbs && cropBox.index == thumbCount - 1) {
                         $('#crop-button').val('Crop and Generate Thumbs');
                     } else {
                         $('#crop-button').val('Crop and Continue');
                     }
-                    if (data.thumbs && cropBox.index == cropBox.data._thumbs.length && action == 'crop') {
+                    if (data.thumbs && cropBox.index == thumbCount && action == 'crop') {
                         cropBox.
                         window.opener.CropDuster.complete(imageElementId, data);
                         window.close();
