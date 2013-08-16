@@ -5,13 +5,6 @@
                           'ATMOProgrammers@theatlantic.com' +
                           '</a>';
 
-    function updateCoords(c, i) {
-        $('#id_thumbs-' + i + '-crop_x').val(c.x);
-        $('#id_thumbs-' + i + '-crop_y').val(c.y);
-        $('#id_thumbs-' + i + '-crop_w').val(c.w);
-        $('#id_thumbs-' + i + '-crop_h').val(c.h);
-    }
-
     var CropBoxClass = Class.extend({
 
         jcrop: null,
@@ -42,7 +35,37 @@
                 }
             }
         },
+        updateCoordinates: function(c, i) {
+            var x = Math.round(c.x),
+                y = Math.round(c.y),
+                w = Math.round(c.w),
+                h = Math.round(c.h);
 
+            var options = {};
+            if (this.jcrop) {
+                options = this.jcrop.getOptions();
+            }
+            if (options.minSize) {
+                if (Math.abs(w - options.minSize[0]) == 1) {
+                    w = options.minSize[0];
+                }
+                if (Math.abs(h - options.minSize[1]) == 1) {
+                    w = options.minSize[1];
+                }
+            }
+            if (options.maxSize) {
+                if (Math.abs(w - options.maxSize[0]) == 1) {
+                    w = options.maxSize[0];
+                }
+                if (Math.abs(h - options.maxSize[1]) == 1) {
+                    w = options.maxSize[1];
+                }
+            }
+            $('#id_thumbs-' + i + '-crop_x').val(x);
+            $('#id_thumbs-' + i + '-crop_y').val(y);
+            $('#id_thumbs-' + i + '-crop_w').val(w);
+            $('#id_thumbs-' + i + '-crop_h').val(h);
+        },
         onSuccess: function(data, i, responseType) {
             var error = false;
             if (responseType != 'success') {
@@ -54,7 +77,6 @@
             }
 
             data = $.extend({}, getFormData(), data);
-
             if (typeof data == 'object' && $.isArray(data.thumbs) && data.thumbs[i]) {
                 data._thumbs = data.thumbs;
                 data = $.extend({}, data, data.thumbs[i]);
@@ -121,31 +143,32 @@
                 minSize[0] = Math.max(minSize[0], min_w);
                 minSize[1] = Math.max(minSize[1], min_h);
             });
-
-            var scalex = $cropbox.width()  / this.data.orig_w;
-            var scaley = $cropbox.height() / this.data.orig_h;
-
-            minSize[0] = minSize[0] * scalex;
-            minSize[1] = minSize[1] * scaley;
             return {
                 'minSize': minSize,
-                'aspectRatio': aspectRatio
+                'aspectRatio': aspectRatio,
+                'boxWidth': $cropbox.width(),
+                'boxHeight': $cropbox.height()
             };
         },
         onImageLoad: function() {
+            var self = this;
             try {
                 this.jcrop.destroy();
             } catch (e) { }
+
             var thumbName = $('#id_crop-thumb_name').val() || '';
-            var opts = this.getCropOptions(thumbName);
-            var self = this;
-            opts = $.extend({}, opts, {
-                setSelect: this.getCropSelect(opts['aspectRatio']),
-                onSelect: function(c) { updateCoords(c, self.index); },
+            var options = this.getCropOptions(thumbName);
+            options = $.extend(options, {
+                setSelect: this.getCropSelect(options['aspectRatio']),
+                onSelect: function(c) {
+                    self.updateCoordinates(c, self.index);
+                },
                 trueSize: [this.data.orig_w, this.data.orig_h]
             });
 
-            this.jcrop = $.Jcrop('#cropbox', opts);
+            $('#cropbox').Jcrop(options, function() {
+                self.jcrop = this;
+            });
 
             $('#upload-footer').hide();
             $('#crop-footer').show();
@@ -202,7 +225,7 @@
                 // Update the hidden inputs with our best-guess crop for the aspect ratio,
                 // dividing by the scale factor so that the coordinates are relative to the
                 // original image
-                updateCoords({
+                this.updateCoordinates({
                     x:  Math.round(x / scalex),
                     y:  Math.round(y / scaley),
                     w:  Math.round(w / scalex),
