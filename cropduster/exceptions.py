@@ -8,20 +8,61 @@ from django.http import HttpResponse
 from django.utils.safestring import mark_safe
 
 
-logger = logging.getLogger('root')
+logger = logging.getLogger('cropduster')
+
+
+SentryHandler = raven_client = None
 
 
 try:
     from sentry.client.handlers import SentryHandler
 except ImportError:
     try:
-        from raven.handlers.logging import SentryHandler
+        from raven.contrib.django.models import get_client
     except ImportError:
-        SentryHandler = None
+        pass
+    else:
+        raven_client = get_client()
 
 
 if SentryHandler:
     logger.addHandler(SentryHandler())
+
+
+class FauxTb(object):
+
+    def __init__(self, tb_frame, tb_lineno, tb_next):
+        self.tb_frame = tb_frame
+        self.tb_lineno = tb_lineno
+        self.tb_next = tb_next
+
+
+def current_stack(skip=0):
+    try: 1/0
+    except ZeroDivisionError:
+        f = sys.exc_info()[2].tb_frame
+    for i in xrange(skip + 2):
+        f = f.f_back
+    lst = []
+    while f is not None:
+        lst.append((f, f.f_lineno))
+        f = f.f_back
+    return lst
+
+
+def extend_traceback(tb, stack):
+    """Extend traceback with stack info."""
+    head = tb
+    for tb_frame, tb_lineno in stack:
+        head = FauxTb(tb_frame, tb_lineno, head)
+    return head
+
+
+def full_exc_info():
+    """Like sys.exc_info, but includes the full traceback."""
+    t, v, tb = sys.exc_info()
+    full_tb = extend_traceback(tb, current_stack(1))
+    return t, v, full_tb
 
 
 def format_error(error):
@@ -40,14 +81,22 @@ def format_error(error):
     }
 
 
-def log_error(request, view, action, errors):
+def log_error(request, view, action, errors, exc_info=None):
     # We only log the first error, send the rest as data; it's simpler this way
     error_msg = "Error %s: %s" % (action, format_error(errors[0]))
 
     log_kwargs = {}
 
-    if not isinstance(errors[0], basestring):
-        log_kwargs["exc_info"] = sys.exc_info()
+    if not exc_info:
+        try:
+            exc_info = full_exc_info()
+        except:
+            exc_info = None
+    if exc_info and not isinstance(exc_info, tuple) or not len(exc_info) or not exc_info[0]:
+        exc_info = None
+
+    if exc_info:
+        log_kwargs["exc_info"] = exc_info
 
     extra_data = {
         'errors': errors,
@@ -100,17 +149,28 @@ def log_error(request, view, action, errors):
             'resolver_app_dict': resolver.app_dict,
             'resolver_url_patterns': resolver.url_patterns,
             'urlconf': urlconf,
+            'view': 'cropduster.views.%s' % view,
         })
 
-    logger.error(error_msg, extra={
+    raven_kwargs = {'request': request, 'extra': extra_data, 'data': {'message': error_msg}}
+
+    if raven_client:
+        if exc_info:
+            return raven_client.get_ident(
+                raven_client.captureException(exc_info=exc_info, **raven_kwargs))
+        else:
+            return raven_client.get_ident(
+                raven_client.captureMessage(error_msg, **raven_kwargs))
+    else:
+        extra_data.update({
             'request': request,
-            'view': 'cropduster.views.%s' % view,
             'url': request.path_info,
-            'data': extra_data
-        }, **log_kwargs)
+        })
+        logger.error(error_msg, extra=extra_data, **log_kwargs)
+        return None
 
 
-def json_error(request, view, action, errors=None, forms=None, formsets=None, log_error=False):
+def json_error(request, view, action, errors=None, forms=None, formsets=None, log=False, exc_info=None):
     from .utils import json
 
     if forms:
@@ -133,8 +193,8 @@ def json_error(request, view, action, errors=None, forms=None, formsets=None, lo
             error_str += unicode(form_errors)
     errors = errors or [error_str]
 
-    if log_error:
-        log_error(request, view, action, errors)
+    if log:
+        log_error(request, view, action, errors, exc_info=exc_info)
 
     if len(errors) == 1:
         error_msg = "Error %s: %s" % (action, format_error(errors[0]))
@@ -150,20 +210,26 @@ def json_error(request, view, action, errors=None, forms=None, formsets=None, lo
 class CropDusterException(Exception):
     pass
 
+
 class CropDusterUrlException(CropDusterException):
     pass
+
 
 class CropDusterViewException(CropDusterException):
     pass
 
+
 class CropDusterModelException(CropDusterException):
     pass
+
 
 class CropDusterImageException(CropDusterException):
     pass
 
+
 class CropDusterFileException(CropDusterException):
     pass
+
 
 class CropDusterResizeException(CropDusterException):
     pass

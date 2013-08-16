@@ -21,7 +21,7 @@ from .models import Thumb, Image as CropDusterImage
 from .utils import (
     json, rescale, get_relative_media_url, get_upload_foldername,
     get_image_extension, get_media_url, get_min_size)
-from .exceptions import json_error, CropDusterViewException
+from .exceptions import json_error, CropDusterViewException, full_exc_info
 
 
 # For validation
@@ -105,6 +105,7 @@ def get_admin_base_template():
             return 'admin_mod/base.html'
     else:
         return 'custom_admin/base.html'
+
 
 
 @csrf_exempt
@@ -294,11 +295,12 @@ def crop(request):
             raise CropDusterViewException("Form submission invalid")
     except CropDusterViewException as e:
         return json_error(request, 'crop',
-            action="cropping image", errors=[e], log_error=True)
+            action="cropping image", errors=[e], log=True, exc_info=full_exc_info())
 
     crop_form = CropForm(request.POST, request.FILES, prefix='crop')
     if not crop_form.is_valid():
-        return json_error(request, 'crop', action='submitting form', forms=[crop_form])
+        return json_error(request, 'crop', action='submitting form', forms=[crop_form],
+                log=True, exc_info=full_exc_info())
 
     crop_data = copy.deepcopy(crop_form.cleaned_data)
     db_image = CropDusterImage(image=crop_data['orig_image'])
@@ -311,7 +313,8 @@ def crop(request):
     thumb_formset = ThumbFormSet(request.POST, request.FILES, prefix='thumbs')
 
     if not thumb_formset.is_valid():
-        return json_error(request, 'crop', action='submitting form', formsets=[thumb_formset])
+        return json_error(request, 'crop', action='submitting form', formsets=[thumb_formset],
+                log=True, exc_info=full_exc_info())
 
     cropped_thumbs = thumb_formset.save(commit=False)
 
