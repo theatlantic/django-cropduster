@@ -220,7 +220,6 @@ def upload(request):
         with open(tmp_file_path, 'wb+') as f:
             for chunk in img_file.chunks():
                 f.write(chunk)
-
         img = PIL.Image.open(tmp_file_path)
 
         (w, h) = (orig_w, orig_h) = img.size
@@ -285,7 +284,7 @@ def upload(request):
             'height': h,
             'orig_url': orig_url,
         }
-        return HttpResponse(json.dumps(data))
+        return HttpResponse(json.dumps(data), mimetype='application/json')
 
 
 @csrf_exempt
@@ -374,4 +373,4 @@ def crop(request):
         'crop': crop_data,
         'thumbs': thumbs_data,
         'initial': True,
-    }))
+    }), mimetype='application/json')

@@ -181,7 +181,8 @@ def json_error(request, view, action, errors=None, forms=None, formsets=None, lo
         formset_errors = []
 
     if not errors and not formset_errors:
-        return
+        return HttpResponse(json.dumps({'error': 'An unknown error occurred'}),
+                mimetype='application/json')
 
     error_str = u''
     for forms in formset_errors:
@@ -204,7 +205,7 @@ def json_error(request, view, action, errors=None, forms=None, formsets=None, lo
         for error in errors:
             error_msg += "<li>&nbsp;&nbsp;&nbsp;&bull;&nbsp;%s</li>" % format_error(error)
         error_msg += "</ul>"
-    return HttpResponse(json.dumps({'error': error_msg}))
+    return HttpResponse(json.dumps({'error': error_msg}), mimetype='application/json')
 
 
 class CropDusterException(Exception):
