@@ -21,7 +21,8 @@ from .models import Thumb, Image as CropDusterImage
 from .utils import (
     json, rescale, get_relative_media_url, get_upload_foldername,
     get_image_extension, get_media_url, get_min_size)
-from .exceptions import json_error, CropDusterViewException, full_exc_info
+from .exceptions import (json_error, CropDusterViewException, 
+    CropDusterResizeException, full_exc_info)
 
 
 # For validation
@@ -330,7 +331,13 @@ def crop(request):
         thumb_form._changed_data = list(changed_fields)
         if changed_fields & set(['crop_x', 'crop_y', 'crop_w', 'crop_h']):
             thumb.pk = None
-            new_thumbs = db_image.save_size(thumb_form.cleaned_data['size'], thumb, tmp=True)
+
+            try:
+                new_thumbs = db_image.save_size(thumb_form.cleaned_data['size'], thumb, tmp=True)
+            except CropDusterResizeException as e:
+                return json_error(request, 'crop',
+                                  action="saving size", errors=[unicode(e)])
+
             if not new_thumbs:
                 continue
             cropped_thumbs[i] = thumb = new_thumbs.get(thumb.name, thumb)
