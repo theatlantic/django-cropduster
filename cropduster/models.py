@@ -14,6 +14,7 @@ import PIL.Image
 
 from .related import CropDusterGenericRelation
 from .resizing import Size, Box, Crop
+from .thumbs import CropDusterThumbField
 from . import settings as cropduster_settings
 
 
@@ -134,7 +135,7 @@ class Image(models.Model):
     image = models.ImageField(db_index=True, upload_to=generate_filename, db_column='path',
         width_field='width', height_field='height')
 
-    thumbs = models.ManyToManyField('cropduster.Thumb',
+    thumbs = CropDusterThumbField(Thumb,
         related_name='thumbs',
         verbose_name='thumbs',
         null=True,
