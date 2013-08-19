@@ -108,6 +108,34 @@ def get_admin_base_template():
         return 'custom_admin/base.html'
 
 
+class FakeQuerySet(object):
+
+    def __init__(self, objs, queryset):
+        self.objs = objs
+        self.queryset = queryset
+
+    def __iter__(self):
+        obj_iter = iter(self.objs)
+        while True:
+            try:
+                yield obj_iter.next()
+            except StopIteration:
+                break
+
+    def __len__(self):
+        return len(self.objs)
+
+    @property
+    def ordered(self):
+        return True
+
+    @property
+    def db(self):
+        return self.queryset.db
+
+    def __getitem__(self, index):
+        return self.objs[index]
+
 
 @csrf_exempt
 def upload(request):
@@ -174,16 +202,24 @@ def upload(request):
 
         initial['sizes'] = request.GET.get('sizes', '[]')
         sizes = json.loads(initial['sizes'])
-        thumb_names = [t.name for t in thumbs]
+        thumb_names = dict([(t.name, t) for t in thumbs])
         formset_initial = []
         size_dict = {}
+        # Create a fake queryset with the same order as the image `sizes`.
+        # This is necessary if we want the formset thumb order to be consistent.
+        ordered_thumbs = []
         for size in sizes:
             size_dict[size.name] = size
             if size.name not in thumb_names:
-                formset_initial.append({'name': size.name, 'size': json.dumps(size)})
-        extra = len(sizes) - len(thumb_names)
-        ThumbFormSet = modelformset_factory(Thumb, form=ThumbForm, extra=extra)
-        thumb_formset = ThumbFormSet(queryset=thumbs, initial=formset_initial, prefix='thumbs')
+                ordered_thumbs.append(Thumb(name=size.name))
+            else:
+                ordered_thumbs.append(thumb_names[size.name])
+        fake_queryset = FakeQuerySet(ordered_thumbs, thumbs)
+        
+
+        ThumbFormSet = modelformset_factory(Thumb, form=ThumbForm, extra=0)
+
+        thumb_formset = ThumbFormSet(queryset=fake_queryset, initial=formset_initial, prefix='thumbs')
 
         for thumb_form in thumb_formset.initial_forms:
             pk = thumb_form.initial['id']
