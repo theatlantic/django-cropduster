@@ -215,7 +215,7 @@ class CropDusterBoundField(BoundField):
                 'required': field.required,
                 'label': field.label,
                 'initial': field.initial,
-                'widget': AdminFileWidget,
+                'widget': form._meta.widgets.get(name, AdminFileWidget),
                 'help_text': field.help_text,
             })
 
