@@ -6,9 +6,9 @@
 <!-- STYLESHEETS -->
 {% block stylesheets %}
     {{ block.super }}
-    <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/CropDuster.css?v=1" type="text/css" />
+    <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/CropDuster.css?v=2" type="text/css" />
     <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/jquery.Jcrop.css?v=3" type="text/css" />
-    <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/upload.css?v=1" type="text/css" />
+    <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/upload.css?v=2" type="text/css" />
 {% endblock %}
 
 <!-- JAVASCRIPTS -->
@@ -17,8 +17,8 @@
     <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/json2.js"></script>
     <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.class.js"></script>
     <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.form.js?v=1"></script>
-    <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.Jcrop.js?v=3"></script>
-    <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/upload.js?v=2"></script>
+    <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.Jcrop.js?v=4"></script>
+    <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/upload.js?v=3"></script>
     <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/CropDuster.js?v=1"></script>
 {% endblock %}
 
@@ -54,7 +54,7 @@
         <div id="image-container">
             <img src="{{ image }}" id="cropbox" />
         </div>
-        <div style="display:none">
+        <div id="thumb-formset-container">
             {{ crop_form.as_p }}
             <div class="cropduster-thumb-formset" id="{{ thumb_formset.prefix }}-group">
                 {{ thumb_formset.management_form }}
@@ -66,6 +66,10 @@
             </div>
         </div>
         <div class="module footer">
+            <div id="crop-nav">
+                <div id="nav-left" class="rounded-button disabled"><span></span></div>
+                <div id="nav-right" class="rounded-button disabled"><span></span></div>
+            </div>
             <div id="current-thumb-info">
                 <div id="current-thumb-index"></div>
                 <div id="thumb-total-count"></div>

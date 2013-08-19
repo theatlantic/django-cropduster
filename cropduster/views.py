@@ -174,8 +174,7 @@ def upload(request):
 
         initial['sizes'] = request.GET.get('sizes', '[]')
         sizes = json.loads(initial['sizes'])
-        thumb_queryset = thumbs.filter(name__in=['lead_large'])
-        thumb_names = [t.name for t in thumb_queryset]
+        thumb_names = [t.name for t in thumbs]
         formset_initial = []
         size_dict = {}
         for size in sizes:
@@ -184,7 +183,7 @@ def upload(request):
                 formset_initial.append({'name': size.name, 'size': json.dumps(size)})
         extra = len(sizes) - len(thumb_names)
         ThumbFormSet = modelformset_factory(Thumb, form=ThumbForm, extra=extra)
-        thumb_formset = ThumbFormSet(queryset=thumb_queryset, initial=formset_initial, prefix='thumbs')
+        thumb_formset = ThumbFormSet(queryset=thumbs, initial=formset_initial, prefix='thumbs')
 
         for thumb_form in thumb_formset.initial_forms:
             pk = thumb_form.initial['id']
@@ -279,8 +278,8 @@ def upload(request):
             },
             'url': get_media_url(preview_file_path),
             'orig_image': get_relative_media_url(orig_url),
-            'orig_width': orig_w,
-            'orig_height': orig_h,
+            'orig_w': orig_w,
+            'orig_h': orig_h,
             'width': w,
             'height': h,
             'orig_url': orig_url,

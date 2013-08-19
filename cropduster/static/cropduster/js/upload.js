@@ -6,35 +6,12 @@
                           '</a>';
 
     var CropBoxClass = Class.extend({
-
-        jcrop: null,
-        error: false,
-        sizes: {},
+        jcrop: undefined,
         data: {},
         index: 0,
-
-        init: function(data, i) {
-            if (typeof data != 'object' || !data) {
-                return;
-            }
-            this.index = i || this.index;
-            if (typeof data == 'object' && $.isArray(data.thumbs) && data.thumbs[this.index]) {
-                data._thumbs = data.thumbs;
-                data = $.extend({}, data, data.thumbs[this.index]);
-            }
-            if (typeof data == 'object' && typeof data.crop == 'object') {
-                data = $.extend({}, data, data.crop);
-            }
-            if (data.sizes) {
-                for (var i = 0; i < data.sizes.length; i++) {
-                    var size = data.sizes[i];
-                    if (size.is_auto) {
-                        continue;
-                    }
-                    this.sizes[size.name] = size;
-                }
-            }
-        },
+        orig_w: undefined,
+        orig_h: undefined,
+        init: function() {},
         updateCoordinates: function(c, i) {
             var x = Math.round(c.x),
                 y = Math.round(c.y),
@@ -66,201 +43,161 @@
             $('#id_thumbs-' + i + '-crop_w').val(w);
             $('#id_thumbs-' + i + '-crop_h').val(h);
         },
-        onSuccess: function(data, i, responseType) {
-            var error = false;
-            if (responseType != 'success') {
-                error = unknownErrorMsg;
-            } else if (data.error) {
-                error = data.error;
-            } else if (!data.url && !data.x && !data.crop) {
-                error = unknownErrorMsg;
-            }
-
-            data = $.extend({}, getFormData(), data);
-            if (typeof data == 'object' && $.isArray(data.thumbs) && data.thumbs[i]) {
-                data._thumbs = data.thumbs;
-                data = $.extend({}, data, data.thumbs[i]);
-            }
-            if (typeof data == 'object' && typeof data.crop == 'object') {
-                data = $.extend({}, data, data.crop);
-            }
-            if (data.w && !data.crop_w) {
-                data.crop_w = data.w;
-            }
-            if (data.h && !data.height) {
-                data.height = data.h;
-            }
-
-            if (error) {
-                $('#error-container').find('.errornote').html(error);
-                $('#error-container').show();
+        updateNav: function(i) {
+            var sizeData = {};
+            try {
+                sizeData = $.parseJSON($('#id_thumbs-' + i + '-size').val() || '{}') || {};
+            } catch(e) {}
+            var thumbCount = $('.cropduster-thumb-form').length;
+            if (i + 1 == thumbCount) {
+              $('#nav-right').addClass('disabled');
             } else {
-                $('#error-container').hide();
-                this.index = i;
-                this.data = $.extend({}, this.data, data);
+              $('#nav-right').removeClass('disabled');
+            }
+            if (i == 0) {
+              $('#nav-left').addClass('disabled');
+            } else {
+              $('#nav-left').removeClass('disabled');
+            }
+            $('#crop-nav').show();
+            $('#current-thumb-info').show();
+            $('#current-thumb-index').html(i + 1);
+            $('#thumb-total-count').html(thumbCount);
+            $('#current-thumb-label').html(sizeData.label || '');
 
-                var currentLabel = '';
-                if (typeof this.sizes[this.data.name] == 'object') {
-                    currentLabel = this.sizes[this.data.name].label;
-                }
+        },
+        onSuccess: function(data, i) {
+            var sizeData = {};
+            try {
+                sizeData = $.parseJSON($('#id_thumbs-' + i + '-size').val() || '{}') || {};
+            } catch(e) {}
+            data = $.extend({}, getFormData(), data);
+            if (typeof data == 'object' && typeof data.crop == 'object' && data.crop) {
+                this.orig_w = data.crop.orig_w;
+                this.orig_h = data.crop.orig_h;
+            }
 
-                $('#current-thumb-index').html(this.index + 1);
-                $('#thumb-total-count').html(this.data._thumbs.length);
-                $('#current-thumb-label').html(currentLabel);
+            this.index = i;
+            this.data = $.extend({}, this.data, data);
 
-                if (!data.initial && !data.changed) {
-                    this._setHiddenInputs();
+            this.updateNav(i);
+
+            if (data.orig_url && $('#id_crop-orig_image').val() != data.orig_url) {
+                $('#id_crop-orig_image').val(data.orig_url);
+            }
+            if (data.url) {
+                if (this.jcrop) {
+                    this.jcrop.destroy();
+                    this.jcrop = undefined;
                 }
-                if (data.url) {
-                    this._waitForImageLoad();
-                } else if (data.thumb_name && this.jcrop) {
-                    var opts = this.getCropOptions(data.name);
-                    opts['trueSize'] = [this.data.orig_w, this.data.orig_h];
-                    this.jcrop.setOptions(opts);
-                    var rect = this.getCropSelect(opts.aspectRatio);
-                    this.jcrop.setSelect(rect);
-                }
+                // 0x0 gif
+                $('#cropbox').attr('src', 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==');
+                $('#cropbox').attr('src', data.url);
+                this._waitForImageLoad();
+            } else if (this.jcrop && sizeData) {
+                this.setCropOptions(sizeData);
             }
         },
-        getCropOptions: function(size) {
-            var aspectRatio, minSize = [0, 0];
-            var $cropbox = $('#cropbox');
-
-            if (typeof size == 'string') {
-                size = this.sizes[size];
-            }
+        setCropOptions: function(size) {
             if (!size || typeof size != 'object') {
                 return;
             }
-            if (size.w && size.h) {
-                aspectRatio = size.w / size.h;
-            }
-            minSize[0] = size.min_w || size.w || 0;
-            minSize[1] = size.min_h || size.h || 0;
+            var aspectRatio = (size.w && size.h) ? (size.w / size.h) : 0;
+            var minSize = [size.min_w || size.w || 0, size.min_h || size.h || 0];
             $.each(size.auto || [], function(i, autoSize) {
                 var min_w = autoSize.min_w || autoSize.w || 0;
                 var min_h = autoSize.min_h || autoSize.h || 0;
                 minSize[0] = Math.max(minSize[0], min_w);
                 minSize[1] = Math.max(minSize[1], min_h);
             });
-            return {
-                'minSize': minSize,
-                'aspectRatio': aspectRatio,
-                'boxWidth': $cropbox.width(),
-                'boxHeight': $cropbox.height()
+            var options = {
+                aspectRatio: aspectRatio,
+                boxWidth: $('#cropbox').width(),
+                boxHeight: $('#cropbox').height(),
+                minSize: minSize,
+                trueSize: [this.orig_w, this.orig_h],
+                setSelect: this.getCropSelect(aspectRatio)
             };
+            if (this.jcrop) {
+                this.jcrop.setOptions(options);
+            } else {
+                var self = this;
+                options = $.extend(options, {
+                    onSelect: function(c) { self.updateCoordinates(c, self.index); }
+                });
+                $('#cropbox').Jcrop(options, function() {
+                    self.jcrop = this;
+                });
+            }
         },
         onImageLoad: function() {
-            var self = this;
-            try {
-                this.jcrop.destroy();
-            } catch (e) { }
-
-            var thumbName = $('#id_crop-thumb_name').val() || '';
-            var options = this.getCropOptions(thumbName);
-            options = $.extend(options, {
-                setSelect: this.getCropSelect(options['aspectRatio']),
-                onSelect: function(c) {
-                    self.updateCoordinates(c, self.index);
-                },
-                trueSize: [this.data.orig_w, this.data.orig_h]
-            });
-
-            $('#cropbox').Jcrop(options, function() {
-                self.jcrop = this;
-            });
-
+            this.index = 0;
+            var sizeData = $.parseJSON($('#id_thumbs-0-size').val() || '{}');
+            this.setCropOptions(sizeData);
             $('#upload-footer').hide();
             $('#crop-footer').show();
         },
         getCropSelect: function(aspectRatio) {
             var x, y, w, h;
-            var imgDim = {
-                width: $('#cropbox').width(),
-                height: $('#cropbox').height()
-            };
-
-            var imgAspect = (imgDim.width / imgDim.height);
-            if (!aspectRatio) {
-                aspectRatio = imgAspect;
+            var thumbData = ($.isArray(this.data.thumbs)) ? this.data.thumbs[this.index] : {};
+            if (typeof thumbData == 'object' && thumbData.crop_w && thumbData.crop_h) {
+                x = parseInt(thumbData.crop_x, 10);
+                y = parseInt(thumbData.crop_y, 10);
+                w = parseInt(thumbData.crop_w, 10);
+                h = parseInt(thumbData.crop_h, 10);
+                return [x, y, x + w, y + h];
             }
-
-            if (this.data.initial) {
-                // If we have initial dimensions onload
-                x = this.data.crop_x;
-                y = this.data.crop_y;
-                w = this.data.crop_w;
-                h = this.data.crop_h;
-            } else if (imgAspect < aspectRatio) {
+            if (!aspectRatio) {
+                x = 0;
+                y = 0;
+                w = this.orig_w;
+                h = this.orig_h;
+            } else if ((this.orig_w / this.orig_h) < aspectRatio) {
                 // The uploaded image is taller than the needed aspect ratio
                 x = 0;
-                w = imgDim.width;
-                var newHeight = imgDim.width / aspectRatio;
-                y = Math.round((imgDim.height - newHeight) / 2);
-                h = Math.round(newHeight);
+                w = this.orig_w;
+                h = Math.round(w / aspectRatio);
+                y = Math.round((this.orig_h - h) / 2);
             } else {
                 // The uploaded image is wider than the needed aspect ratio
                 y = 0;
-                h = imgDim.height;
-                var newWidth = imgDim.height * aspectRatio;
-                x = Math.round((imgDim.width - newWidth) / 2);
-                w = Math.round(newWidth);
+                h = this.orig_h;
+                w = Math.round(h * aspectRatio);
+                x = Math.round((this.orig_w - w) / 2);
             }
-
-            var scalex = imgDim.width  / this.data.orig_w;
-            var scaley = imgDim.height / this.data.orig_h;
-
-            if (this.data.initial) {
-                if (!this.jcrop) {
-                    // setSelect autoscales the x, y, w, and h that it feeds the
-                    // function, so we need to scale our data to mimic this effect
-                    w = Math.round((w + x) * scalex);
-                    h = Math.round((h + y) * scaley);
-                    x = Math.round(x * scalex);
-                    y = Math.round(y * scaley);
-                }
-                // Our data is no longer initial
-                this.data.initial = false;
-            } else {
-                // Update the hidden inputs with our best-guess crop for the aspect ratio,
-                // dividing by the scale factor so that the coordinates are relative to the
-                // original image
-                this.updateCoordinates({
-                    x:  Math.round(x / scalex),
-                    y:  Math.round(y / scaley),
-                    w:  Math.round(w / scalex),
-                    h:  Math.round(h / scaley)
-                }, this.index);
-            }
-            return [x, y, w, h];
+            // Update the hidden inputs with our best-guess crop for the
+            // aspect ratio
+            this.updateCoordinates({
+                x: x,
+                y: y,
+                w: w,
+                h: h
+            }, this.index);
+            return [x, y, (x + w), (y + h)];
         },
-        _waitForImageLoad: function() {
-            var i = 0;
+        timeout: undefined,
+        _waitForImageLoad: function(i) {
+            var i = i || 0;
             var self = this;
-            var interval = window.setInterval(function() {
-                if (++i > 20) {
-                    // Take a break
-                    setTimeout(function() {
-                        self._waitForImageLoad();
-                    }, 1000);
-                    clearInterval(interval);
+            if (this.timeout) {
+                clearTimeout(this.timeout);
+            }
+            if ($('#cropbox').width() > 1) {
+                if (self.timeout) {
+                    clearTimeout(self.timeout);
                 }
-
-                var width = $('#cropbox').width();
-                if (width > 1) {
-                    self.onImageLoad();
-                    clearInterval(interval);
-                }
-            }, 50);
-        },
-
-        // Save dimensions for current aspect ratio
-        // to hidden input in crop form
-        _setHiddenInputs: function() {
-            $('#id_crop-orig_image').val(this.data.orig_url);
-            $('#cropbox').attr('src', this.data.url);
+                self.onImageLoad();
+                return;
+            }
+            if (++i > 20) {
+                // Take a break
+                this.timeout = setTimeout(self._waitForImageLoad, 1000);
+            } else {
+                this.timeout = setTimeout(function() {
+                    self._waitForImageLoad(i);
+                }, 50);
+            }
         }
-
     });
 
     var setFormData = function(data) {
@@ -297,7 +234,7 @@
         }
     };
 
-    var getFormData = function() {
+    window.getFormData = function() {
         var fields = $(':input').serializeArray();
         var data = {
             thumbs: [],
@@ -326,8 +263,8 @@
                     value = $.parseJSON(value);
                 } catch(e) {}
             }
-            if (fieldName.match(/^(width|height|crop_)/) && value.match(/^\d+$/)) {
-                value = parseInt(value, 10);
+            if (fieldName.match(/^(width|height|crop_)/) && value.match(/^\d*?$/)) {
+                value = parseInt(value, 10) || 0;
             }
             if (formName == 'crop') {
                 data.crop[fieldName] = value;
@@ -354,7 +291,7 @@
         }
         data = $.extend({}, data, getFormData());
 
-        window.cropBox = new CropBoxClass(data);
+        window.cropBox = new CropBoxClass();
 
         if (typeof data == 'object') {
             if (data.sizes) {
@@ -362,13 +299,44 @@
             }
         }
 
+        $('#nav-left,#nav-right').on('click', function(e) {
+            var $this = $(this);
+            var move = 0;
+            if (!cropBox || !cropBox.jcrop) {
+                return;
+            }
+            switch($this.attr('id')) {
+                case 'nav-left':
+                    if (cropBox.index <= 0) {
+                        return;
+                    }
+                    move = -1;
+                break;
+                case 'nav-right':
+                    if (cropBox.index + 1 >= $('.cropduster-thumb-form').length) {
+                        return;
+                    }
+                    move = 1;
+                break;
+            }
+            if (!move) {
+                return;
+            }
+            var data = {};
+            if ($P) {
+                data = $.extend({}, $P('#id_' + imageElementId).data() || {});
+            }
+            data = $.extend({}, data, getFormData());
+            delete data['url'];
+            cropBox.onSuccess(data, cropBox.index + move);
+        });
+
         // We already have an image, initiate a jcrop instance
         if (data.thumbs.length && (data.crop.image_id || data.crop.orig_image)) {
             // Mimic the data returned from a POST to the upload action
             cropBox.onSuccess($.extend({}, data, {
-                initial: true,
                 url: $('#cropbox').attr('src')
-            }), 0, 'success');
+            }), 0);
         } else {
             // We don't have initial data, disable the crop button
             $('#crop-button').addClass('disabled');
@@ -393,52 +361,62 @@
             }
         });
 
+        var onSuccess = function(data, responseType, action) {
+            var error;
+            if (responseType != 'success') {
+                error = unknownErrorMsg;
+            } else if (data.error) {
+                error = data.error;
+            } else if (!data.url && !data.x && !data.crop) {
+                error = unknownErrorMsg;
+            }
+            if (error) {
+                $('#error-container').find('.errornote').html(data.error);
+                $('#error-container').show();
+                return;
+            }
+            $('#error-container').hide();
 
-
-        var uploadSuccess = function(data, responseType, action) {
-
-            if (responseType == 'success') {
-                if (data.error) {
-                    $('#error-container').find('.errornote').html(data.error);
-                    $('#error-container').show();
-                } else {
-                    $('#error-container').hide();
-                    setFormData(data);
-
-                    if (action == 'upload') {
-                        $(':input[name^="thumbs-"]').filter(
-                            '[name*="crop_"],[name$="-id"],[name$="-width"],[name$="-height"],[name$="-thumbs"]').val("");
-                        $('#id_thumbs-INITIAL_FORMS').val(0);
+            if (action == 'upload') {
+                $(':input[name^="thumbs-"]').each(function(i, input) {
+                    var $input = $(input);
+                    var name = $input.attr('name');
+                    if (name.match(/\d\-crop_/) || name.match(/\-(width|height|thumbs)$/)) {
+                        $input.val("");
+                    } else if (name == 'thumbs-INITIAL_FORMS') {
+                        $input.val("0");
                     }
+                });
+                $('#id_crop-thumbs').val("");
+            }
+            setFormData(data);
 
-                    var thumbCount = $('.cropduster-thumb-form').length;
+            var thumbCount = $('.cropduster-thumb-form').length;
+            if (action == 'crop' && data.thumbs && (cropBox.index + 1) == thumbCount) {
+                    window.opener.CropDuster.complete(imageElementId, data);
+                    window.close();
+                    return;
+            }
+            var index = (action == 'upload') ? 0 : cropBox.index + 1;
+            data = $.extend({}, data, getFormData());
+            cropBox.onSuccess(data, index);
 
-                    var index = (action == 'upload') ? 0 : cropBox.index + 1;
-                    if (data.thumbs && index == thumbCount && action == 'crop') {
-                        window.opener.CropDuster.complete(imageElementId, data);
-                        window.close();
-                        return;
-                    }
-                    cropBox.onSuccess(data, index, responseType);
+            if (cropBox.index == thumbCount - 1) {
+                $('#crop-button').val('Crop and Generate Thumbs');
+            } else {
+                $('#crop-button').val('Crop and Continue');
+            }
+            $('#crop-button').removeClass('disabled');
 
-                    if (cropBox.data._thumbs && cropBox.index == thumbCount - 1) {
-                        $('#crop-button').val('Crop and Generate Thumbs');
-                    } else {
-                        $('#crop-button').val('Crop and Continue');
-                    }
-                    if (data.thumbs && cropBox.index == thumbCount && action == 'crop') {
-                        cropBox.
-                        window.opener.CropDuster.complete(imageElementId, data);
-                        window.close();
-                    }
-                    $('#crop-button').removeClass('disabled');
-                }
+            if (action == 'upload') {
+                $('#nav-right').addClass('disabled');
             }
         };
+
         $('#crop-form').ajaxForm({
             dataType: 'json',
             success: function(data, responseType) {
-                uploadSuccess(data, responseType, 'crop');
+                onSuccess(data, responseType, 'crop');
             }
         });
 
@@ -446,7 +424,7 @@
             dataType: 'json',
             url: $('#upload').attr('action'),
             success: function(data, responseType) {
-                uploadSuccess(data, responseType, 'upload');
+                onSuccess(data, responseType, 'upload');
             }
         });
 
@@ -455,7 +433,7 @@
                 dataType: 'json',
                 url: $('#upload').attr('action'),
                 success: function(data, responseType) {
-                    uploadSuccess(data, responseType, 'upload');
+                    onSuccess(data, responseType, 'upload');
                 }
             });
             return false;

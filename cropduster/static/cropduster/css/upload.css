@@ -2,6 +2,10 @@ body.cropduster-upload-form #crop-form {
     margin-top: 15px;
 }
 
+body.cropduster-upload-form #error-container {
+    margin-top: 10px;
+}
+
 body.cropduster-upload-form ul.errorlist {
     color: #fff;
 }
@@ -53,6 +57,7 @@ body.cropduster-upload-form .grp-module.grp-fixed-footer {
 }
 
 body.cropduster-upload-form #current-thumb-info {
+    display: none;
     float:left;
     margin-left:5px;
     line-height:27px;
@@ -90,4 +95,74 @@ body.cropduster-upload-form #current-thumb-info > div#current-thumb-label {
     overflow: hidden;
     text-overflow: ellipsis;
     -o-text-overflow: ellipsis;
+}
+#crop-nav {
+    overflow: hidden;
+    float: left;
+    margin-top: 2px;
+    display: none;
+}
+#thumb-formset-container {
+    display: none;
+}
+#nav-left, #nav-right {
+    float: left;
+    text-align: center;
+    text-indent: -10000px;
+}
+#nav-left span, #nav-right span {
+    display: block;
+    width: 25px;
+    height: 12px;
+    background: transparent url(../img/arrows.png) no-repeat 0 0;
+}
+#nav-left span { background-position: 0 -6px; }
+#nav-right span { background-position: -25px -6px; }
+#nav-left.disabled span { background-position: 0 -31px; }
+#nav-right.disabled span { background-position: -25px -31px; }
+#nav-left {
+    border-right: 1px solid #000;
+}
+body.cropduster-upload-form #nav-left.rounded-button,
+body.cropduster-upload-form #nav-left.rounded-button:active,
+body.cropduster-upload-form #nav-left.rounded-button:hover {
+    width: 25px;
+    -webkit-border-top-left-radius: 5px;
+    -webkit-border-top-right-radius: 0;
+    -webkit-border-bottom-left-radius: 5px;
+    -webkit-border-bottom-right-radius: 0;
+       -moz-border-radius-topleft: 5px;
+       -moz-border-radius-bottomleft: 5px;
+       -moz-border-radius-topright: 0;
+       -moz-border-radius-bottomright: 0;
+            border-top-left-radius: 5px;
+            border-bottom-left-radius: 5px;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+    border-right: 1px solid #000;
+    margin: 0;
+	padding: 4px 5px 5px 5px !important;
+}
+body.cropduster-upload-form #nav-right.rounded-button,
+body.cropduster-upload-form #nav-right.rounded-button:active,
+body.cropduster-upload-form #nav-right.rounded-button:hover {
+    width: 25px;
+    -webkit-border-top-right-radius: 5px;
+    -webkit-border-bottom-right-radius: 5px;
+    -webkit-border-top-left-radius: 0;
+    -webkit-border-bottom-left-radius: 0;
+       -moz-border-radius-topright: 5px;
+       -moz-border-radius-bottomright: 5px;
+       -moz-border-radius-topleft: 0;
+       -moz-border-radius-bottomleft: 0;
+            border-top-right-radius: 5px;
+            border-bottom-right-radius: 5px;
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+    margin: 0;
+    padding: 4px 5px 5px 5px !important;
+}
+body.cropduster-upload-form #nav-left.rounded-button:active,
+body.cropduster-upload-form #nav-right.rounded-button:active {
+    padding: 5px 5px 4px 5px !important;
 }
