@@ -256,7 +256,10 @@ def cropduster_formset_factory(sizes=None, **kwargs):
 
     model = kwargs.get('model', Image)
 
-    def has_changed(self): return True
+    def has_changed(self):
+        if not self.changed_data and not any(self.cleaned_data.values()):
+            return False
+        return True
 
     form_class_attrs = {
         'has_changed': has_changed,
