@@ -105,6 +105,9 @@ body.cropduster-upload-form #current-thumb-info > div#current-thumb-label {
 #thumb-formset-container {
     display: none;
 }
+body.cropduster-debug #thumb-formset-container {
+    display: block;
+}
 #nav-left, #nav-right {
     float: left;
     text-align: center;

@@ -6,6 +6,10 @@
     display: none;
 }
 
+body.cropduster-debug .cropduster-form fieldset {
+    display: block;
+}
+
 .cropduster-customfield img{
     border: 0;
 }

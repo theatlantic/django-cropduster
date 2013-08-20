@@ -69,6 +69,11 @@ window.CropDuster = {};
             }
             uploadUrl += '&el_id=' + encodeURI(prefix);
             var windowName = String(prefix).replace(/\-/g,"____").split(".").join("___");
+            if (typeof window.location.getParameter == 'function') {
+                if (window.location.getParameter('cropduster_debug') == '1') {
+                    uploadUrl += '&cropduster_debug=1';
+                }
+            }
             window.open(uploadUrl, windowName, 'height=650,width=960,resizable=yes,scrollbars=yes').focus();
         },
 
@@ -237,6 +242,11 @@ window.CropDuster = {};
     };
 
     $(document).ready(function() {
+        if (typeof window.location.getParameter == 'function') {
+            if (window.location.getParameter('cropduster_debug') == '1') {
+                $('body').addClass('cropduster-debug');
+            }
+        }
         $('.cropduster-data-field').each(function(i, idField) {
             CropDuster.registerInput(idField);
         });
