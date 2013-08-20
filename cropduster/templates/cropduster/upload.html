@@ -3,23 +3,10 @@
 <!-- LOADING -->
 {% load i18n adminmedia %}
 
-<!-- STYLESHEETS -->
-{% block stylesheets %}
+{% block extrahead %}
     {{ block.super }}
-    <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/CropDuster.css?v=2" type="text/css" />
-    <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/jquery.Jcrop.css?v=3" type="text/css" />
-    <link rel="stylesheet" href="{{ STATIC_URL }}cropduster/css/upload.css?v=2" type="text/css" />
-{% endblock %}
-
-<!-- JAVASCRIPTS -->
-{% block javascripts %}
-    {{ block.super }}
-    <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/json2.js"></script>
-    <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.class.js"></script>
-    <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.form.js?v=1"></script>
-    <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/jquery.Jcrop.js?v=4"></script>
-    <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/upload.js?v=3"></script>
-    <script language="javascript" type="text/javascript" src="{{ STATIC_URL }}cropduster/js/CropDuster.js?v=1"></script>
+    {{ crop_form.media }}
+    {{ thumb_formset.media }}
 {% endblock %}
 
 <!-- Get rid of nav -->

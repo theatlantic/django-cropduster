@@ -46,7 +46,23 @@ class UploadForm(forms.Form):
         except:
             return {}
 
+
 class CropForm(forms.Form):
+
+    class Media:
+        css = {'all': (
+            u"%scropduster/css/CropDuster.css?v=3" % settings.STATIC_URL,
+            u"%scropduster/css/jquery.Jcrop.css?v=3" % settings.STATIC_URL,
+            u"%scropduster/css/upload.css?v=3" % settings.STATIC_URL,
+        )}
+        js = (
+            u"%scropduster/js/json2.js" % settings.STATIC_URL,
+            u"%scropduster/js/jquery.class.js" % settings.STATIC_URL,
+            u"%scropduster/js/jquery.form.js?v=1" % settings.STATIC_URL,
+            u"%scropduster/js/jquery.Jcrop.js?v=4" % settings.STATIC_URL,
+            u"%scropduster/js/upload.js?v=3" % settings.STATIC_URL,
+            u"%scropduster/js/CropDuster.js?v=3" % settings.STATIC_URL,
+        )
 
     image_id = forms.IntegerField(required=False)
     orig_image = forms.CharField(max_length=512, required=False)
