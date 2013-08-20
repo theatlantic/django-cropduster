@@ -74,12 +74,13 @@ class ThumbForm(forms.ModelForm):
     id = forms.IntegerField(required=False, widget=forms.HiddenInput)
     thumbs = forms.CharField(required=False)
     size = forms.CharField(required=False)
+    changed = forms.BooleanField(required=False)
 
     class Meta:
         model = Thumb
         fields = (
             'id', 'name', 'width', 'height',
-            'crop_x', 'crop_y', 'crop_w', 'crop_h', 'thumbs')
+            'crop_x', 'crop_y', 'crop_w', 'crop_h', 'thumbs', 'size', 'changed')
 
     def clean_size(self):
         try:
@@ -222,6 +223,7 @@ def upload(request):
         thumb_formset = ThumbFormSet(queryset=fake_queryset, initial=formset_initial, prefix='thumbs')
 
         for thumb_form in thumb_formset.initial_forms:
+            thumb_form.initial['changed'] = False
             pk = thumb_form.initial['id']
             name = thumb_form.initial['name']
             if name in size_dict:
@@ -387,12 +389,17 @@ def crop(request):
                 'changed': True,
             })
             for name, new_thumb in new_thumbs.iteritems():
+                if new_thumb.reference_thumb_id:
+                    continue
                 thumb_data = dict([(k, getattr(new_thumb, k)) for k in json_thumb_fields])
-                crop_data['thumbs'].update(thumb_data)
+                crop_data['thumbs'].update({name: thumb_data})
+                thumbs_data[i]['thumbs'].update({name: thumb_data})
         elif thumb.pk and thumb.name and thumb.crop_w and thumb.crop_h:
             thumb_path = db_image.get_image_path(thumb.name, use_temp=False)
+            tmp_thumb_path = db_image.get_image_path(thumb.name, use_temp=True)
             if os.path.exists(thumb_path):
-                shutil.copy(thumb_path, db_image.get_image_path(thumb.name, use_temp=True))
+                if not thumb_form.cleaned_data.get('changed') or not os.path.exists(tmp_thumb_path):
+                    shutil.copy(thumb_path, tmp_thumb_path)
         if not thumb.pk and not thumb.crop_w and not thumb.crop_h:
             if not len(thumbs_with_crops):
                 continue

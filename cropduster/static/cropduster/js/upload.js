@@ -229,7 +229,16 @@
                 if (Object.prototype.toString.call(value).match(/\[object (Object|Array)\]/)) {
                     value = JSON.stringify(value);
                 }
-                $('#id_thumbs-' + i + '-' + field).val(value);
+                var $input = $('#id_thumbs-' + i + '-' + field);
+                if ($input.attr('type') == 'checkbox') {
+                    if (value && value != 'off' && value != 'false' && value != '0') {
+                        $input.prop('checked', true);
+                    } else {
+                        $input.removeProp('checked');
+                    }
+                } else {
+                    $input.val(value);
+                }
             }
         }
     };
@@ -251,6 +260,7 @@
             if (!matches) {
                 return;
             }
+            var $input = $('#id_' + field.name);
             var formName = matches[1];
             var formsetNum = matches[2];
             var fieldName = matches[3];
@@ -258,6 +268,9 @@
                 return;
             }
             var value = field.value;
+            if ($input.attr('type') == 'checkbox') {
+                value = $input.prop('checked');
+            }
             if (fieldName == 'size' || fieldName == 'sizes' || fieldName == 'thumbs') {
                 try {
                     value = $.parseJSON(value);
