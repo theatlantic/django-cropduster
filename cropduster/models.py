@@ -29,7 +29,8 @@ class Thumb(models.Model):
 
     # For a given thumbnail, it either has crop data or it references
     # another thumbnail with crop data
-    reference_thumb = models.ForeignKey('Thumb', blank=True, null=True)
+    reference_thumb = models.ForeignKey('Thumb', blank=True, null=True,
+            related_name='auto_set')
 
     crop_x = models.PositiveIntegerField(blank=True, null=True)
     crop_y = models.PositiveIntegerField(blank=True, null=True)
@@ -280,6 +281,7 @@ def thumbs_added(sender, **kwargs):
         return
     instance = kwargs.get('instance')
     pk_set = kwargs.get('pk_set')
+
     if isinstance(instance, Thumb):
         thumbs = [instance]
         image_id = list(pk_set)[0]
@@ -287,6 +289,7 @@ def thumbs_added(sender, **kwargs):
     else:
         thumbs = Thumb.objects.filter(pk__in=pk_set)
         image = instance
+
     for thumb in thumbs:
         try:
             os.rename(
@@ -294,6 +297,13 @@ def thumbs_added(sender, **kwargs):
                 image.get_image_path(thumb.name))
         except (IOError, OSError):
             pass
+        for auto_thumb in thumb.auto_set.all():
+            try:
+                os.rename(
+                    image.get_image_path(auto_thumb.name, use_temp=True),
+                    image.get_image_path(auto_thumb.name))
+            except (IOError, OSError):
+                pass
 
 
 models.signals.m2m_changed.connect(thumbs_added, sender=Image.thumbs.through)
