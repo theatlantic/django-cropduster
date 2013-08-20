@@ -310,16 +310,18 @@ class CropDusterField(CropDusterGenericRelation):
 
     def save_form_data(self, instance, data):
         super(CropDusterField, self).save_form_data(instance, data)
+        value = self.pre_save(instance, False)
         # If we have a file uploaded via the fallback ImageField, make
         # sure that it's saved.
         if isinstance(data, UploadedFile):
-            value = self.pre_save(instance, False)
             if value and isinstance(value, FieldFile) and not value._committed:
                 # save=True saves the instance. Since this field (CropDusterField)
                 # is considered a "related field" by Django, its save_form_data()
                 # gets called after the instance has already been saved. We need
                 # to resave it if we have a new image.
-                value.save(value.name, value, save=True)        
+                value.save(value.name, value, save=True)
+        else:
+            instance.save()
 
     def formfield(self, **kwargs):
         from .forms import cropduster_formfield_factory

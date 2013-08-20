@@ -175,7 +175,7 @@ class CropDusterDescriptor(object):
             else:
                 setattr(instance, cache_name, manager)
                 if val.image:
-                    image_val = val.image.path
+                    image_val = instance.__dict__[self.image_field.name] = val.image
                 if not self.is_image_field:
                     return manager
 
@@ -210,7 +210,7 @@ class CropDusterDescriptor(object):
         # Finally, because of the (some would say boneheaded) way pickle works,
         # the underlying FieldFile might not actually itself have an associated
         # file. So we need to reset the details of the FieldFile in those cases.
-        elif isinstance(image_val, FieldFile) and not hasattr(image_val, 'field'):
+        elif isinstance(image_val, FieldFile):
             image_val.instance = instance
             image_val.field = self.image_field
             image_val.storage = self.image_field.storage
