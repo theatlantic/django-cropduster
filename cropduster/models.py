@@ -320,7 +320,19 @@ class CropDusterField(CropDusterGenericRelation):
 
     def save_form_data(self, instance, data):
         super(CropDusterField, self).save_form_data(instance, data)
+
+        # pre_save returns getattr(instance, self.name), which is itself
+        # the return value of the descriptor's __get__() method.
+        # This method (CropDusterDescriptor.__get__()) has side effects,
+        # for the same reason that the descriptors of ImageField and
+        # GenericForeignKey have side-effects.
+        #
+        # So, although we don't _appear_ to be doing anything with the
+        # value if not(isinstance(data, UploadedFile)), it is still
+        # necessary to call pre_save() for the ImageField part of the
+        # instance's CropDusterField to sync.
         value = self.pre_save(instance, False)
+
         # If we have a file uploaded via the fallback ImageField, make
         # sure that it's saved.
         if isinstance(data, UploadedFile):
