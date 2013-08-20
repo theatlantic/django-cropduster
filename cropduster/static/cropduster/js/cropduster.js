@@ -229,11 +229,11 @@ window.CropDuster = {};
             var $thumb = $input.closest('.row,.grp-row').find('.cropduster-images');
             $thumb.find('a').remove();
 
-            for (var name in thumbData) {
-                if (sizes[name]) {
-                    $thumb.html($thumb.html() + $.render.cropdusterImage(thumbData[name]));
+            $.each(data.sizes, function(i, size) {
+                if (thumbData[size.name]) {
+                    $thumb.html($thumb.html() + $.render.cropdusterImage(thumbData[size.name]));
                 }
-            }
+            });
         },
 
         generateRandomId: function() {
