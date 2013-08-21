@@ -1,3 +1,4 @@
+import collections
 from .utils import monkeypatch
 
 
@@ -46,6 +47,16 @@ def patch_model_admin():
             model = self.model
 
         cropduster_fields = get_cropduster_fields_for_model(model)
+        if len(cropduster_fields):
+            # ModelAdmin.inlines is defined as a mutable on that
+            # class, so we need to copy it before we append.
+            # (otherwise we'll modify the `inlines` attribute for
+            # all ModelAdmins).
+            inlines = getattr(self, 'inlines', [])
+            if isinstance(inlines, collections.MutableSequence):
+                self.inlines = list(inlines)
+            else:
+                self.inlines = []
         for field in cropduster_fields:
             InlineFormSet = cropduster_inline_factory(field=field)
             self.inlines.append(InlineFormSet)
