@@ -193,12 +193,18 @@ class BaseCropDusterInlineFormSet(BaseGenericInlineFormSet):
 
 class CropDusterBoundField(BoundField):
 
+    db_image_field = None
+
     def __init__(self, form, field, name):
         super(CropDusterBoundField, self).__init__(form, field, name)
         db_field = getattr(getattr(field, 'related', None), 'field', None)
-        db_image_field = getattr(db_field, 'image_field', None)
+        self.db_image_field = getattr(db_field, 'image_field', None)
         value = self.value()
         use_image_field = False
+        if form.is_bound and isinstance(value, basestring) and not value.isdigit():
+            formset_total_count_name = u'%s-%s' % (name, forms.formsets.TOTAL_FORM_COUNT)
+            if formset_total_count_name not in form.data:
+                use_image_field = True
         # If the ImageFieldFile has a filename, but no corresponding
         # cropduster.Image (as it would, for instance, on instances
         # with images originally saved with a vanilla models.ImageField)
@@ -210,14 +216,22 @@ class CropDusterBoundField(BoundField):
         elif isinstance(value, UploadedFile):
             use_image_field = True
         # Swap out the CropDusterFormField with a django.forms.ImageField
-        if use_image_field and db_image_field:
-            self.field = db_image_field.formfield(**{
+        if use_image_field and self.db_image_field:
+            self.field = self.db_image_field.formfield(**{
                 'required': field.required,
                 'label': field.label,
                 'initial': field.initial,
                 'widget': form._meta.widgets.get(name, AdminFileWidget),
                 'help_text': field.help_text,
             })
+
+    def value(self):
+        val = super(CropDusterBoundField, self).value()
+        if not self.db_image_field or not getattr(self.form, 'instance', None):
+            return val
+        if isinstance(self.field, forms.ImageField) and isinstance(val, basestring):
+            val = self.db_image_field.attr_class(self.form.instance, self.db_image_field, val)
+        return val
 
     def as_widget(self, widget=None, attrs=None, only_initial=False):
         widget = widget or self.field.widget
