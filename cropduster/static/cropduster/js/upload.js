@@ -90,6 +90,8 @@
                     this.jcrop.destroy();
                     this.jcrop = undefined;
                 }
+                // Reset width & height css styles to auto
+                $('#cropbox').css({width: '', height: ''});
                 // 0x0 gif
                 $('#cropbox').attr('src', 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==');
                 $('#cropbox').attr('src', data.url);
