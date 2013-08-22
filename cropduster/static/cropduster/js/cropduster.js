@@ -3,9 +3,18 @@ window.CropDuster = {};
 
 (function($) {
 
+    var randomDigits = function(length) {
+        length = parseInt(length, 10);
+        if (!length) {
+            return '';
+        }
+        var zeroes = new Array(length + 1).join('0');
+        return (zeroes + Math.ceil(Math.random() * Math.pow(10, length)).toString()).slice(-1 * length);
+    };
+
     var image_css = function(src, width, height, opts, is_ie) {
         var css = '';
-        src = encodeURI(src || '') + '?v=' + CropDuster.generateRandomId();
+        src = encodeURI(src || '') + '?v=' + randomDigits(9);
         css += 'background-image:url("' + src + '");';
         css += 'width:' + width + 'px;';
         css += 'height:' + height + 'px;';
@@ -188,6 +197,8 @@ window.CropDuster = {};
                 return;
             }
             var image = $('#id_' + prefix + '-0-image').val();
+            // The groups in this regex correspond to the path, basename (sans
+            // extension), and file extension of a file path or url.
             var matches = image.match(/^(.*)(\/(?:[^\/](?!\.[^\.\/\?]+))*[^\.\/\?])(\.[^\.\/\?]+)?$/);
             if (!matches) {
                 return;
@@ -232,11 +243,8 @@ window.CropDuster = {};
                     $thumb.html($thumb.html() + $.render.cropdusterImage(thumbData[size.name]));
                 }
             });
-        },
-
-        generateRandomId: function() {
-            return ('000000000' + Math.ceil(Math.random()*1000000000).toString()).slice(-9);
         }
+
     };
 
     $(document).ready(function() {
