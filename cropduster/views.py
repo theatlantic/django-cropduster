@@ -19,9 +19,9 @@ import PIL.Image
 
 from .models import Thumb, Image as CropDusterImage
 from .utils import (
-    json, rescale, get_relative_media_url, get_upload_foldername,
+    json, get_relative_media_url, get_upload_foldername,
     get_image_extension, get_media_url, get_min_size)
-from .exceptions import (json_error, CropDusterViewException, 
+from .exceptions import (json_error, CropDusterViewException,
     CropDusterResizeException, full_exc_info)
 
 
@@ -290,6 +290,13 @@ def upload(request):
                     "orig_h": orig_h
                 }])
 
+        if w <= 0:
+            raise json_error(request, 'upload', action='uploading file', errors=[
+                u"Invalid image: width is %d" % w])
+        elif h <= 0:
+            raise json_error(request, 'upload', action='uploading file', errors=[
+                u"Invalid image: height is %d" % h])
+
         # File is good, get rid of the tmp file
         orig_file_path = os.path.join(folder_path, 'original' + extension)
         os.rename(tmp_file_path, orig_file_path)
@@ -302,7 +309,7 @@ def upload(request):
         if resize_ratio < 1:
             w = int(round(w * resize_ratio))
             h = int(round(h * resize_ratio))
-            preview_img = rescale(img, w, h, crop=False)
+            preview_img = img.resize((w, h), PIL.Image.ANTIALIAS)
         else:
             preview_img = img
 
