@@ -9,7 +9,7 @@ import shutil
 from django import forms
 from django.conf import settings
 from django.db.models import Q
-from django.forms.models import modelformset_factory
+from django.forms.models import modelformset_factory, BaseModelFormSet
 from django.http import HttpResponse
 from django.shortcuts import render_to_response
 from django.template import RequestContext
@@ -109,6 +109,23 @@ class ThumbForm(forms.ModelForm):
             return json.loads(self.cleaned_data.get('thumbs', '{}'))
         except:
             return {}
+
+
+class ThumbFormSet(BaseModelFormSet):
+    """
+    If the form submitted empty strings for thumb pks, change to None before
+    calling AutoField.get_prep_value() (so that int('') doesn't throw a
+    ValueError).
+    """
+
+    def _construct_form(self, i, **kwargs):
+        if self.is_bound and i < self.initial_form_count():
+            mutable = getattr(self.data, '_mutable', False)
+            self.data._mutable = True
+            pk_key = "%s-%s" % (self.add_prefix(i), self.model._meta.pk.name)
+            self.data[pk_key] = self.data.get(pk_key) or None
+            self.data._multable = mutable
+        return super(ThumbFormSet, self)._construct_form(i, **kwargs)
 
 
 def get_admin_base_template():
@@ -232,11 +249,9 @@ def upload(request):
             else:
                 ordered_thumbs.append(thumb_names[size.name])
         fake_queryset = FakeQuerySet(ordered_thumbs, thumbs)
-        
 
-        ThumbFormSet = modelformset_factory(Thumb, form=ThumbForm, extra=0)
-
-        thumb_formset = ThumbFormSet(queryset=fake_queryset, initial=formset_initial, prefix='thumbs')
+        FormSet = modelformset_factory(Thumb, form=ThumbForm, formset=ThumbFormSet, extra=0)
+        thumb_formset = FormSet(queryset=fake_queryset, initial=formset_initial, prefix='thumbs')
 
         for thumb_form in thumb_formset.initial_forms:
             thumb_form.initial['changed'] = False
@@ -369,8 +384,8 @@ def crop(request):
     except IOError:
         pil_image = None
 
-    ThumbFormSet = modelformset_factory(Thumb, form=ThumbForm)
-    thumb_formset = ThumbFormSet(request.POST, request.FILES, prefix='thumbs')
+    FormSet = modelformset_factory(Thumb, form=ThumbForm, formset=ThumbFormSet)
+    thumb_formset = FormSet(request.POST, request.FILES, prefix='thumbs')
 
     if not thumb_formset.is_valid():
         return json_error(request, 'crop', action='submitting form', formsets=[thumb_formset],
