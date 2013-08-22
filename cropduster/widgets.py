@@ -26,13 +26,18 @@ class CropDusterThumbWidget(forms.SelectMultiple):
     def render_option(self, selected_choices, option_value, option_label):
         attrs = {}
         try:
-            value = Thumb.objects.get(pk=option_value)
+            thumb = Thumb.objects.get(pk=option_value)
         except (TypeError, Thumb.DoesNotExist):
             pass
         else:
+            # If the thumb has no images associated with it then
+            # it has not yet been saved, and so its file path has
+            # '_tmp' appended before the extension.
+            use_tmp_file = not(thumb.image_set.all().count())
             attrs = {
-                'data-width': value.width,
-                'data-height': value.height,
+                'data-width': thumb.width,
+                'data-height': thumb.height,
+                'data-tmp-file': json.dumps(use_tmp_file),
             }
         option_value = force_unicode(option_value)
         if option_value in selected_choices:

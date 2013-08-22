@@ -137,7 +137,7 @@ class Image(models.Model):
         width_field='width', height_field='height')
 
     thumbs = CropDusterThumbField(Thumb,
-        related_name='thumbs',
+        related_name='image_set',
         verbose_name='thumbs',
         null=True,
         blank=True)

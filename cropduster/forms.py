@@ -1,5 +1,3 @@
-import re
-
 from django import forms
 from django.contrib.admin.widgets import AdminFileWidget
 from django.contrib.contenttypes.generic import BaseGenericInlineFormSet
@@ -130,65 +128,39 @@ class BaseCropDusterInlineFormSet(BaseGenericInlineFormSet):
             return super(BaseCropDusterInlineFormSet, cls).get_default_prefix()
 
     def _construct_form(self, i, **kwargs):
-        try:
-            obj = self.queryset[i]
-        except IndexError:
-            obj = None
-        else:
-            self.form.instance = obj
-            # If cache machine exists, invalidate
-            try:
-                obj._default_manager.invalidate(obj)
-            except AttributeError:
-                pass
-            try:
-                self.instance._default_manager.invalidate(self.instance)
-            except AttributeError:
-                pass
-
-        qset_ids = [o.pk for o in self.queryset]
-        if obj is not None and obj.pk not in qset_ids:
-            qset_ids.append(obj.pk)
-            self.queryset = self._queryset = obj._default_manager.filter(pk__in=qset_ids)
-
-        self._pre_construct_form(i, **kwargs)
-        form = super(BaseCropDusterInlineFormSet, self)._construct_form(i, **kwargs)
-
-        # Load in initial data if we have it from a previously submitted
-        # (but apparently invalidated) form
-        if self.data is not None and len(self.data):
-            relname_re = re.compile(r'^%s\-(.+)$' % re.escape(self.rel_name))
-            rel_keys = [(k, relname_re.match(k)) for k in self.data if k.find(self.rel_name) == 0]
-            for key, match in rel_keys:
-                if not match:
-                    continue
-                field_name = match.group(1)
-                if field_name in form.fields:
-                    form.fields[field_name].initial = self.data.get(key)
-        return form
-
-    def _pre_construct_form(self, i, **kwargs):
         """
         Limit the queryset of the thumbs for performance reasons (so that it doesn't
         pull in every available thumbnail into the selectbox)
         """
-        queryset = Thumb.objects.none()
-        try:
-            instance = Image.objects.get(pk=self.queryset[0].id)
-        except (IndexError, Image.DoesNotExist):
-            if self.data:
-                queryset = Thumb.objects.filter(
-                    pk__in=map(int, self.data.getlist(self.rel_name + '-0-thumbs')))
-        else:
-            queryset = instance.thumbs.get_query_set()
+        form = super(BaseCropDusterInlineFormSet, self)._construct_form(i, **kwargs)
 
-        thumb_field = self.form.base_fields['thumbs']
-        thumb_field.queryset = queryset
-        thumb_widget = getattr(thumb_field.widget, 'widget', thumb_field.widget)
         try:
-            thumb_widget.choices.queryset = queryset
-        except AttributeError:
-            pass
+            instance = Image.objects.get(pk=form['id'].value())
+        except (ValueError, Image.DoesNotExist):
+            instance = None
+
+        thumbs_field = form.fields['thumbs']
+
+        if instance:
+            # Set the queryset to the current list of thumbs on the image
+            thumbs_field.queryset = instance.thumbs.get_query_set()
+        else:
+            # Start with an empty queryset
+            thumbs_field.queryset = Thumb.objects.none()
+
+        if form.data:
+            # Check if thumbs from POST data should be used instead.
+            # These can differ from the values in the database if a
+            # ValidationError elsewhere prevented saving.
+            try:
+                thumb_pks = map(int, form['thumbs'].value())
+            except (TypeError, ValueError):
+                pass
+            else:
+                if thumb_pks and thumb_pks != [o.pk for o in thumbs_field.queryset]:
+                    thumbs_field.queryset = Thumb.objects.filter(pk__in=thumb_pks)
+
+        return form
 
 
 class CropDusterBoundField(BoundField):
