@@ -180,20 +180,20 @@
         timeout: undefined,
         _waitForImageLoad: function(i) {
             var i = i || 0;
-            var self = this;
             if (this.timeout) {
                 clearTimeout(this.timeout);
+                this.timeout = undefined;
             }
             if ($('#cropbox').width() > 1) {
-                if (self.timeout) {
-                    clearTimeout(self.timeout);
-                }
-                self.onImageLoad();
+                this.onImageLoad();
                 return;
             }
+            var self = this;
             if (++i > 20) {
                 // Take a break
-                this.timeout = setTimeout(self._waitForImageLoad, 1000);
+                this.timeout = setTimeout(function() {
+                    self._waitForImageLoad(0);
+                }, 1000);
             } else {
                 this.timeout = setTimeout(function() {
                     self._waitForImageLoad(i);

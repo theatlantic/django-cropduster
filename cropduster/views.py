@@ -60,7 +60,7 @@ class CropForm(forms.Form):
             u"%scropduster/js/jquery.class.js" % settings.STATIC_URL,
             u"%scropduster/js/jquery.form.js?v=1" % settings.STATIC_URL,
             u"%scropduster/js/jquery.jcrop.js?v=4" % settings.STATIC_URL,
-            u"%scropduster/js/upload.js?v=3" % settings.STATIC_URL,
+            u"%scropduster/js/upload.js?v=4" % settings.STATIC_URL,
             u"%scropduster/js/cropduster.js?v=3" % settings.STATIC_URL,
         )
 
