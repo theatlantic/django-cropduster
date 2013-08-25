@@ -1,4 +1,3 @@
-# FROM THE FUTURE LOL
 from __future__ import division
 
 import os
