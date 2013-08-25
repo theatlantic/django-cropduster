@@ -5,6 +5,7 @@ except ImportError:
 
 
 urlpatterns = patterns('cropduster.views',
+    url(r'^$', 'index', name='cropduster-index'),
     url(r'^crop/', 'crop', name='cropduster-crop'),
     url(r'^upload/', 'upload', name='cropduster-upload'),
 )

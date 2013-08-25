@@ -50,7 +50,7 @@ window.CropDuster = {};
         mediaUrl: '',
 
         // open upload window
-        show: function(prefix, uploadUrl) {
+        show: function(prefix, cropdusterUrl) {
             var params = {
                 'image': 'image',
                 'id': 'id',
@@ -70,17 +70,17 @@ window.CropDuster = {};
             for (var paramName in data) {
                 var val = data[paramName];
                 if (val) {
-                    uploadUrl += '&' + paramName + '=' + encodeURI(val || '');
+                    cropdusterUrl += '&' + paramName + '=' + encodeURI(val || '');
                 }
             }
-            uploadUrl += '&el_id=' + encodeURI(prefix);
+            cropdusterUrl += '&el_id=' + encodeURI(prefix);
             var windowName = String(prefix).replace(/\-/g,"____").split(".").join("___");
             if (typeof window.location.getParameter == 'function') {
                 if (window.location.getParameter('cropduster_debug') == '1') {
-                    uploadUrl += '&cropduster_debug=1';
+                    cropdusterUrl += '&cropduster_debug=1';
                 }
             }
-            window.open(uploadUrl, windowName, 'height=650,width=960,resizable=yes,scrollbars=yes').focus();
+            window.open(cropdusterUrl, windowName, 'height=650,width=960,resizable=yes,scrollbars=yes').focus();
         },
 
         setThumbnails: function(prefix, thumbs) {
@@ -144,12 +144,12 @@ window.CropDuster = {};
                 }
                 var fieldName = $targetInput.attr('name');
                 var inputData = $targetInput.data();
-                var uploadUrl = $target.data('uploadUrl');
-                var arg = (uploadUrl.indexOf('?') >= 0) ? '&' : '?';
+                var cropdusterUrl = $target.data('cropdusterUrl');
+                var arg = (cropdusterUrl.indexOf('?') >= 0) ? '&' : '?';
                 if (inputData.uploadTo) {
-                    uploadUrl += arg + 'upload_to=' + encodeURI(inputData.uploadTo);
+                    cropdusterUrl += arg + 'upload_to=' + encodeURI(inputData.uploadTo);
                 }
-                CropDuster.show(fieldName, uploadUrl);
+                CropDuster.show(fieldName, cropdusterUrl);
             });
 
             var $inlineForm = $input.parent().find('.cropduster-form').first();
