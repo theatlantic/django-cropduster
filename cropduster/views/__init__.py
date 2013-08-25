@@ -17,11 +17,11 @@ from django.views.decorators.csrf import csrf_exempt
 
 import PIL.Image
 
-from .models import Thumb, Image as CropDusterImage
-from .utils import (
+from ..models import Thumb, Image as CropDusterImage
+from ..utils import (
     json, get_relative_media_url, get_upload_foldername,
     get_image_extension, get_media_url, get_min_size)
-from .exceptions import (json_error, CropDusterViewException,
+from ..exceptions import (json_error, CropDusterViewException,
     CropDusterResizeException, full_exc_info)
 
 
