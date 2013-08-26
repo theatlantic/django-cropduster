@@ -1,10 +1,6 @@
 from __future__ import division
 import re
 import math
-import PIL.Image
-
-from django.core.exceptions import ImproperlyConfigured
-from .exceptions import CropDusterResizeException
 
 
 __all__ = ('Size', 'Box', 'Crop')
@@ -15,8 +11,7 @@ class Size(object):
     parent = None
 
     def __init__(self, name, label=None, w=None, h=None, retina=False, auto=None, min_w=None, min_h=None):
-        if not w and not h:
-            raise ImproperlyConfigured("At least one of the kwargs `w` or `h` must be defined")
+        from django.core.exceptions import ImproperlyConfigured
 
         self.min_w = max(w, min_w)
         self.min_h = max(h, min_h)
@@ -158,6 +153,9 @@ class Crop(object):
         self.bounds = Box(0, 0, *image.size)
 
     def create_image(self, width=None, height=None):
+        import PIL.Image
+        from cropduster.exceptions import CropDusterResizeException
+
         image = self.image.copy()
         image.load()
         new_image = image.crop(self.box.as_tuple())
