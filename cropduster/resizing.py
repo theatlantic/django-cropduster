@@ -97,10 +97,9 @@ class Size(object):
             'h': self.h,
             'min_w': self.min_w,
             'min_h': self.min_h,
-            'retina': self.retina,
-            'auto': None,
+            'retina': 1 if self.retina else 0,
             'label': self.label,
-            '__type__': 'cropduster.resizing.Size',
+            '__type__': 'Size',
         }
         if self.auto:
             data['auto'] = [sz.__serialize__() for sz in self.auto]

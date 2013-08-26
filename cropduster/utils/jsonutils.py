@@ -13,13 +13,15 @@ def json_default(obj):
         else:
             name = obj.__class__.__name__
         type_name = u'.'.join(filter(None, [module, name]))
+        if type_name == 'cropduster.resizing.Size':
+            type_name = 'Size'
         dct.update({'__type__': type_name})
         return dct
     raise TypeError("object of type %s is not JSON serializable" % type(obj).__name__)
 
 
 def object_hook(dct):
-    if dct.get('__type__') == 'cropduster.resizing.Size':
+    if dct.get('__type__') in ['Size', 'cropduster.resizing.Size']:
         return Size(
             name=dct.get('name'),
             w=dct.get('w'),
