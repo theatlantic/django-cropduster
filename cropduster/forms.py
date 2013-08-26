@@ -189,11 +189,14 @@ class CropDusterBoundField(BoundField):
             use_image_field = True
         # Swap out the CropDusterFormField with a django.forms.ImageField
         if use_image_field and self.db_image_field:
+            widget = AdminFileWidget
+            if form._meta.widgets and form._meta.widgets.get(name):
+                widget = form._meta.widgets[name]
             self.field = self.db_image_field.formfield(**{
                 'required': field.required,
                 'label': field.label,
                 'initial': field.initial,
-                'widget': form._meta.widgets.get(name, AdminFileWidget),
+                'widget': widget,
                 'help_text': field.help_text,
             })
 
