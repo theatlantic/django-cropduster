@@ -63,9 +63,6 @@ window.CropDuster = {};
             }
             var sizes = $('#id_' + prefix).data('sizes') || [];
             sizes = ($.isArray(sizes)) ? sizes : [];
-            if (sizes.length && typeof sizes[0] == 'object') {
-                data['thumb_name'] = sizes[0].name;
-            }
             data['sizes'] = JSON.stringify(sizes);
             for (var paramName in data) {
                 var val = data[paramName];
