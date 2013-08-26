@@ -18,7 +18,7 @@ setup(
     packages=find_packages(),
     zip_safe=False,
     install_requires=[
-        'PIL',
+        'Pillow',
         'jsonutil',
         'Django>=1.2',
     ],
