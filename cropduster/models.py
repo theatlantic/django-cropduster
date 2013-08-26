@@ -387,3 +387,7 @@ else:
             },
         ),
     ], patterns=["^cropduster\.models\.CropDusterField"])
+
+    add_introspection_rules(
+        rules=[((models.ManyToManyField,), [], {})],
+        patterns=["^cropduster\.thumbs\.CropDusterThumbField"])
