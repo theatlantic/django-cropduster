@@ -100,6 +100,19 @@ class CropDusterGenericRelation(GenericRelation):
             self.rel = self._rel
         return []
 
+    def get_internal_type(self):
+        if self.south_executing:
+            return 'FileField'
+        else:
+            # ManyToManyField
+            return super(CropDusterGenericRelation, self).get_internal_type()
+
+    def db_type(self, connection):
+        if self.south_executing:
+            return models.Field.db_type(self, connection)
+        else:
+            return super(CropDusterGenericRelation, self).db_type(connection)
+
 
 class CropDusterDescriptor(object):
 
