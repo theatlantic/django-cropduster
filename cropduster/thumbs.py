@@ -86,13 +86,3 @@ class CropDusterThumbField(models.ManyToManyField):
         else:
             target = self.rel.to._meta.db_table
         cls._meta.duplicate_targets[self.column] = (target, "m2m")
-
-
-try:
-    from south.modelinspector import add_introspection_rules
-except ImportError:
-    pass
-else:
-    add_introspection_rules(
-        rules=[((models.ManyToManyField,), [], {})],
-        patterns=["^cropduster\.thumbs\.CropDusterThumbField"])
