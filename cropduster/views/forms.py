@@ -52,7 +52,6 @@ class CropForm(forms.Form):
     orig_h = forms.IntegerField(required=False)
     sizes = forms.CharField()
     thumbs = forms.CharField(required=False)
-    thumb_name = forms.CharField(required=False)
 
     def clean_sizes(self):
         try:

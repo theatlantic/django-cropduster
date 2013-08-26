@@ -32,7 +32,6 @@ def index(request):
     ctx = {}
 
     initial = {
-        'thumb_name': request.GET.get('thumb_name', ''),
         'sizes': request.GET.get('sizes', '[]')
     }
 
