@@ -105,7 +105,13 @@ body.cropduster-upload-form #current-thumb-info > div#current-thumb-label {
 #thumb-formset-container {
     display: none;
 }
+form#upload .row.hidden {
+    display: none;
+}
 body.cropduster-debug #thumb-formset-container {
+    display: block;
+}
+body.cropduster-debug form#upload .row.hidden {
     display: block;
 }
 #nav-left, #nav-right {

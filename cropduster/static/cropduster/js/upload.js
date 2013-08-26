@@ -291,7 +291,7 @@
     };
 
     $(document).ready(function(){
-        var imageElementId = $('#image-element-id').val();
+        var imageElementId = $('#id_image_element_id').val();
 
         var $P;
         if (window.opener) {
@@ -367,7 +367,7 @@
         });
 
         // Enable upload and reupload buttons after the user has picked a file
-        $('#picture').on('change', function(e) {
+        $('#id_image').on('change', function(e) {
             var $input = $(this);
             if ($input.val()) {
                 $('#upload-button,#reupload-button').removeClass('disabled');

@@ -24,12 +24,13 @@
 <h1 id="step-header">Upload, Crop, and Generate Thumbnails</h1>
 <div id="content-main">
     <form id="upload" action="{% url cropduster.views.upload %}?upload_to={{ upload_to|urlencode }}" method="POST">
-        <input type="hidden" id="image-element-id" name="image_element_id" value="{{ image_element_id }}" />
-        <input type="hidden" id="upload-sizes" name="sizes" value="[]" />
         <fieldset class="module aligned">
-            <div class="row">
-                <input type="file" name="picture" id="picture" />
-            </div>
+            {% for field in upload_form %}
+                <div class="row {{ field.name }}{% if field.name != 'image' %} hidden{% endif %}">
+                    {% if field.name != "image" %}{{ field.label_tag|safe }}{% endif %}
+                    {{ field }}
+                </div>
+            {% endfor %}
         </fieldset>
     </form>
 
