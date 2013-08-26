@@ -19,6 +19,7 @@ from cropduster.models import Thumb, Image as CropDusterImage
 from cropduster.utils import (
     json, get_relative_media_url, get_upload_foldername,
     get_image_extension, get_media_url, get_min_size)
+from cropduster.settings import CROPDUSTER_PREVIEW_WIDTH, CROPDUSTER_PREVIEW_HEIGHT
 from cropduster.exceptions import json_error, CropDusterResizeException, full_exc_info
 
 from .forms import CropForm, ThumbForm, ThumbFormSet, UploadForm
@@ -63,18 +64,14 @@ def index(request):
 
     # If we have a new image that hasn't been saved yet
     if request.GET.get('image'):
-        image_path, basename = os.path.split(request.GET['image'])
-        root_path = os.path.join(settings.MEDIA_ROOT, image_path)
-        ext = os.path.splitext(basename)[1]
-        if os.path.exists(os.path.join(root_path, '_preview%s' % ext)):
-            preview_url = u'/'.join([settings.MEDIA_URL, image_path, '_preview%s' % ext])
-            preview_url = re.sub(r'(?<!:)/+', '/', preview_url) # Remove double '/'
-            orig_image = u"%s/original%s" % (image_path, ext)
+        tmp_image = CropDusterImage(image=request.GET['image'])
+        if os.path.exists(tmp_image.get_image_path('_preview')):
             try:
-                img = PIL.Image.open(os.path.join(settings.MEDIA_ROOT, orig_image))
+                img = PIL.Image.open(tmp_image.get_image_path())
             except:
                 pass
             else:
+                orig_image = tmp_image.get_image_name()
                 if orig_image != initial.get('orig_image'):
                     del initial['image_id']
                 initial.update({
@@ -82,7 +79,7 @@ def index(request):
                     'orig_w': img.size[0],
                     'orig_h': img.size[1],
                 })
-                ctx['image'] = preview_url
+                ctx['image'] = tmp_image.get_image_url('_preview')
 
     sizes = json.loads(initial['sizes'])
     size_dict = dict([(s.name, s) for s in sizes])
@@ -109,14 +106,32 @@ def index(request):
             'changed': False,
         })
 
+    # This error checking might be too aggressive...
+    preview_size = request.GET.get('preview_size', '').split('x')
+    if len(preview_size) != 2:
+        preview_size = (CROPDUSTER_PREVIEW_WIDTH, CROPDUSTER_PREVIEW_HEIGHT)
+    try:
+        preview_width = int(preview_size[0])
+    except (ValueError, TypeError):
+        preview_width = CROPDUSTER_PREVIEW_WIDTH
+        preview_height = CROPDUSTER_PREVIEW_HEIGHT
+    else:
+        try:
+            preview_height = int(preview_size[1])
+        except (ValueError, TypeError):
+            preview_width = CROPDUSTER_PREVIEW_WIDTH
+            preview_height = CROPDUSTER_PREVIEW_HEIGHT
+
     ctx.update({
         'is_popup': True,
-        'image_element_id': request.GET.get('el_id', ''),
         'orig_image': '',
-        'upload_to': request.GET.get('upload_to', ''),
         'parent_template': get_admin_base_template(),
         'upload_form': UploadForm(initial={
+            'upload_to': request.GET.get('upload_to', ''),
             'sizes': initial['sizes'],
+            'image_element_id': request.GET.get('el_id', ''),
+            'preview_width': preview_width,
+            'preview_height': preview_height,
         }),
         'crop_form': CropForm(initial=initial, prefix='crop'),
         'thumb_formset': thumb_formset,
@@ -140,6 +155,7 @@ def upload(request):
     extension = os.path.splitext(img_file.name)[1].lower()
     folder_path = get_upload_foldername(img_file.name,
             upload_to=request.GET.get('upload_to', None))
+    form_data = form.cleaned_data
 
     tmp_file_path = os.path.join(folder_path, '__tmp' + extension)
 
@@ -174,10 +190,11 @@ def upload(request):
     os.rename(tmp_file_path, orig_file_path)
 
     orig_url = get_relative_media_url(orig_file_path)
+    preview_w = form_data.get('preview_width') or CROPDUSTER_PREVIEW_WIDTH
+    preview_h = form_data.get('preview_height') or CROPDUSTER_PREVIEW_HEIGHT
 
     # First pass resize if it's too large
-    # (height > 500 px or width > 800 px)
-    resize_ratio = min(800.0 / w, 500.0 / h)
+    resize_ratio = min(preview_w / w, preview_h / h)
     if resize_ratio < 1:
         w = int(round(w * resize_ratio))
         h = int(round(h * resize_ratio))

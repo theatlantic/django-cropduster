@@ -12,7 +12,13 @@ class UploadForm(forms.Form):
 
     picture = forms.ImageField(required=True)
     sizes = forms.CharField(required=False)
-    thumbs = forms.CharField(required=False)
+    image_element_id = forms.CharField(required=False)
+    upload_to = forms.CharField(required=False)
+
+    # The width and height of the image to be generated for
+    # crop preview after upload
+    preview_width = forms.IntegerField(required=False)
+    preview_height = forms.IntegerField(required=False)
 
     def clean_sizes(self):
         sizes = self.cleaned_data.get('sizes')
