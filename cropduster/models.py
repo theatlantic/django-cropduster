@@ -1,4 +1,7 @@
 from __future__ import division
+
+import hashlib
+import random
 import os
 import re
 from datetime import datetime
@@ -173,6 +176,14 @@ class Image(models.Model):
             size_name += '_tmp'
         path, basename = os.path.split(self.image.path)
         filename, extension = os.path.splitext(basename)
+        if filename != 'original':
+            if size_name == 'original':
+                if not use_temp:
+                    return self.image.path
+                else:
+                    size_name = u'%s_tmp' % filename
+            else:
+                path = os.path.join(path, filename)
         return os.path.join(settings.MEDIA_ROOT, path, size_name + extension)
 
     def save(self, **kwargs):
@@ -190,16 +201,28 @@ class Image(models.Model):
                         pass
         return super(Image, self).save(**kwargs)
 
-    def get_image_url(self, size_name='original', use_temp=False):
+    def get_image_name(self, size_name='original', use_temp=False):
         if not self.image:
             return u''
+
+        rel_path, basename = os.path.split(self.image.name)
+        filename, extension = os.path.splitext(basename)
+        if filename != 'original':
+            if size_name == 'original':
+                size_name = filename
+            else:
+                rel_path = u'/'.join([rel_path, filename])
 
         if use_temp:
             size_name += '_tmp'
 
-        rel_path, basename = os.path.split(self.image.name)
-        filename, extension = os.path.splitext(basename)
-        url = u'/'.join([settings.MEDIA_URL, rel_path, size_name + extension])
+        return u'/'.join([rel_path, size_name + extension])
+
+    def get_image_url(self, size_name='original', use_temp=False):
+        if not self.image:
+            return u''
+        rel_path = self.get_image_name(size_name=size_name, use_temp=use_temp)
+        url = u'/'.join([settings.MEDIA_URL, rel_path])
         return re.sub(r'(?<!:)/+', '/', url)
 
     def get_image_size(self, size_name=None):
@@ -229,11 +252,14 @@ class Image(models.Model):
             else:
                 return img.size
 
-    def save_size(self, size, thumb=None, image=None, tmp=False):
+    def save_size(self, size, thumb=None, image=None, tmp=False, standalone=False):
         thumbs = {}
         if not image and not self.image:
             raise Exception("Cannot save sizes without an image")
         image = image or PIL.Image.open(self.image.path)
+
+        if standalone:
+            return self.save_thumb(size, image, thumb, standalone=True)
 
         for sz in Size.flatten([size]):
             if sz.is_auto:
@@ -244,19 +270,34 @@ class Image(models.Model):
                 thumbs[sz.name] = new_thumb
         return thumbs
 
-    def save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False):
+    def save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False, standalone=False):
         img_save_params = {}
         if image.format == 'JPEG':
             img_save_params['quality'] = 95
+
+        random_name = ''.join([random.choice('abcdefghijklmnopqrstuvwxyz0123456789') for i in xrange(0, 8)])
+
         if not thumb:
-            thumb = Thumb()
-            if self.pk:
+            if standalone:
+                thumb = Thumb(
+                    width=self.width,
+                    height=self.height,
+                    crop_x=0,
+                    crop_y=0,
+                    crop_w=self.width,
+                    crop_h=self.height)
+            elif self.pk:
                 try:
                     thumb = self.thumbs.get(name=size.name)
                 except Thumb.DoesNotExist:
                     pass
 
-        thumb.name = size.name
+        if standalone:
+            thumb.name = random_name
+        elif not thumb:
+            thumb = Thumb(name=size.name)
+        elif not thumb.name:
+            thumb.name = size.name
 
         if size.is_auto:
             ref_thumb = ref_thumb or thumb.reference_thumb
@@ -269,10 +310,27 @@ class Image(models.Model):
             return None
 
         thumb.reference_thumb = ref_thumb
-        thumb_image = thumb.crop(image, w=size.width, h=size.height, min_w=size.min_w, min_h=size.min_h)
-        thumb_path = self.get_image_path(size.name, use_temp=tmp)
+
+        if standalone and not(size.w or size.h) and (thumb.crop_w and thumb.crop_h):
+            thumb_image = thumb.crop(image, w=thumb.crop_w, h=thumb.crop_h)
+        else:
+            thumb_image = thumb.crop(image, w=size.width, h=size.height, min_w=size.min_w, min_h=size.min_h)
+
+        if standalone:
+            thumb_path = self.get_image_path(thumb.name)
+        else:
+            thumb_path = self.get_image_path(size.name, use_temp=tmp)
         thumb_image.save(thumb_path, **img_save_params)
-        thumb.save()
+        thumb_image.crop.add_xmp_to_crop(thumb_path, size)
+        if standalone:
+            md5 = hashlib.md5()
+            with open(thumb_path) as f:
+                md5.update(f.read())
+            md5_digest = md5.hexdigest()
+            thumb.name = md5_digest[0:9]
+            os.rename(thumb_path, self.get_image_path(thumb.name))
+        else:
+            thumb.save()
         return thumb
 
 
@@ -315,8 +373,8 @@ class CropDusterField(CropDusterGenericRelation):
 
     def __init__(self, verbose_name=None, **kwargs):
         self.sizes = kwargs.pop('sizes', None)
-        kwargs['to'] = kwargs.pop('to', Image)
-        super(CropDusterField, self).__init__(verbose_name=verbose_name, **kwargs)
+        to = kwargs.pop('to', Image)
+        super(CropDusterField, self).__init__(to, verbose_name=verbose_name, **kwargs)
 
     def save_form_data(self, instance, data):
         super(CropDusterField, self).save_form_data(instance, data)
@@ -362,6 +420,24 @@ class CropDusterField(CropDusterGenericRelation):
             'form_class': formfield,
         })
         return super(CropDusterField, self).formfield(**kwargs)
+
+
+class StandaloneImage(models.Model):
+
+    md5 = models.CharField(max_length=32)
+    image = CropDusterField(sizes=[Size("crop")])
+
+    class Meta:
+        app_label = cropduster_settings.CROPDUSTER_APP_LABEL
+        db_table = '%s_standaloneimage' % cropduster_settings.CROPDUSTER_DB_PREFIX
+
+    def save(self, **kwargs):
+        if not self.md5:
+            md5_hash = hashlib.md5()
+            with open(self.image.path) as f:
+                md5_hash.update(f.read())
+            self.md5 = md5_hash.digest()
+        super(StandaloneImage, self).save(**kwargs)
 
 
 from .patch import patch_django

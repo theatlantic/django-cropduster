@@ -1,24 +1,81 @@
 from __future__ import division
 
+import os
+import hashlib
+
+import PIL.Image
+
 from django import forms
 from django.conf import settings
 from django.forms.models import BaseModelFormSet
 
-from cropduster.models import Thumb
-from cropduster.utils import json
+from cropduster.models import StandaloneImage, Thumb
+from cropduster.utils import json, get_upload_foldername, get_min_size
+
+
+def clean_upload_data(data):
+    image = data['image']
+    image.seek(0)
+    try:
+        pil_image = PIL.Image.open(image)
+    except IOError:
+        raise forms.ValidationError("Invalid or unsupported image file")
+
+    base_file, extension = os.path.splitext(image.name)
+    upload_to = data['upload_to'] or None
+    folder_path = get_upload_foldername(image.name, upload_to=upload_to)
+
+    (w, h) = (orig_w, orig_h) = pil_image.size
+    sizes = data.get('sizes')
+    if sizes:
+        (min_w, min_h) = get_min_size(sizes)
+
+        if (orig_w < min_w or orig_h < min_h):
+            raise forms.ValidationError((
+                u"Image must be at least %(min_w)sx%(min_h)s "
+                u"(%(min_w)s pixels wide and %(min_h)s pixels high). "
+                u"The image you uploaded was %(orig_w)sx%(orig_h)s pixels.") % {
+                    "min_w": min_w,
+                    "min_h": min_h,
+                    "orig_w": orig_w,
+                    "orig_h": orig_h
+                })
+
+    if w <= 0:
+        raise forms.ValidationError(u"Invalid image: width is %d" % w)
+    elif h <= 0:
+        raise forms.ValidationError(u"Invalid image: height is %d" % h)
+
+    # File is good, get rid of the tmp file
+    orig_file_path = os.path.join(folder_path, 'original' + extension)
+    image.seek(0)
+    image_contents = image.read()
+    with open(os.path.join(settings.MEDIA_ROOT, orig_file_path), 'wb+') as f:
+        f.write(image_contents)
+    md5_hash = hashlib.md5()
+    md5_hash.update(image_contents)
+    data['md5'] = md5_hash.hexdigest()
+    data['image'] = open(os.path.join(settings.MEDIA_ROOT, orig_file_path))
+    return data
+
 
 
 class UploadForm(forms.Form):
 
-    picture = forms.ImageField(required=True)
+    image = forms.ImageField(required=True)
     sizes = forms.CharField(required=False)
     image_element_id = forms.CharField(required=False)
+    standalone = forms.BooleanField(required=False)
     upload_to = forms.CharField(required=False)
 
     # The width and height of the image to be generated for
     # crop preview after upload
     preview_width = forms.IntegerField(required=False)
     preview_height = forms.IntegerField(required=False)
+
+    def clean(self):
+        data = super(UploadForm, self).clean()
+        return clean_upload_data(data)
 
     def clean_sizes(self):
         sizes = self.cleaned_data.get('sizes')
@@ -33,6 +90,28 @@ class UploadForm(forms.Form):
             return json.loads(thumbs)
         except:
             return {}
+
+
+class StandaloneUploadForm(forms.ModelForm):
+
+    md5 = forms.CharField(required=False)
+    sizes = forms.CharField(required=False)
+    standalone = forms.BooleanField(required=False)
+    upload_to = forms.CharField(required=False)
+
+    class Meta:
+        model = StandaloneImage
+        fields = ("md5", "image", "sizes", "standalone", "upload_to")
+
+    def clean_sizes(self):
+        try:
+            json.loads(self.cleaned_data.get('sizes', '[]'))
+        except:
+            return []
+
+    def clean(self):
+        data = super(StandaloneUploadForm, self).clean()
+        return clean_upload_data(data)
 
 
 class CropForm(forms.Form):
@@ -58,6 +137,7 @@ class CropForm(forms.Form):
     orig_h = forms.IntegerField(required=False)
     sizes = forms.CharField()
     thumbs = forms.CharField(required=False)
+    standalone = forms.BooleanField(required=False)
 
     def clean_sizes(self):
         try:

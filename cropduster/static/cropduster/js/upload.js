@@ -5,6 +5,59 @@
                           'ATMOProgrammers@theatlantic.com' +
                           '</a>';
 
+    var syncSizeForm = function() {
+        if (!$('#id_standalone').is(':checked')) {
+            return;
+        }
+        var sizes;
+        try {
+            sizes = JSON.parse($('#id_crop-sizes').val());
+        } catch(e) {}
+
+        var $width = $('#id_size-width');
+        var $height = $('#id_size-height');
+
+        $width.val('');
+        $height.val('');
+
+        if (typeof sizes == 'object' && sizes.length == 1) {
+            if ($width.length && $height.length) {
+                $width.val(sizes[0].w || '');
+                $height.val(sizes[0].h || '');
+            }
+        }
+        
+        var orig_w = parseInt($('#id_thumbs-0-crop_w').val(), 10);
+        var orig_h = parseInt($('#id_thumbs-0-crop_h').val(), 10);
+
+        if (orig_w && orig_h) {
+            $('form#size').find('.row.width,.row.height').show();
+        }
+
+        if ($width.val() && !$height.val() && orig_w) {
+            var height = Math.round((sizes[0].w / orig_w) * orig_h);
+            $height.attr('placeholder', height);
+        } else if ($height.val() && !$width.val() && orig_h) {
+            var width = Math.round((sizes[0].h / orig_h) * orig_w);
+            $width.attr('placeholder', width);
+        } else {
+            if ($width.length) {
+                if (orig_w) {
+                    $width.attr('placeholder', orig_w);
+                } else {
+                    $width.removeAttr('placeholder');
+                }
+            }
+            if ($height.length) {
+                if (orig_h) {
+                    $height.attr('placeholder', orig_h);
+                } else {
+                    $height.removeAttr('placeholder');
+                }
+            }
+        }
+    };
+
     var CropBoxClass = Class.extend({
         jcrop: undefined,
         data: {},
@@ -42,6 +95,7 @@
             $('#id_thumbs-' + i + '-crop_y').val(y);
             $('#id_thumbs-' + i + '-crop_w').val(w);
             $('#id_thumbs-' + i + '-crop_h').val(h);
+            syncSizeForm();
         },
         updateNav: function(i) {
             var sizeData = {};
@@ -59,11 +113,14 @@
             } else {
               $('#nav-left').removeClass('disabled');
             }
-            $('#crop-nav').show();
-            $('#current-thumb-info').show();
-            $('#current-thumb-index').html(i + 1);
-            $('#thumb-total-count').html(thumbCount);
-            $('#current-thumb-label').html(sizeData.label || '');
+            if (thumbCount == 1) {
+                $('#crop-nav,#current-thumb-info').hide();
+            } else {
+                $('#crop-nav,#current-thumb-info').show();
+                $('#current-thumb-index').html(i + 1);
+                $('#thumb-total-count').html(thumbCount);
+                $('#current-thumb-label').html(sizeData.label || '');
+            }
 
         },
         onSuccess: function(data, i) {
@@ -82,8 +139,8 @@
 
             this.updateNav(i);
 
-            if (data.orig_url && $('#id_crop-orig_image').val() != data.orig_url) {
-                $('#id_crop-orig_image').val(data.orig_url);
+            if (data.orig_image && $('#id_crop-orig_image').val() != data.orig_image) {
+                $('#id_crop-orig_image').val(data.orig_image);
             }
             if (data.url) {
                 if (this.jcrop) {
@@ -314,6 +371,8 @@
             }
         }
 
+        syncSizeForm();
+
         $('#nav-left,#nav-right').on('click', function(e) {
             var $this = $(this);
             var move = 0;
@@ -405,6 +464,7 @@
                 $('#id_crop-thumbs').val("");
             }
             setFormData(data);
+            syncSizeForm(action);
 
             var thumbCount = $('.cropduster-thumb-form').length;
             if (action == 'crop' && data.thumbs && (cropBox.index + 1) == thumbCount) {
@@ -453,6 +513,21 @@
             });
             return false;
         };
+
+        $('form#size input').on('change', function(evt) {
+            var $input = $(evt.target);
+            var inputName = $input.attr('name');
+            var name = inputName.replace(/^size\-/, '')[0];
+            var val = parseInt($input.val(), 10) || null;
+            var minName = 'min_' + name;
+            var sizes = $.parseJSON($('#id_crop-sizes').val());
+            var size = sizes[0];
+            size[name] = val;
+            size[minName] = val || 1;
+            $('#id_sizes,#id_crop-sizes').val(JSON.stringify([size]));
+            $('#id_thumbs-0-size').val(JSON.stringify(size));
+            cropBox.onSuccess(getFormData(), 0);
+        });
     });
 
 
