@@ -231,7 +231,7 @@ def cropduster_formset_factory(sizes=None, **kwargs):
 
     def formfield_for_dbfield(db_field, **kwargs):
         if isinstance(db_field, models.ManyToManyField) and db_field.rel.to == Thumb:
-            return db_field.formfield(form_class=CropDusterThumbField)
+            return db_field.formfield(form_class=CropDusterThumbField, queryset=Thumb.objects.none())
         elif isinstance(db_field, models.ImageField) and db_field.model == Image:
             kwargs['widget'] = forms.TextInput
         kwargs.pop('request', None)
@@ -239,8 +239,6 @@ def cropduster_formset_factory(sizes=None, **kwargs):
             return formfield_callback(db_field, **kwargs)
         else:
             return db_field.formfield(**kwargs)
-
-    model = kwargs.get('model', Image)
 
     def has_changed(self):
         if not self.changed_data and not any(self.cleaned_data.values()):
