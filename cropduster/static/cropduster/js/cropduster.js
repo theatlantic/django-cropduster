@@ -210,6 +210,7 @@ window.CropDuster = {};
 
             var sizes = {};
             $.each(data.sizes, function(i, size) {
+                if (!size || !size.name) return;
                 sizes[size.name] = size;
             });
 
@@ -239,6 +240,7 @@ window.CropDuster = {};
             $thumb.find('a').remove();
 
             $.each(data.sizes, function(i, size) {
+                if (!size || !size.name) return;
                 if (thumbData[size.name]) {
                     $thumb.html($thumb.html() + $.render.cropdusterImage(thumbData[size.name]));
                 }
