@@ -5,7 +5,7 @@ register = template.Library()
 
 @register.simple_tag
 def get_image(image, size_name='large', template_name='image.html',
-              width=None, height=None, **kwargs):
+              width=None, height=None, css_class=None, **kwargs):
 
     if not image:
         return ""
@@ -21,6 +21,7 @@ def get_image(image, size_name='large', template_name='image.html',
         'size_name': thumb.size.name,
         'attribution': image.metadata.attribution,
         'alt': kwargs.get('alt', image.metadata.caption),
+        'class': css_class,
     })
     kwargs['title'] = kwargs.get('title', kwargs['alt'])
 

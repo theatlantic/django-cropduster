@@ -24,8 +24,8 @@ def get_crop(image, crop_name):
     if not getattr(image, 'cropduster_image', None):
         return None
 
-    w, h = image.cropduster_image.get_image_size(crop_name)
-    url = image.cropduster_image.get_image_url(crop_name)
+    w, h = image.cropduster_image.get_image_size(size_name=crop_name)
+    url = image.cropduster_image.get_image_url(size_name=crop_name)
 
     return {
         "width": w,
