@@ -373,6 +373,19 @@ try:
 except ImportError:
     pass
 else:
+    def converter(value):
+        """Custom south converter so that Size objects serialize properly"""
+        if isinstance(value, Size):
+            return value.__serialize__()
+        try:
+            is_sizes_list = all([isinstance(sz, Size) for sz in value])
+        except TypeError:
+            pass
+        else:
+            return [sz.__serialize__() for sz in value]
+        return repr(value)
+
+
     add_introspection_rules(rules=[
         (
             (CropDusterField,),
@@ -383,7 +396,7 @@ else:
                 "object_id_field": ["object_id_field_name", {"default": "object_id"}],
                 "content_type_field": ["content_type_field_name", {"default": "content_type"}],
                 "blank": ["blank", {"default": True}],
-                "sizes": ["sizes", {}],
+                "sizes": ["sizes", {"converter": converter}],
             },
         ),
     ], patterns=["^cropduster\.models\.CropDusterField"])
