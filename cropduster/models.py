@@ -123,8 +123,11 @@ class Thumb(models.Model):
 class Image(models.Model):
 
     content_type = models.ForeignKey(ContentType)
-    object_id = models.PositiveIntegerField()
+    object_id = models.PositiveIntegerField(null=True, blank=True)
     content_object = generic.GenericForeignKey('content_type', 'object_id')
+
+    prev_object_id = models.PositiveIntegerField(null=True, blank=True)
+    prev_content_object = generic.GenericForeignKey('content_type', 'prev_object_id')
 
     @staticmethod
     def generate_filename(instance, filename):
@@ -150,7 +153,7 @@ class Image(models.Model):
     class Meta:
         app_label = cropduster_settings.CROPDUSTER_APP_LABEL
         db_table = '%s_image' % cropduster_settings.CROPDUSTER_DB_PREFIX
-        unique_together = ("content_type", "object_id")
+        unique_together = ("content_type", "object_id", "prev_object_id")
 
     def __unicode__(self):
         return self.get_image_url()
@@ -188,6 +191,15 @@ class Image(models.Model):
                             self.get_image_path(thumb.name))
                     except (IOError, OSError):
                         pass
+        if not self.pk and self.content_type and self.object_id:
+            try:
+                original = Image.objects.get(content_type=self.content_type, object_id=self.object_id)
+            except Image.DoesNotExist:
+                pass
+            else:
+                original.prev_object_id = original.object_id
+                original.object_id = None
+                original.save()
         return super(Image, self).save(**kwargs)
 
     def get_image_url(self, size_name='original', use_temp=False):
