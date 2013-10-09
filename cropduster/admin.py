@@ -4,7 +4,7 @@ from django.utils.functional import curry
 
 
 def cropduster_inline_factory(field=None, **kwargs):
-    from cropduster.forms import cropduster_formset_factory, CropDusterThumbField
+    from cropduster.forms import cropduster_formset_factory
     from cropduster.models import Image
 
     attrs = {
@@ -36,13 +36,6 @@ def cropduster_inline_factory(field=None, **kwargs):
             'fields': ('image', 'thumbs',),
         }),)
 
-        def formfield_for_manytomany(self, db_field, request=None, **kwargs):
-            """Override default ManyToManyField form field for thumbs."""
-            if db_field.column == 'thumbs':
-                kwargs['form_class'] = CropDusterThumbField
-                return db_field.formfield(**kwargs)
-            return super(CropDusterImageInline, self).formfield_for_manytomany(db_field, request, **kwargs)
-
         def get_formset(self, request, obj=None):
             formset = cropduster_formset_factory(
                 field=attrs['field'],
@@ -53,12 +46,5 @@ def cropduster_inline_factory(field=None, **kwargs):
             if getattr(self, 'default_prefix', None):
                 formset.default_prefix = self.default_prefix
             return formset
-
-        @classmethod
-        def get_default_prefix(cls):
-            if cls.default_prefix:
-                return cls.default_prefix
-            else:
-                return super(CropDusterImageInline, cls).get_default_prefix()
 
     return CropDusterImageInline

@@ -21,6 +21,7 @@ setup(
         'Pillow',
         'jsonutil',
         'Django>=1.2',
+        'python-xmp-toolkit',
     ],
     include_package_data=True,
     classifiers=[

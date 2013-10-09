@@ -1,6 +1,8 @@
 from __future__ import division
+import os
 import re
 import math
+import hashlib
 
 
 __all__ = ('Size', 'Box', 'Crop')
@@ -13,8 +15,8 @@ class Size(object):
     def __init__(self, name, label=None, w=None, h=None, retina=False, auto=None, min_w=None, min_h=None):
         from django.core.exceptions import ImproperlyConfigured
 
-        self.min_w = max(w, min_w)
-        self.min_h = max(h, min_h)
+        self.min_w = max(w, min_w) or 1
+        self.min_h = max(h, min_h) or 1
 
         if auto is not None:
             try:
@@ -165,6 +167,7 @@ class Crop(object):
                 u"Crop box (%dx%d) is too small for resize to (%dx%d)" % (new_w, new_h, width, height))
         elif new_w > width or new_h > height:
             new_image = new_image.resize((width, height), PIL.Image.ANTIALIAS)
+        new_image.crop = self
         return new_image
 
     def best_fit(self, w=None, h=None, min_w=None, min_h=None):
@@ -238,3 +241,78 @@ class Crop(object):
         y2 = min(int(round(y2)), self.bounds.y2, y1 + h)
 
         return Crop(Box(x1, y1, x2, y2), self.image)
+
+    def add_xmp_to_crop(self, cropped_image, size):
+        from cropduster.standalone.metadata import libxmp, file_format_supported
+
+        if not libxmp:
+            return
+
+        from PIL.ImageFile import ImageFile
+        from django.db.models.fields.files import FieldFile
+        from cropduster.models import Thumb
+
+        if isinstance(cropped_image, ImageFile):
+            image_path = cropped_image.filename
+        elif isinstance(cropped_image, file):
+            image_path = cropped_image.name
+        elif isinstance(cropped_image, FieldFile):
+            image_path = cropped_image.path
+        elif isinstance(cropped_image, Thumb):
+            try:
+                image = cropped_image.image_set.all()[0]
+            except IndexError:
+                return False
+            else:
+                image_path = image.get_image_path(cropped_image.name)
+        elif isinstance(cropped_image, basestring):
+            image_path = cropped_image
+
+        xmp_file = libxmp.XMPFiles(file_path=image_path, open_forupdate=True)
+
+        xmp_meta = self.generate_xmp(size)
+
+        if not xmp_file.can_put_xmp(xmp_meta):
+            if not file_format_supported(image_path):
+                raise Exception("Image format of %s does not allow metadata" %(
+                        os.path.basename(image_path)))
+            else:
+                raise Exception("Could not add metadata to image %s" % (
+                        os.path.basename(image_path)))
+
+        xmp_file.put_xmp(xmp_meta)
+        xmp_file.close_file()
+
+    def generate_xmp(self, size):
+        from cropduster.standalone.metadata import libxmp
+
+        NS_MWG_RS = "http://www.metadataworkinggroup.com/schemas/regions/"
+        NS_XMPMM = "http://ns.adobe.com/xap/1.0/mm/"
+        NS_CROP = "http://ns.thealtantic.com/cropduster/1.0/"
+
+        md5 = hashlib.md5()
+        with open(self.image.filename) as f:
+            md5.update(f.read())
+        digest = md5.hexdigest()
+
+        md = libxmp.XMPMeta()
+        md.register_namespace(NS_XMPMM, 'xmpMM')
+        md.register_namespace(NS_MWG_RS, 'mwg-rs')
+        md.register_namespace('http://ns.adobe.com/xap/1.0/sType/Dimensions#', 'stDim')
+        md.register_namespace('http://ns.adobe.com/xmp/sType/Area#', 'stArea')
+        md.register_namespace(NS_CROP, 'crop')
+        md.set_property(NS_CROP, 'crop:size/stDim:w', '%s' % (size.width or ''))
+        md.set_property(NS_CROP, 'crop:size/stDim:h', '%s' % (size.height or ''))
+        md.set_property(NS_XMPMM, 'xmpMM:DerivedFrom', u'xmp.did:%s' % digest.upper())
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions', '', prop_value_is_struct=True)
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:w', unicode(self.image.size[0]))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:h', unicode(self.image.size[1]))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList', '', prop_value_is_array=True)
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Name', 'Crop')
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area', '', prop_value_is_struct=True)
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:unit', "normalized")
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:w',    "%.5f" % (self.box.w  / self.bounds.w))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:h',    "%.5f" % (self.box.h  / self.bounds.h))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:x',    "%.5f" % (self.box.x1 / self.bounds.w))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:y',    "%.5f" % (self.box.y1 / self.bounds.h))
+        return md

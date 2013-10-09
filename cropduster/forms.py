@@ -54,7 +54,7 @@ def cropduster_formfield_factory(sizes, widget=None, related=None):
     })
 
 
-class CropDusterThumbField(ModelMultipleChoiceField):
+class CropDusterThumbFormField(ModelMultipleChoiceField):
 
     widget = CropDusterThumbWidget
 
@@ -64,7 +64,7 @@ class CropDusterThumbField(ModelMultipleChoiceField):
         if a given value is not in the original queryset.
         """
         try:
-            value = super(CropDusterThumbField, self).clean(value)
+            value = super(CropDusterThumbFormField, self).clean(value)
         except ValidationError, e:
             if self.error_messages['required'] in e.messages:
                 raise
@@ -234,7 +234,7 @@ def cropduster_formset_factory(sizes=None, **kwargs):
 
     def formfield_for_dbfield(db_field, **kwargs):
         if isinstance(db_field, models.ManyToManyField) and db_field.rel.to == Thumb:
-            return db_field.formfield(form_class=CropDusterThumbField, queryset=Thumb.objects.none())
+            return db_field.formfield(form_class=CropDusterThumbFormField, queryset=Thumb.objects.none())
         elif isinstance(db_field, models.ImageField) and db_field.model == Image:
             kwargs['widget'] = forms.TextInput
         kwargs.pop('request', None)

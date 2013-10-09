@@ -175,3 +175,66 @@ body.cropduster-upload-form #nav-left.rounded-button:active,
 body.cropduster-upload-form #nav-right.rounded-button:active {
     padding: 5px 5px 4px 5px !important;
 }
+
+body.cropduster-upload-form h1#step-header {
+    margin: 24px 0 8px;
+}
+
+body.cropduster-upload-form #content-main {
+    margin-top: 12px;
+}
+
+body.cropduster-upload-form form#size .row.width,
+body.cropduster-upload-form form#size .row.height {
+    display: none;
+}
+
+body.cropduster-upload-form form#size .row {
+    width: 50%;
+    float: left;
+    padding: 8px 0;
+}
+body.cropduster-upload-form form#size .row,
+body.cropduster-upload-form form#size .row:first-child,
+body.cropduster-upload-form form#size .row:last-child {
+    border-top: 1px solid #FFFFFF !important;
+    border-bottom: 0 !important;
+}
+
+body.cropduster-upload-form form#size .span-4 {
+    width: 45px;
+}
+body.cropduster-upload-form form#size .row:first-child .span-4 {
+    padding-left: 15px;
+}
+
+body.cropduster-upload-form form#size .span-4 + .span-flexible {
+    margin-left: 55px;
+}
+body.cropduster-upload-form form#size input[type="text"] {
+    width: 80px;
+}
+
+body.cropduster-upload-form.cropduster-standalone .module.footer {
+/*    height: 30px;*/
+    display: none;
+}
+body.cropduster-upload-form.cropduster-standalone #content-main {
+    margin-top: 0;
+}
+body.cropduster-upload-form.cropduster-standalone #content-inner {
+    padding: 0;
+}
+body.cropduster-upload-form.cropduster-standalone form#upload {
+    position: relative;
+}
+body.cropduster-upload-form.cropduster-standalone form#upload #upload-button,
+body.cropduster-upload-form.cropduster-standalone form#upload #reupload-button {
+    display: none;
+    position: absolute;
+    top: 5px;
+    right: 5px;
+}
+body.cropduster-upload-form.cropduster-standalone #grp-content #content-inner {
+    bottom: 0;
+}

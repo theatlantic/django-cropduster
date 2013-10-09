@@ -5,6 +5,75 @@
                           'ATMOProgrammers@theatlantic.com' +
                           '</a>';
 
+    var GET_params = (function() {
+        var url = window.location.search.substr(1);
+        var parts = url.split('&');
+        var data = {};
+        for (var i = 0; i < parts.length; i++) {
+            var part = parts[i];
+            var splits = part.split('=');
+            if (splits.length <= 2) {
+                var key = splits[0];
+                var val = decodeURIComponent(splits[1] || '');
+                data[key] = val;
+            }
+        }
+        return data;
+    })();
+
+    var syncSizeForm = function() {
+        if (!$('#id_standalone').is(':checked')) {
+            return;
+        }
+        var sizes;
+        try {
+            sizes = JSON.parse($('#id_crop-sizes').val());
+        } catch(e) {}
+
+        var $width = $('#id_size-width');
+        var $height = $('#id_size-height');
+
+        $width.val('');
+        $height.val('');
+
+        if (typeof sizes == 'object' && sizes.length == 1) {
+            if ($width.length && $height.length) {
+                $width.val(sizes[0].w || '');
+                $height.val(sizes[0].h || '');
+            }
+        }
+        
+        var orig_w = parseInt($('#id_thumbs-0-crop_w').val(), 10);
+        var orig_h = parseInt($('#id_thumbs-0-crop_h').val(), 10);
+
+        if (orig_w && orig_h) {
+            $('form#size').find('.row.width,.row.height').show();
+        }
+
+        if ($width.val() && !$height.val() && orig_w) {
+            var height = Math.round((sizes[0].w / orig_w) * orig_h);
+            $height.attr('placeholder', height);
+        } else if ($height.val() && !$width.val() && orig_h) {
+            var width = Math.round((sizes[0].h / orig_h) * orig_w);
+            $width.attr('placeholder', width);
+        } else {
+            if ($width.length) {
+                if (orig_w) {
+                    $width.attr('placeholder', orig_w);
+                } else {
+                    $width.removeAttr('placeholder');
+                }
+            }
+            if ($height.length) {
+                if (orig_h) {
+                    $height.attr('placeholder', orig_h);
+                } else {
+                    $height.removeAttr('placeholder');
+                }
+            }
+        }
+    };
+
     var CropBoxClass = Class.extend({
         jcrop: undefined,
         data: {},
@@ -42,6 +111,7 @@
             $('#id_thumbs-' + i + '-crop_y').val(y);
             $('#id_thumbs-' + i + '-crop_w').val(w);
             $('#id_thumbs-' + i + '-crop_h').val(h);
+            syncSizeForm();
         },
         updateNav: function(i) {
             var sizeData = {};
@@ -59,11 +129,14 @@
             } else {
               $('#nav-left').removeClass('disabled');
             }
-            $('#crop-nav').show();
-            $('#current-thumb-info').show();
-            $('#current-thumb-index').html(i + 1);
-            $('#thumb-total-count').html(thumbCount);
-            $('#current-thumb-label').html(sizeData.label || '');
+            if (thumbCount == 1) {
+                $('#crop-nav,#current-thumb-info').hide();
+            } else {
+                $('#crop-nav,#current-thumb-info').show();
+                $('#current-thumb-index').html(i + 1);
+                $('#thumb-total-count').html(thumbCount);
+                $('#current-thumb-label').html(sizeData.label || '');
+            }
 
         },
         onSuccess: function(data, i) {
@@ -82,8 +155,8 @@
 
             this.updateNav(i);
 
-            if (data.orig_url && $('#id_crop-orig_image').val() != data.orig_url) {
-                $('#id_crop-orig_image').val(data.orig_url);
+            if (data.orig_image && $('#id_crop-orig_image').val() != data.orig_image) {
+                $('#id_crop-orig_image').val(data.orig_image);
             }
             if (data.url) {
                 if (this.jcrop) {
@@ -294,10 +367,14 @@
         var imageElementId = $('#id_image_element_id').val();
 
         var $P;
-        if (window.opener) {
-            $P = (typeof window.opener.django == 'object')
-                   ? window.opener.django.jQuery
-                   : window.opener.jQuery;
+        var parent = (window.opener) ? window.opener : window.parent;
+        if (parent == window) {
+            parent = null;
+        }
+        if (parent) {
+            $P = (typeof parent.django == 'object')
+                   ? parent.django.jQuery
+                   : parent.jQuery;
         }
 
         var data = {};
@@ -313,6 +390,8 @@
                 $('#upload-sizes,#id_crop-sizes').val(JSON.stringify(data.sizes));
             }
         }
+
+        syncSizeForm();
 
         $('#nav-left,#nav-right').on('click', function(e) {
             var $this = $(this);
@@ -369,10 +448,18 @@
         // Enable upload and reupload buttons after the user has picked a file
         $('#id_image').on('change', function(e) {
             var $input = $(this);
+            var isStandalone = $('body').is('.cropduster-standalone');
+            var $buttons = $('#upload-button,#reupload-button');
             if ($input.val()) {
-                $('#upload-button,#reupload-button').removeClass('disabled');
+                $buttons.removeClass('disabled');
+                if (isStandalone) {
+                    $buttons.show();
+                }
             } else {
-                $('#upload-button,#reupload-button').addClass('disabled');
+                $buttons.addClass('disabled');
+                if (isStandalone) {
+                    $buttons.hide();
+                }
             }
         });
 
@@ -403,14 +490,24 @@
                     }
                 });
                 $('#id_crop-thumbs').val("");
+                $('#upload-button,#reupload-button').hide();
             }
             setFormData(data);
+            syncSizeForm(action);
 
             var thumbCount = $('.cropduster-thumb-form').length;
+            var parent = (window.opener) ? window.opener : window.parent;
+            if (parent == window) {
+                parent = null;
+            }
             if (action == 'crop' && data.thumbs && (cropBox.index + 1) == thumbCount) {
-                    window.opener.CropDuster.complete(imageElementId, data);
-                    window.close();
-                    return;
+                if (typeof GET_params['callback_fn'] != 'undefined') {
+                    parent[GET_params.callback_fn](GET_params['callback_fn'], data);
+                } else {
+                    parent.CropDuster.complete(imageElementId, data);
+                }
+                window.close();
+                return;
             }
             var index = (action == 'upload') ? 0 : cropBox.index + 1;
             data = $.extend({}, data, getFormData());
@@ -453,7 +550,21 @@
             });
             return false;
         };
-    });
 
+        $('form#size input').on('change', function(evt) {
+            var $input = $(evt.target);
+            var inputName = $input.attr('name');
+            var name = inputName.replace(/^size\-/, '')[0];
+            var val = parseInt($input.val(), 10) || null;
+            var minName = 'min_' + name;
+            var sizes = $.parseJSON($('#id_crop-sizes').val());
+            var size = sizes[0];
+            size[name] = val;
+            size[minName] = val || 1;
+            $('#id_sizes,#id_crop-sizes').val(JSON.stringify([size]));
+            $('#id_thumbs-0-size').val(JSON.stringify(size));
+            cropBox.onSuccess(getFormData(), 0);
+        });
+    });
 
 }(django.jQuery));

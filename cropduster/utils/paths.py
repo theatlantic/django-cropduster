@@ -5,8 +5,7 @@ from django.conf import settings
 from django.db.models.fields.files import FileField
 
 
-__all__ = ('get_upload_foldername', 'get_media_path', 'get_media_url',
-    'get_relative_media_url')
+__all__ = ('get_upload_foldername', 'get_media_path', 'get_relative_media_url')
 
 
 MEDIA_ROOT = os.path.abspath(settings.MEDIA_ROOT)
@@ -40,13 +39,10 @@ def get_media_path(url):
 
 def get_relative_media_url(path, clean_slashes=True):
     """Determine system file's media URL without MEDIA_URL prepended."""
-    url = re_media_root.sub('', path)
+    if path.startswith(settings.MEDIA_URL):
+        url = re_media_url.sub('', path)
+    else:
+        url = re_media_root.sub('', path)
     if clean_slashes:
         url = re_url_slashes.sub('', url)
     return url
-
-
-def get_media_url(path):
-    """Determine system file's media URL."""
-    url = settings.MEDIA_URL + re_media_root.sub('', os.path.abspath(path))
-    return re_path_slashes.sub('', url)

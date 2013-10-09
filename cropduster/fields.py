@@ -1,6 +1,70 @@
+from django.core.files.uploadedfile import UploadedFile
 from django.db import models, router
 from django.db.models.fields import related
+from django.db.models.fields.files import FieldFile
 from django.utils.functional import curry
+
+from . import settings as cropduster_settings
+from .related import CropDusterGenericRelation
+
+
+class CropDusterField(CropDusterGenericRelation):
+
+    sizes = None
+
+    def __init__(self, verbose_name=None, **kwargs):
+        sizes = kwargs.pop('sizes', None)
+        if isinstance(sizes, (list, tuple)) and all([isinstance(s, dict) for s in sizes]):
+            from cropduster.utils import json
+            sizes = json.loads(json.dumps(sizes))
+        self.sizes = sizes
+        to = kwargs.pop('to', '%s.Image' % cropduster_settings.CROPDUSTER_APP_LABEL)
+        super(CropDusterField, self).__init__(to, verbose_name=verbose_name, **kwargs)
+
+    def save_form_data(self, instance, data):
+        super(CropDusterField, self).save_form_data(instance, data)
+
+        # pre_save returns getattr(instance, self.name), which is itself
+        # the return value of the descriptor's __get__() method.
+        # This method (CropDusterDescriptor.__get__()) has side effects,
+        # for the same reason that the descriptors of ImageField and
+        # GenericForeignKey have side-effects.
+        #
+        # So, although we don't _appear_ to be doing anything with the
+        # value if not(isinstance(data, UploadedFile)), it is still
+        # necessary to call pre_save() for the ImageField part of the
+        # instance's CropDusterField to sync.
+        value = self.pre_save(instance, False)
+
+        # If we have a file uploaded via the fallback ImageField, make
+        # sure that it's saved.
+        if isinstance(data, UploadedFile):
+            if value and isinstance(value, FieldFile) and not value._committed:
+                # save=True saves the instance. Since this field (CropDusterField)
+                # is considered a "related field" by Django, its save_form_data()
+                # gets called after the instance has already been saved. We need
+                # to resave it if we have a new image.
+                value.save(value.name, value, save=True)
+        else:
+            instance.save()
+
+    def formfield(self, **kwargs):
+        from .forms import cropduster_formfield_factory
+        from .widgets import cropduster_widget_factory
+
+        factory_kwargs = {
+            'sizes': self.sizes,
+            'related': self.related,
+        }
+        widget = cropduster_widget_factory(**factory_kwargs)
+        formfield = cropduster_formfield_factory(widget=widget, **factory_kwargs)
+        widget.parent_admin = formfield.parent_admin = kwargs.pop('parent_admin', None)
+        widget.request = formfield.request = kwargs.pop('request', None)
+        kwargs.update({
+            'widget': widget,
+            'form_class': formfield,
+        })
+        return super(CropDusterField, self).formfield(**kwargs)
 
 
 class ReverseManyRelatedObjectsDescriptor(related.ReverseManyRelatedObjectsDescriptor):

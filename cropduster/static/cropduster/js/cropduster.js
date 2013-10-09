@@ -26,6 +26,23 @@ window.CropDuster = {};
         return css;
     };
 
+
+    var GET_params = (function() {
+        var url = window.location.search.substr(1);
+        var parts = url.split('&');
+        var data = {};
+        for (var i = 0; i < parts.length; i++) {
+            var part = parts[i];
+            var splits = part.split('=');
+            if (splits.length <= 2) {
+                var key = splits[0];
+                var val = decodeURIComponent(splits[1] || '');
+                data[key] = val;
+            }
+        }
+        return data;
+    })();
+
     // jsrender templates
     if ($.views) {
         $.views.helpers({
@@ -247,10 +264,8 @@ window.CropDuster = {};
     };
 
     $(document).ready(function() {
-        if (typeof window.location.getParameter == 'function') {
-            if (window.location.getParameter('cropduster_debug') == '1') {
-                $('body').addClass('cropduster-debug');
-            }
+        if (typeof GET_params == 'object' && GET_params.cropduster_debug == '1') {
+            $('body').addClass('cropduster-debug');
         }
         $('.cropduster-data-field').each(function(i, idField) {
             CropDuster.registerInput(idField);

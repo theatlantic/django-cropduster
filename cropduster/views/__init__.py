@@ -1,143 +1,166 @@
 from __future__ import division
 
 import os
-import re
 import copy
 import shutil
 
 from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 from django.forms.models import modelformset_factory
-from django.http import HttpResponse, HttpResponseNotAllowed
+from django.http import HttpResponse
 from django.shortcuts import render_to_response
 from django.template import RequestContext
+from django.utils.functional import cached_property
 from django.views.decorators.csrf import csrf_exempt
 
 import PIL.Image
 
-from cropduster.models import Thumb, Image as CropDusterImage
-from cropduster.utils import (
-    json, get_relative_media_url, get_upload_foldername,
-    get_image_extension, get_media_url, get_min_size)
-from cropduster.settings import CROPDUSTER_PREVIEW_WIDTH, CROPDUSTER_PREVIEW_HEIGHT
+from cropduster.files import ImageFile
+from cropduster.models import Thumb, Size, StandaloneImage, Image
+from cropduster.settings import (
+    CROPDUSTER_PREVIEW_WIDTH as PREVIEW_WIDTH,
+    CROPDUSTER_PREVIEW_HEIGHT as PREVIEW_HEIGHT)
+from cropduster.utils import json, get_relative_media_url
 from cropduster.exceptions import json_error, CropDusterResizeException, full_exc_info
 
+from .base import View
 from .forms import CropForm, ThumbForm, ThumbFormSet, UploadForm
 from .utils import get_admin_base_template, FakeQuerySet
 
 
-def index(request):
-    if request.method == "POST":
-        raise HttpResponseNotAllowed(['GET'])
+class CropDusterIndex(View):
 
-    ctx = {}
+    http_method_names = ['get']
 
-    initial = {
-        'sizes': request.GET.get('sizes', '[]')
-    }
+    is_standalone = False
 
-    thumb_ids = filter(None, request.GET.get('thumbs', '').split(','))
-    try:
-        thumb_ids = map(int, thumb_ids)
-    except TypeError:
-        thumbs = Thumb.objects.none()
-    else:
-        thumbs = Thumb.objects.filter(pk__in=thumb_ids)
-        initial['thumbs'] = json.dumps(dict([
-            (t['name'], t)
-            for t in thumbs.values('id', 'name', 'width', 'height')]))
+    def dispatch(self, request, *args, **kwargs):
+        self.request = request
+        self.upload_to = self.request.GET.get('upload_to') or None
 
-    try:
-        image = CropDusterImage.objects.get(pk=request.GET.get('id'))
-    except (ValueError, CropDusterImage.DoesNotExist):
-        pass
-    else:
-        orig_w, orig_h = image.get_image_size()
-        image_path = os.path.split(image.image.name)[0]
-        initial.update({
-            'image_id': image.pk,
-            'orig_image': u'/'.join([image_path, 'original' + image.extension]),
+        return super(CropDusterIndex, self).dispatch(request, *args, **kwargs)
+
+    @cached_property
+    def image_file(self):
+        (preview_w, preview_h) = self.preview_size
+        return ImageFile(self.request.GET.get('image'),
+            upload_to=self.upload_to,
+            preview_w=preview_w,
+            preview_h=preview_h)
+
+    @cached_property
+    def preview_size(self):
+        # This error checking might be too aggressive...
+        preview_width, preview_height = PREVIEW_WIDTH, PREVIEW_HEIGHT
+        preview_size = self.request.GET.get('preview_size', '').split('x')
+        if len(preview_size) != 2:
+            preview_size = (PREVIEW_WIDTH, PREVIEW_HEIGHT)
+        try:
+            preview_width = int(preview_size[0])
+        except (ValueError, TypeError):
+            pass
+        else:
+            try:
+                preview_height = int(preview_size[1])
+            except (ValueError, TypeError):
+                pass
+        return (preview_width, preview_height)
+
+    @cached_property
+    def db_image(self):
+        try:
+            db_image = Image.objects.get(pk=self.request.GET.get('id'))
+        except (ValueError, Image.DoesNotExist):
+            return None
+
+        image_filename = getattr(self.image_file, 'name', None)
+        if image_filename and image_filename != db_image.image.name:
+            # New images should get new rows (and thus new pks)
+            db_image.pk = None
+        return db_image
+
+    @cached_property
+    def sizes(self):
+        return json.loads(self.request.GET.get('sizes', '[]'))
+
+    @cached_property
+    def thumbs(self):
+        thumb_ids = filter(None, self.request.GET.get('thumbs', '').split(','))
+        try:
+            thumb_ids = map(int, thumb_ids)
+        except TypeError:
+            thumbs = Thumb.objects.none()
+        else:
+            thumbs = Thumb.objects.filter(pk__in=thumb_ids)
+        thumb_dict = dict([(t.name, t) for t in thumbs])
+        ordered_thumbs = [thumb_dict.get(s.name, Thumb(name=s.name)) for s in self.sizes]
+        return FakeQuerySet(ordered_thumbs, thumbs)
+
+    @cached_property
+    def orig_image(self):
+        if self.db_image:
+            return self.db_image.image
+        else:
+            return self.image_file.get_for_size('original')
+
+    def get(self, *args, **kwargs):
+        orig_image = self.orig_image
+        orig_w = getattr(orig_image, 'width', None) or 0
+        orig_h = getattr(orig_image, 'height', None) or 0
+
+        initial = {
+            'standalone': self.is_standalone,
+            'sizes': json.dumps(self.sizes),
+            'thumbs': json.dumps(dict([
+                (t['name'], t)
+                for t in self.thumbs.queryset.values('id', 'name', 'width', 'height')])),
+            'image_id': getattr(self.db_image, 'pk', None),
+            'orig_image': getattr(orig_image, 'name', None),
             'orig_w': orig_w,
             'orig_h': orig_h,
-        })
-        ctx['image'] = image.get_image_url('_preview')
+        }
 
-    # If we have a new image that hasn't been saved yet
-    if request.GET.get('image'):
-        tmp_image = CropDusterImage(image=request.GET['image'])
-        if os.path.exists(tmp_image.get_image_path('_preview')):
-            try:
-                img = PIL.Image.open(tmp_image.get_image_path())
-            except:
-                pass
-            else:
-                orig_image = tmp_image.get_image_name()
-                if orig_image != initial.get('orig_image'):
-                    del initial['image_id']
-                initial.update({
-                    'orig_image': orig_image,
-                    'orig_w': img.size[0],
-                    'orig_h': img.size[1],
-                })
-                ctx['image'] = tmp_image.get_image_url('_preview')
+        FormSet = modelformset_factory(Thumb, form=ThumbForm, formset=ThumbFormSet, extra=0)
+        thumb_formset = FormSet(queryset=self.thumbs, initial=[], prefix='thumbs')
 
-    sizes = json.loads(initial['sizes'])
-    size_dict = dict([(s.name, s) for s in sizes])
-    thumb_dict = dict([(t.name, t) for t in thumbs])
+        size_dict = dict([(s.name, s) for s in self.sizes])
 
-    # Create a fake queryset with the same order as the image `sizes`.
-    # This is necessary if we want the formset thumb order to be consistent.
-    ordered_thumbs = [thumb_dict.get(s.name, Thumb(name=s.name)) for s in sizes]
-    fake_queryset = FakeQuerySet(ordered_thumbs, thumbs)
+        for thumb_form in thumb_formset.initial_forms:
+            name = thumb_form.initial['name']
+            if name in size_dict:
+                thumb_form.initial['size'] = json.dumps(size_dict[name])
+            # The thumb being cropped and thumbs referencing it
+            pk = thumb_form.initial['id']
+            thumb_group = self.thumbs.queryset.filter(Q(pk=pk) | Q(reference_thumb_id__exact=pk))
+            thumb_group_data = dict([(t['name'], t) for t in thumb_group.values('id', 'name', 'width', 'height')])
+            thumb_form.initial.update({
+                'thumbs': json.dumps(thumb_group_data),
+                'changed': False,
+            })
 
-    FormSet = modelformset_factory(Thumb, form=ThumbForm, formset=ThumbFormSet, extra=0)
-    thumb_formset = FormSet(queryset=fake_queryset, initial=[], prefix='thumbs')
+        return render_to_response('cropduster/upload.html', RequestContext(self.request, {
+            'is_popup': True,
+            'orig_image': '',
+            'parent_template': get_admin_base_template(),
+            'image': getattr(self.image_file.preview_image, 'url', u"%scropduster/img/blank.gif" % settings.STATIC_URL),
+            'standalone': self.is_standalone,
+            'upload_form': UploadForm(initial={
+                'upload_to': self.upload_to,
+                'sizes': initial['sizes'],
+                'image_element_id': self.request.GET.get('el_id', ''),
+                'standalone': self.is_standalone,
+                'preview_width': self.preview_size[0],
+                'preview_height': self.preview_size[1],
+            }),
+            'crop_form': CropForm(initial=initial, prefix='crop'),
+            'thumb_formset': thumb_formset,
+        }))
 
-    for thumb_form in thumb_formset.initial_forms:
-        name = thumb_form.initial['name']
-        if name in size_dict:
-            thumb_form.initial['size'] = json.dumps(size_dict[name])
-        # The thumb being cropped and thumbs referencing it
-        pk = thumb_form.initial['id']
-        thumb_group = thumbs.filter(Q(pk=pk) | Q(reference_thumb_id__exact=pk))
-        thumb_group_data = dict([(t['name'], t) for t in thumb_group.values('id', 'name', 'width', 'height')])
-        thumb_form.initial.update({
-            'thumbs': json.dumps(thumb_group_data),
-            'changed': False,
-        })
 
-    # This error checking might be too aggressive...
-    preview_size = request.GET.get('preview_size', '').split('x')
-    if len(preview_size) != 2:
-        preview_size = (CROPDUSTER_PREVIEW_WIDTH, CROPDUSTER_PREVIEW_HEIGHT)
-    try:
-        preview_width = int(preview_size[0])
-    except (ValueError, TypeError):
-        preview_width = CROPDUSTER_PREVIEW_WIDTH
-        preview_height = CROPDUSTER_PREVIEW_HEIGHT
-    else:
-        try:
-            preview_height = int(preview_size[1])
-        except (ValueError, TypeError):
-            preview_width = CROPDUSTER_PREVIEW_WIDTH
-            preview_height = CROPDUSTER_PREVIEW_HEIGHT
 
-    ctx.update({
-        'is_popup': True,
-        'orig_image': '',
-        'parent_template': get_admin_base_template(),
-        'upload_form': UploadForm(initial={
-            'upload_to': request.GET.get('upload_to', ''),
-            'sizes': initial['sizes'],
-            'image_element_id': request.GET.get('el_id', ''),
-            'preview_width': preview_width,
-            'preview_height': preview_height,
-        }),
-        'crop_form': CropForm(initial=initial, prefix='crop'),
-        'thumb_formset': thumb_formset,
-        'image': ctx.pop('image', u"%scropduster/img/blank.gif" % settings.STATIC_URL),
-    })
-    return render_to_response('cropduster/upload.html', RequestContext(request, ctx))
+
+index = CropDusterIndex.as_view()
 
 
 @csrf_exempt
@@ -148,50 +171,20 @@ def upload(request):
     form = UploadForm(request.POST, request.FILES)
 
     if not form.is_valid():
+        errors = form['image'].errors or form.errors
         return json_error(request, 'upload', action="uploading file",
-                errors=[unicode(form['picture'].errors)])
+                errors=[unicode(errors)])
 
-    img_file = request.FILES['picture']
-    extension = os.path.splitext(img_file.name)[1].lower()
-    folder_path = get_upload_foldername(img_file.name,
-            upload_to=request.GET.get('upload_to', None))
     form_data = form.cleaned_data
 
-    tmp_file_path = os.path.join(folder_path, '__tmp' + extension)
-
-    with open(tmp_file_path, 'wb+') as f:
-        for chunk in img_file.chunks():
-            f.write(chunk)
-    img = PIL.Image.open(tmp_file_path)
-
+    orig_file_path = form_data['image'].name
+    orig_image = get_relative_media_url(orig_file_path)
+    img = PIL.Image.open(orig_file_path)
     (w, h) = (orig_w, orig_h) = img.size
-    (min_w, min_h) = get_min_size(request.POST['sizes'])
 
-    if (orig_w < min_w or orig_h < min_h):
-        return json_error(request, 'upload', action="uploading file", errors=[(
-            u"Image must be at least %(min_w)sx%(min_h)s "
-            u"(%(min_w)s pixels wide and %(min_h)s pixels high). "
-            u"The image you uploaded was %(orig_w)sx%(orig_h)s pixels.") % {
-                "min_w": min_w,
-                "min_h": min_h,
-                "orig_w": orig_w,
-                "orig_h": orig_h
-            }])
-
-    if w <= 0:
-        raise json_error(request, 'upload', action='uploading file', errors=[
-            u"Invalid image: width is %d" % w])
-    elif h <= 0:
-        raise json_error(request, 'upload', action='uploading file', errors=[
-            u"Invalid image: height is %d" % h])
-
-    # File is good, get rid of the tmp file
-    orig_file_path = os.path.join(folder_path, 'original' + extension)
-    os.rename(tmp_file_path, orig_file_path)
-
-    orig_url = get_relative_media_url(orig_file_path)
-    preview_w = form_data.get('preview_width') or CROPDUSTER_PREVIEW_WIDTH
-    preview_h = form_data.get('preview_height') or CROPDUSTER_PREVIEW_HEIGHT
+    tmp_image = Image(image=orig_image)
+    preview_w = form_data.get('preview_width') or PREVIEW_WIDTH
+    preview_h = form_data.get('preview_height') or PREVIEW_HEIGHT
 
     # First pass resize if it's too large
     resize_ratio = min(preview_w / w, preview_h / h)
@@ -202,38 +195,70 @@ def upload(request):
     else:
         preview_img = img
 
-    preview_file_path = os.path.join(folder_path, '_preview' + extension)
+    preview_file_path = tmp_image.get_image_path('_preview')
+
     img_save_params = {}
     if preview_img.format == 'JPEG':
         img_save_params['quality'] = 95
-    try:
-        preview_img.save(preview_file_path, **img_save_params)
-    except KeyError:
-        # The user uploaded an image with an invalid file extension, we need
-        # to rename it with the proper one.
-        extension = get_image_extension(img)
 
-        os.rename(orig_file_path, os.path.splitext(orig_file_path)[0] + extension)
-        orig_file_path = os.path.splitext(orig_file_path)[0] + extension
-        orig_url = get_relative_media_url(orig_file_path)
-
-        preview_file_path = os.path.join(folder_path, '_preview' + extension)
-        preview_img.save(preview_file_path, **img_save_params)
+    preview_img.save(preview_file_path, **img_save_params)
 
     data = {
         'crop': {
-            'orig_image': orig_url,
+            'orig_image': orig_image,
             'orig_w': orig_w,
             'orig_h': orig_h,
         },
-        'url': get_media_url(preview_file_path),
-        'orig_image': get_relative_media_url(orig_url),
+        'url': tmp_image.get_image_url('_preview'),
+        'orig_image': orig_image,
         'orig_w': orig_w,
         'orig_h': orig_h,
         'width': w,
         'height': h,
-        'orig_url': orig_url,
     }
+    if not form_data.get('standalone'):
+        return HttpResponse(json.dumps(data), mimetype='application/json')
+
+    size = Size('crop', w=img.size[0], h=img.size[1])
+
+    md5 = form_data.get('md5')
+    try:
+        standalone_image = StandaloneImage.objects.get(md5=md5)
+    except StandaloneImage.DoesNotExist:
+        standalone_image = StandaloneImage(md5=md5, image=orig_image)
+        standalone_image.save()
+    cropduster_image, created = Image.objects.get_or_create(
+        content_type=ContentType.objects.get_for_model(StandaloneImage),
+        object_id=standalone_image.pk)
+
+    if not cropduster_image.image:
+        cropduster_image.image = orig_image
+    thumb = cropduster_image.save_size(size, standalone=True)
+
+    sizes = form_data.get('sizes') or []
+    if len(sizes) == 1:
+        size = sizes[0]
+    else:
+        size = Size('crop')
+
+    data.update({
+        'thumbs': [{
+            'crop_x': thumb.crop_x,
+            'crop_y': thumb.crop_y,
+            'crop_w': thumb.crop_w,
+            'crop_h': thumb.crop_h,
+            'width':  thumb.width,
+            'height': thumb.height,
+            'id': None,
+            'changed': True,
+            'size': json.dumps(size),
+            'name': thumb.name,
+        }]
+    })
+    data['crop'].update({
+        'image_id': cropduster_image.pk,
+        'sizes': json.dumps([size]),
+    })
     return HttpResponse(json.dumps(data), mimetype='application/json')
 
 
@@ -249,7 +274,7 @@ def crop(request):
                 log=True, exc_info=full_exc_info())
 
     crop_data = copy.deepcopy(crop_form.cleaned_data)
-    db_image = CropDusterImage(image=crop_data['orig_image'])
+    db_image = Image(image=crop_data['orig_image'])
     try:
         pil_image = PIL.Image.open(db_image.image.path)
     except IOError:
@@ -272,31 +297,46 @@ def crop(request):
     thumbs_with_crops = [t for t in cropped_thumbs if t.crop_w and t.crop_h]
     thumbs_data = [f.cleaned_data for f in thumb_formset]
 
+    standalone_mode = crop_data['standalone']
+
     for i, (thumb, thumb_form) in enumerate(zip(cropped_thumbs, thumb_formset)):
         changed_fields = set(thumb_form.changed_data) - non_model_fields
         thumb_form._changed_data = list(changed_fields)
+        thumb_data = thumbs_data[i]
+        size = thumb_data['size']
+
         if changed_fields & set(['crop_x', 'crop_y', 'crop_w', 'crop_h']):
+            # Clear existing primary key to force new thumb creation
             thumb.pk = None
 
+            if standalone_mode:
+                thumb.width = min(filter(None, [thumb.width, thumb.crop_w]))
+                thumb.height = min(filter(None, [thumb.height, thumb.crop_h]))
+
             try:
-                new_thumbs = db_image.save_size(thumb_form.cleaned_data['size'], thumb, tmp=True)
+                new_thumbs = db_image.save_size(size, thumb, tmp=True, standalone=standalone_mode)
             except CropDusterResizeException as e:
                 return json_error(request, 'crop',
                                   action="saving size", errors=[unicode(e)])
 
             if not new_thumbs:
                 continue
+
+            if standalone_mode:
+                thumb = new_thumbs
+                new_thumbs = {thumb.name: thumb}
+
             cropped_thumbs[i] = thumb = new_thumbs.get(thumb.name, thumb)
+
+            update_props = ['crop_x', 'crop_y', 'crop_w', 'crop_h', 'width', 'height', 'id', 'name']
+            for prop in update_props:
+                thumbs_data[i][prop] = getattr(thumb, prop)
+
             thumbs_data[i].update({
-                'crop_x': thumb.crop_x,
-                'crop_y': thumb.crop_y,
-                'crop_w': thumb.crop_w,
-                'crop_h': thumb.crop_h,
-                'width':  thumb.width,
-                'height': thumb.height,
-                'id': thumb.id,
                 'changed': True,
+                'url': db_image.get_image_url(thumb.name),
             })
+
             for name, new_thumb in new_thumbs.iteritems():
                 if new_thumb.reference_thumb_id:
                     continue
@@ -304,11 +344,12 @@ def crop(request):
                 crop_data['thumbs'].update({name: thumb_data})
                 thumbs_data[i]['thumbs'].update({name: thumb_data})
         elif thumb.pk and thumb.name and thumb.crop_w and thumb.crop_h:
-            thumb_path = db_image.get_image_path(thumb.name, use_temp=False)
-            tmp_thumb_path = db_image.get_image_path(thumb.name, use_temp=True)
+            thumb_path = db_image.get_image_path(thumb.name, tmp=False)
+            tmp_thumb_path = db_image.get_image_path(thumb.name, tmp=True)
             if os.path.exists(thumb_path):
                 if not thumb_form.cleaned_data.get('changed') or not os.path.exists(tmp_thumb_path):
                     shutil.copy(thumb_path, tmp_thumb_path)
+
         if not thumb.pk and not thumb.crop_w and not thumb.crop_h:
             if not len(thumbs_with_crops):
                 continue

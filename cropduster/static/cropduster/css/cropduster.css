@@ -156,12 +156,14 @@ body.cropduster-debug .cropduster-form fieldset {
 .cropduster-upload-form input[type="button"].rounded-button.small:visited,
 .cropduster-upload-form input[type="button"].rounded-button.small:hover {
 	padding: 3px 6px 4px 6px;
+	height: 23px;
 }
 
 .cropduster-upload-form .rounded-button.small:active,
 .cropduster-upload-form input[type="submit"].rounded-button.small:active,
 .cropduster-upload-form input[type="button"].rounded-button.small:active {
 	padding: 4px 6px 3px 6px;
+	height: 23px;
 }
 
 .cropduster-upload-form .rounded-button.green,

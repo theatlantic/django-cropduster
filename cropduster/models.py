@@ -1,24 +1,25 @@
 from __future__ import division
+
+import hashlib
+import random
 import os
-import re
 from datetime import datetime
 
+from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
-from django.core.files.uploadedfile import UploadedFile
 from django.db import models
-from django.db.models.fields.files import FieldFile
-from django.conf import settings
 
 import PIL.Image
 
-from .related import CropDusterGenericRelation
+from .fields import CropDusterField, CropDusterThumbField
+from .files import VirtualFieldFile
 from .resizing import Size, Box, Crop
-from .thumbs import CropDusterThumbField
+from .utils import get_relative_media_url
 from . import settings as cropduster_settings
 
 
-__all__ = ('Image', 'Thumb', 'CropDusterField', 'Size', 'Box', 'Crop')
+__all__ = ('Image', 'Thumb', 'StandaloneImage', 'CropDusterField', 'Size', 'Box', 'Crop')
 
 
 class Thumb(models.Model):
@@ -169,14 +170,54 @@ class Image(models.Model):
             return u''
         return os.path.splitext(self.image.path)[1]
 
-    def get_image_path(self, size_name='original', use_temp=False):
-        if not self.image:
-            return u''
-        if use_temp:
-            size_name += '_tmp'
-        path, basename = os.path.split(self.image.path)
+    @staticmethod
+    def get_file_for_size(image, size_name='original', tmp=False):
+        if isinstance(image, basestring):
+            image = VirtualFieldFile(image)
+        if not image:
+            return None
+        path, basename = os.path.split(image.path)
         filename, extension = os.path.splitext(basename)
-        return os.path.join(settings.MEDIA_ROOT, path, size_name + extension)
+        if size_name == 'preview':
+            size_name = '_preview'
+        if tmp:
+            size_name = u'%s_tmp' % size_name
+        return VirtualFieldFile(
+            u'/'.join([
+                get_relative_media_url(path),
+                size_name + extension]))
+
+    @classmethod
+    def save_preview_file(cls, image_file, preview_w=None, preview_h=None):
+        pil_img = PIL.Image.open(image_file.path)
+        orig_w, orig_h = pil_img.size
+
+        preview_w = preview_w or cropduster_settings.CROPDUSTER_PREVIEW_WIDTH
+        preview_h = preview_h or cropduster_settings.CROPDUSTER_PREVIEW_HEIGHT
+
+        resize_ratio = min(preview_w / orig_w, preview_h / orig_h)
+        if resize_ratio < 1:
+            w = int(round(orig_w * resize_ratio))
+            h = int(round(orig_h * resize_ratio))
+            preview_img = pil_img.resize((w, h), PIL.Image.ANTIALIAS)
+        else:
+            preview_img = pil_img
+        preview_file = cls.get_file_for_size(image_file, '_preview')
+        img_save_params = {}
+        if preview_img.format == 'JPEG':
+            img_save_params['quality'] = 95
+        preview_img.save(preview_file.path, **img_save_params)
+        return preview_file
+
+    def save_preview(self, preview_w=None, preview_h=None):
+        return Image.save_preview_file(self.image, preview_w=preview_w, preview_h=preview_h)
+
+    def get_image_path(self, size_name='original', tmp=False):
+        converted = Image.get_file_for_size(self.image, size_name, tmp=tmp)
+        if not converted:
+            return u''
+        else:
+            return converted.path
 
     def save(self, **kwargs):
         self.date_modified = datetime.now()
@@ -187,7 +228,7 @@ class Image(models.Model):
                 if thumb.date_modified > old_date_modified:
                     try:
                         os.rename(
-                            self.get_image_path(thumb.name, use_temp=True),
+                            self.get_image_path(thumb.name, tmp=True),
                             self.get_image_path(thumb.name))
                     except (IOError, OSError):
                         pass
@@ -202,17 +243,9 @@ class Image(models.Model):
                 original.save()
         return super(Image, self).save(**kwargs)
 
-    def get_image_url(self, size_name='original', use_temp=False):
-        if not self.image:
-            return u''
-
-        if use_temp:
-            size_name += '_tmp'
-
-        rel_path, basename = os.path.split(self.image.name)
-        filename, extension = os.path.splitext(basename)
-        url = u'/'.join([settings.MEDIA_URL, rel_path, size_name + extension])
-        return re.sub(r'(?<!:)/+', '/', url)
+    def get_image_url(self, size_name='original', tmp=False):
+        converted = Image.get_file_for_size(self.image, size_name, tmp=tmp)
+        return getattr(converted, 'url', None) or u''
 
     def get_image_size(self, size_name=None):
         """
@@ -241,34 +274,50 @@ class Image(models.Model):
             else:
                 return img.size
 
-    def save_size(self, size, thumb=None, image=None, tmp=False):
+    def save_size(self, size, thumb=None, image=None, tmp=False, standalone=False):
         thumbs = {}
         if not image and not self.image:
             raise Exception("Cannot save sizes without an image")
         image = image or PIL.Image.open(self.image.path)
 
+        if standalone:
+            if not StandaloneImage:
+                raise ImproperlyConfigured(u"standalone mode used, but not installed.")
+            return self._save_thumb(size, image, thumb, standalone=True)
+
         for sz in Size.flatten([size]):
             if sz.is_auto:
-                new_thumb = self.save_thumb(sz, image, ref_thumb=thumb, tmp=tmp)
+                new_thumb = self._save_thumb(sz, image, ref_thumb=thumb, tmp=tmp)
             else:
-                thumb = new_thumb = self.save_thumb(sz, image, thumb, tmp=tmp)
+                thumb = new_thumb = self._save_thumb(sz, image, thumb, tmp=tmp)
             if new_thumb:
                 thumbs[sz.name] = new_thumb
         return thumbs
 
-    def save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False):
+    def _save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False, standalone=False):
         img_save_params = {}
         if image.format == 'JPEG':
             img_save_params['quality'] = 95
+
         if not thumb:
-            thumb = Thumb()
-            if self.pk:
+            if standalone:
+                thumb = Thumb(
+                    width=self.width, height=self.height,
+                    crop_x=0, crop_y=0, crop_w=self.width, crop_h=self.height)
+            elif self.pk:
                 try:
                     thumb = self.thumbs.get(name=size.name)
                 except Thumb.DoesNotExist:
                     pass
 
-        thumb.name = size.name
+        if standalone:
+            thumb.name = ''.join([random.choice('abcdefghijklmnopqrstuvwxyz0123456789') for i in xrange(0, 8)])
+        elif not thumb:
+            thumb = Thumb(name=size.name)
+        elif not thumb.name:
+            thumb.name = size.name
+
+        crop_box = None
 
         if size.is_auto:
             ref_thumb = ref_thumb or thumb.reference_thumb
@@ -281,10 +330,30 @@ class Image(models.Model):
             return None
 
         thumb.reference_thumb = ref_thumb
-        thumb_image = thumb.crop(image, w=size.width, h=size.height, min_w=size.min_w, min_h=size.min_h)
-        thumb_path = self.get_image_path(size.name, use_temp=tmp)
+
+        if standalone and not(size.w or size.h) and (thumb.crop_w and thumb.crop_h):
+            thumb_image = thumb.crop(image, w=thumb.crop_w, h=thumb.crop_h)
+        else:
+            thumb_image = thumb.crop(image, w=size.width, h=size.height, min_w=size.min_w, min_h=size.min_h)
+
+        if standalone:
+            thumb_path = self.get_image_path(thumb.name)
+        else:
+            thumb_path = self.get_image_path(size.name, tmp=tmp)
+
         thumb_image.save(thumb_path, **img_save_params)
-        thumb.save()
+
+        if StandaloneImage:
+            thumb_image.crop.add_xmp_to_crop(thumb_path, size)
+
+        if standalone:
+            md5 = hashlib.md5()
+            with open(thumb_path) as f:
+                md5.update(f.read())
+            thumb.name = md5.hexdigest()[0:9]
+            os.rename(thumb_path, self.get_image_path(thumb.name))
+        else:
+            thumb.save()
         return thumb
 
 
@@ -305,14 +374,14 @@ def thumbs_added(sender, **kwargs):
     for thumb in thumbs:
         try:
             os.rename(
-                image.get_image_path(thumb.name, use_temp=True),
+                image.get_image_path(thumb.name, tmp=True),
                 image.get_image_path(thumb.name))
         except (IOError, OSError):
             pass
         for auto_thumb in thumb.auto_set.all():
             try:
                 os.rename(
-                    image.get_image_path(auto_thumb.name, use_temp=True),
+                    image.get_image_path(auto_thumb.name, tmp=True),
                     image.get_image_path(auto_thumb.name))
             except (IOError, OSError):
                 pass
@@ -321,63 +390,21 @@ def thumbs_added(sender, **kwargs):
 models.signals.m2m_changed.connect(thumbs_added, sender=Image.thumbs.through)
 
 
-class CropDusterField(CropDusterGenericRelation):
-
-    sizes = None
-
-    def __init__(self, verbose_name=None, **kwargs):
-        self.sizes = kwargs.pop('sizes', None)
-        kwargs['to'] = kwargs.pop('to', Image)
-        super(CropDusterField, self).__init__(verbose_name=verbose_name, **kwargs)
-
-    def save_form_data(self, instance, data):
-        super(CropDusterField, self).save_form_data(instance, data)
-
-        # pre_save returns getattr(instance, self.name), which is itself
-        # the return value of the descriptor's __get__() method.
-        # This method (CropDusterDescriptor.__get__()) has side effects,
-        # for the same reason that the descriptors of ImageField and
-        # GenericForeignKey have side-effects.
-        #
-        # So, although we don't _appear_ to be doing anything with the
-        # value if not(isinstance(data, UploadedFile)), it is still
-        # necessary to call pre_save() for the ImageField part of the
-        # instance's CropDusterField to sync.
-        value = self.pre_save(instance, False)
-
-        # If we have a file uploaded via the fallback ImageField, make
-        # sure that it's saved.
-        if isinstance(data, UploadedFile):
-            if value and isinstance(value, FieldFile) and not value._committed:
-                # save=True saves the instance. Since this field (CropDusterField)
-                # is considered a "related field" by Django, its save_form_data()
-                # gets called after the instance has already been saved. We need
-                # to resave it if we have a new image.
-                value.save(value.name, value, save=True)
-        else:
-            instance.save()
-
-    def formfield(self, **kwargs):
-        from .forms import cropduster_formfield_factory
-        from .widgets import cropduster_widget_factory
-
-        factory_kwargs = {
-            'sizes': self.sizes,
-            'related': self.related,
-        }
-        widget = cropduster_widget_factory(**factory_kwargs)
-        formfield = cropduster_formfield_factory(widget=widget, **factory_kwargs)
-        widget.parent_admin = formfield.parent_admin = kwargs.pop('parent_admin', None)
-        widget.request = formfield.request = kwargs.pop('request', None)
-        kwargs.update({
-            'widget': widget,
-            'form_class': formfield,
-        })
-        return super(CropDusterField, self).formfield(**kwargs)
-
-
 from .patch import patch_django
 patch_django()
+
+
+try:
+    from cropduster.standalone.models import StandaloneImage
+except:
+    raise
+    class FalseMeta(type):
+        def __nonzero__(cls): return False
+        __bool__ = __nonzero__
+
+    class StandaloneImage(object):
+        __metaclass__ = FalseMeta
+        DoesNotExist = type('DoesNotExist', (ObjectDoesNotExist,), {})
 
 
 try:
@@ -394,7 +421,8 @@ else:
         except TypeError:
             pass
         else:
-            return [sz.__serialize__() for sz in value]
+            if is_sizes_list:
+                return [sz.__serialize__() for sz in value]
         return repr(value)
 
 
@@ -411,8 +439,8 @@ else:
                 "sizes": ["sizes", {"converter": converter}],
             },
         ),
-    ], patterns=["^cropduster\.models\.CropDusterField"])
+    ], patterns=["^cropduster\.fields\.CropDusterField"])
 
     add_introspection_rules(
         rules=[((models.ManyToManyField,), [], {})],
-        patterns=["^cropduster\.thumbs\.CropDusterThumbField"])
+        patterns=["^cropduster\.fields\.CropDusterThumbField"])

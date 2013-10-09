@@ -12,7 +12,7 @@
 <!-- Get rid of nav -->
 {% block nav-global %}{% endblock %}
 
-{% block bodyclass %}{{ block.super }} cropduster-upload-form absolute-pos{% endblock %}
+{% block bodyclass %}{{ block.super }} cropduster-upload-form absolute-pos{% if standalone %} cropduster-standalone{% endif %}{% endblock %}
 
 {% block content-class %}content-flexible{% endblock %}
 
@@ -21,18 +21,55 @@
 
 <!-- CONTENT -->
 {% block content %}
+{% if not standalone %}
 <h1 id="step-header">Upload, Crop, and Generate Thumbnails</h1>
+{% endif %}
 <div id="content-main">
-    <form id="upload" action="{% url cropduster.views.upload %}?upload_to={{ upload_to|urlencode }}" method="POST">
-        <fieldset class="module aligned">
+    <fieldset class="module aligned">
+
+        <form id="upload" action="{% url cropduster.views.upload %}{% if standalone %}?standalone=1{% endif %}" method="POST">
             {% for field in upload_form %}
                 <div class="row {{ field.name }}{% if field.name != 'image' %} hidden{% endif %}">
                     {% if field.name != "image" %}{{ field.label_tag|safe }}{% endif %}
                     {{ field }}
                 </div>
             {% endfor %}
-        </fieldset>
-    </form>
+            {% if standalone %}
+            {# <li class="submit-button-container"> #}
+                <div id="upload-footer"{% if not image_id %} style="display: none"{% endif %}>
+                <input id="upload-button" class="rounded-button disabled{% if standalone %} small{% endif %}" type="submit" name="_save" value='Upload'  onclick="return uploadSubmit();"/>
+                </div>
+                <div id="crop-footer"{% if image_id %} style="display: none"{% endif %}>
+                <input id="reupload-button" class="rounded-button disabled{% if standalone %} small{% endif %}" type="submit" name="_save" value='Re-Upload' onclick="return uploadSubmit();" />
+                </div>
+            {# </li> #}
+            {% endif %}
+        </form>
+
+        {% if standalone %}
+        <form id="size" action="" onsubmit="return false">
+                <div class="row cells-1 width">
+                    <div class="column span-4">
+                        <label for="id_size-width">Width</label>
+                    </div>
+                    <div class="column span-flexible">
+                        <input type="text" name="size-width" id="id_size-width" />
+                    </div>
+                    <div class="float-clear-div" style="clear:both;height:0;width:0"></div>
+                </div>
+                <div class="row cells-1 height">
+                    <div class="column span-4">
+                        <label for="id_size-height">Height</label>
+                    </div>
+                    <div class="column span-flexible">
+                        <input type="text" name="size-height" id="id_size-height" />
+                    </div>
+                    <div class="float-clear-div" style="clear:both;height:0;height:0"></div>
+                </div>
+        </form>
+        {% endif %}
+
+    </fieldset>
 
     <div id="error-container" style="display:none">
         <p class="errornote"></p>
@@ -63,18 +100,22 @@
                 <div id="thumb-total-count"></div>
                 <div id="current-thumb-label"></div>
             </div>
+            {% if not standalone %}
             <ul class="submit-row" id="upload-footer"{% if not image_id %} style="display: none"{% endif %}>
                 <li class="submit-button-container">
-                    <input id="upload-button" class="rounded-button disabled" type="submit" name="_save" value='Upload'  onclick="return uploadSubmit();"/>
+                    <input id="upload-button" class="rounded-button disabled{% if standalone %} small{% endif %}" type="submit" name="_save" value='Upload'  onclick="return uploadSubmit();"/>
                 </li>
             </ul>
+            {% endif %}
             <ul class="submit-row" id="crop-footer"{% if image_id %} style="display: none"{% endif %}>
                 <li class="submit-button-container">
-                    <input id="crop-button" class="rounded-button" type="submit" name="crop" value="Crop and Continue" />
+                    <input id="crop-button" class="rounded-button{% if standalone %} small{% endif %}" type="submit" name="crop" value="Crop and Continue" />
                 </li>
+                {% if not standalone %}
                 <li class="submit-button-container">
-                    <input id="reupload-button" class="rounded-button disabled" type="submit" name="_save" value='Re-Upload' onclick="return uploadSubmit();" />
+                    <input id="reupload-button" class="rounded-button disabled{% if standalone %} small{% endif %}" type="submit" name="_save" value='Re-Upload' onclick="return uploadSubmit();" />
                 </li>
+                {% endif %}
             </ul>
         </div>
     </form>
