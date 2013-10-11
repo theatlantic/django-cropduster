@@ -5,6 +5,12 @@ import re
 import urllib2
 import hashlib
 
+try:
+    from urlparse import urlparse
+except ImportError:
+    # python 3
+    from urllib import parse as urlparse
+
 import PIL.Image
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -76,6 +82,7 @@ class ImageFile(VirtualFieldFile):
 
         if path.startswith(settings.MEDIA_URL):
             # Strips leading MEDIA_URL, if starts with
+            path = getattr(urlparse(path), 'path', path)
             self._path = get_relative_media_url(path, clean_slashes=False)
         elif re.search(r'^(?:http(?:s)?:)?//', path):
             # url on other server? download it.
@@ -86,6 +93,7 @@ class ImageFile(VirtualFieldFile):
                 self._path = get_relative_media_url(abs_path)
 
         if not self._path or not os.path.exists(os.path.join(settings.MEDIA_ROOT, self._path)):
+            self.name = None
             return
 
         super(ImageFile, self).__init__(self._path)
@@ -107,7 +115,9 @@ class ImageFile(VirtualFieldFile):
         else:
             return get_relative_media_url(standalone_image.image.name)
 
-        fake_upload = SimpleUploadedFile(os.path.basename(url), image_contents)
+        parse_result = urlparse(url)
+
+        fake_upload = SimpleUploadedFile(os.path.basename(parse_result.path), image_contents)
         file_data = clean_upload_data({
             'image': fake_upload,
             'upload_to': self.upload_to,
