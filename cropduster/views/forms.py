@@ -7,10 +7,29 @@ import PIL.Image
 
 from django import forms
 from django.conf import settings
+from django.forms.forms import NON_FIELD_ERRORS
 from django.forms.models import BaseModelFormSet
+from django.forms.util import ErrorDict as _ErrorDict
+from django.utils.html import conditional_escape
+from django.utils.encoding import force_unicode
+from django.utils.safestring import mark_safe
 
 from cropduster.models import Thumb
 from cropduster.utils import json, get_upload_foldername, get_min_size
+
+
+class ErrorDict(_ErrorDict):
+
+    def as_ul(self):
+        if not self: return u''
+        error_list = []
+        for k, v in self.items():
+            if k == NON_FIELD_ERRORS:
+                k = ''
+            error_list.append(u'%s%s' % (k, conditional_escape(force_unicode(v))))
+
+        return mark_safe(u'<ul class="errorlist">%s</ul>'
+                % ''.join([u'<li>%s</li>' % e for e in error_list]))
 
 
 def clean_upload_data(data):
@@ -18,8 +37,12 @@ def clean_upload_data(data):
     image.seek(0)
     try:
         pil_image = PIL.Image.open(image)
-    except IOError:
-        raise forms.ValidationError("Invalid or unsupported image file")
+    except IOError as e:
+        if e.errno:
+            error_msg = unicode(e)
+        else:
+            error_msg = u"Invalid or unsupported image file"
+        raise forms.ValidationError({"image": [error_msg]})
 
     base_file, extension = os.path.splitext(image.name)
     upload_to = data['upload_to'] or None
@@ -31,7 +54,7 @@ def clean_upload_data(data):
         (min_w, min_h) = get_min_size(sizes)
 
         if (orig_w < min_w or orig_h < min_h):
-            raise forms.ValidationError((
+            raise forms.ValidationError({"image": [(
                 u"Image must be at least %(min_w)sx%(min_h)s "
                 u"(%(min_w)s pixels wide and %(min_h)s pixels high). "
                 u"The image you uploaded was %(orig_w)sx%(orig_h)s pixels.") % {
@@ -39,12 +62,12 @@ def clean_upload_data(data):
                     "min_h": min_h,
                     "orig_w": orig_w,
                     "orig_h": orig_h
-                })
+                }]})
 
     if w <= 0:
-        raise forms.ValidationError(u"Invalid image: width is %d" % w)
+        raise forms.ValidationError({"image": [u"Invalid image: width is %d" % w]})
     elif h <= 0:
-        raise forms.ValidationError(u"Invalid image: height is %d" % h)
+        raise forms.ValidationError({"image": [u"Invalid image: height is %d" % h]})
 
     # File is good, get rid of the tmp file
     orig_file_path = os.path.join(folder_path, 'original' + extension)
@@ -59,10 +82,30 @@ def clean_upload_data(data):
     return data
 
 
+class FormattedErrorMixin(object):
 
-class UploadForm(forms.Form):
+    def full_clean(self):
+        super(FormattedErrorMixin, self).full_clean()
+        if self._errors:
+            self._errors = ErrorDict(self._errors)
 
-    image = forms.ImageField(required=True)
+    def _clean_form(self):
+        try:
+            self.cleaned_data = self.clean()
+        except forms.ValidationError as e:
+            self._errors = e.update_error_dict(self._errors)
+            # Wrap newly updated self._errors values in self.error_class
+            # (defaults to django.forms.util.ErrorList)
+            for k, v in self._errors.iteritems():
+                if isinstance(v, list) and not isinstance(v, self.error_class):
+                    self._errors[k] = self.error_class(v)
+            if not isinstance(self._errors, _ErrorDict):
+                self._errors = ErrorDict(self._errors)
+
+
+class UploadForm(FormattedErrorMixin, forms.Form):
+
+    image = forms.FileField(required=True)
     md5 = forms.CharField(required=False)
     sizes = forms.CharField(required=False)
     image_element_id = forms.CharField(required=False)
