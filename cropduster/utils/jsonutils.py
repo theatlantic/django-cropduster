@@ -28,6 +28,8 @@ def object_hook(dct):
             h=dct.get('h'),
             min_w=dct.get('min_w'),
             min_h=dct.get('min_h'),
+            max_w=dct.get('max_w'),
+            max_h=dct.get('max_h'),
             retina=dct.get('retina'),
             auto=dct.get('auto'))
     return dct

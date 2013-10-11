@@ -36,40 +36,65 @@
         $width.val('');
         $height.val('');
 
-        if (typeof sizes == 'object' && sizes.length == 1) {
-            if ($width.length && $height.length) {
-                $width.val(sizes[0].w || '');
-                $height.val(sizes[0].h || '');
-            }
+        if (typeof sizes != 'object' || !$.isArray(sizes) || sizes.length != 1) {
+            return;
         }
-        
-        var orig_w = parseInt($('#id_thumbs-0-crop_w').val(), 10);
-        var orig_h = parseInt($('#id_thumbs-0-crop_h').val(), 10);
+        if (!$width.length || !$height.length) {
+            return;
+        }
+        var size = sizes[0];
 
-        if (orig_w && orig_h) {
+        $width.val(size.w || '');
+        $height.val(size.h || '');
+
+        var orig_w = parseInt($('#id_crop-orig_w').val(), 10) || 0;
+        var orig_h = parseInt($('#id_crop-orig_h').val(), 10) || 0;
+
+        var crop_w = parseInt($('#id_thumbs-0-crop_w').val(), 10);
+        var crop_h = parseInt($('#id_thumbs-0-crop_h').val(), 10);
+
+        if (crop_w && crop_h) {
             $('form#size').find('.row.width,.row.height').show();
         }
 
-        if ($width.val() && !$height.val() && orig_w) {
-            var height = Math.round((sizes[0].w / orig_w) * orig_h);
+        if ($width.val() && !$height.val() && crop_w) {
+            var height = Math.round((sizes[0].w / crop_w) * crop_h);
             $height.attr('placeholder', height);
-        } else if ($height.val() && !$width.val() && orig_h) {
-            var width = Math.round((sizes[0].h / orig_h) * orig_w);
+        } else if ($height.val() && !$width.val() && crop_h) {
+            var width = Math.round((sizes[0].h / crop_h) * crop_w);
             $width.attr('placeholder', width);
         } else {
-            if ($width.length) {
-                if (orig_w) {
-                    $width.attr('placeholder', orig_w);
-                } else {
-                    $width.removeAttr('placeholder');
+            var max_scales = [], max_scale;
+            if (orig_w && orig_h && crop_w && crop_h) {
+                if (size.max_w && size.max_w < orig_w) {
+                    max_scales.push(size.max_w / orig_w);
+                }
+                if (size.max_h && size.max_h < orig_h) {
+                    max_scales.push(size.max_h / orig_h);
+                }
+                if (max_scales.length) {
+                    max_scale = Math.min.apply(null, max_scales);
+                    crop_w = Math.max(1, Math.round(crop_w * max_scale));
+                    crop_h = Math.max(1, Math.round(crop_h * max_scale));
+                    if (size.max_w) {
+                        crop_w = Math.min(size.max_w, crop_w);
+                    }
+                    if (size.max_h) {
+                        crop_h = Math.min(size.max_h, crop_h);
+                    }
                 }
             }
-            if ($height.length) {
-                if (orig_h) {
-                    $height.attr('placeholder', orig_h);
-                } else {
-                    $height.removeAttr('placeholder');
-                }
+
+            if (crop_w) {
+                $width.attr('placeholder', crop_w);
+            } else {
+                $width.removeAttr('placeholder');
+            }
+
+            if (crop_h) {
+                $height.attr('placeholder', crop_h);
+            } else {
+                $height.removeAttr('placeholder');
             }
         }
     };

@@ -39,24 +39,24 @@ class CropDusterStandaloneIndex(CropDusterIndex):
         return db_image
 
     @cached_property
-    def init_w(self):
+    def max_w(self):
         try:
-            init_w = int(self.request.GET.get('init_w')) or None
+            max_w = int(self.request.GET.get('max_w')) or None
         except (TypeError, ValueError):
             pass
         else:
             orig_w = getattr(self.orig_image, 'width', None) or 0
             #
             # orig_w, orig_h = self.image_file.dimensions
-            if not orig_w or init_w < orig_w:
-                return init_w
+            if not orig_w or max_w < orig_w:
+                return max_w
         return None
 
     @cached_property
     def sizes(self):
         size = getattr(self.image_file.metadata, 'crop_size', None)
         if not size:
-            size = Size('crop', w=self.init_w)
+            size = Size('crop', max_w=self.max_w)
         return [size]
 
     @cached_property
@@ -69,9 +69,9 @@ class CropDusterStandaloneIndex(CropDusterIndex):
                 crop_x=0, crop_y=0, crop_w=orig_w, crop_h=orig_h,
                 width=orig_w, height=orig_h)
 
-            if orig_w and self.init_w:
-                thumb.width = self.init_w
-                thumb.height = int(round((orig_h / orig_w) * self.init_w))
+            if orig_w and self.max_w:
+                thumb.width = self.max_w
+                thumb.height = int(round((orig_h / orig_w) * self.max_w))
         return FakeQuerySet([thumb], Thumb.objects.none())
 
     @cached_property

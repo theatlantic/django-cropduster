@@ -12,11 +12,14 @@ class Size(object):
 
     parent = None
 
-    def __init__(self, name, label=None, w=None, h=None, retina=False, auto=None, min_w=None, min_h=None):
+    def __init__(self, name, label=None, w=None, h=None, retina=False, auto=None, min_w=None, min_h=None,
+            max_w=None, max_h=None):
         from django.core.exceptions import ImproperlyConfigured
 
         self.min_w = max(w, min_w) or 1
         self.min_h = max(h, min_h) or 1
+        self.max_w = max_w
+        self.max_h = max_h
 
         if auto is not None:
             try:
@@ -43,7 +46,7 @@ class Size(object):
         if self.retina:
             name = u'%s[@2x]' % name
         kw = []
-        for k in ['w', 'h', 'min_w', 'min_h']:
+        for k in ['w', 'h', 'min_w', 'min_h', 'max_w', 'max_h']:
             v = getattr(self, k, None)
             if v:
                 kw.append(u'%s=%s' % (k, v))
@@ -87,6 +90,8 @@ class Size(object):
         best_fit_kwargs = {
             'min_w': self.min_w or self.width,
             'min_h': self.min_h or self.height,
+            'max_w': self.max_w,
+            'max_h': self.max_h,
         }
         if self.width and self.height:
             best_fit_kwargs.update({'w': self.width, 'h': self.height})
@@ -99,6 +104,8 @@ class Size(object):
             'h': self.h,
             'min_w': self.min_w,
             'min_h': self.min_h,
+            'max_w': self.max_w,
+            'max_h': self.max_h,
             'retina': 1 if self.retina else 0,
             'label': self.label,
             '__type__': 'Size',
@@ -153,7 +160,7 @@ class Crop(object):
         self.image = image
         self.bounds = Box(0, 0, *image.size)
 
-    def create_image(self, width=None, height=None):
+    def create_image(self, width=None, height=None, max_w=None, max_h=None):
         import PIL.Image
         from cropduster.exceptions import CropDusterResizeException
 
@@ -165,12 +172,23 @@ class Crop(object):
         if new_w < width or new_h < height:
             raise CropDusterResizeException(
                 u"Crop box (%dx%d) is too small for resize to (%dx%d)" % (new_w, new_h, width, height))
-        elif new_w > width or new_h > height:
+
+        # Scale our initial width and height based on the max_w and max_h
+        max_scales = []
+        if max_w and max_w < width:
+            max_scales.append(max_w / width)
+        if max_h and max_h < height:
+            max_scales.append(max_h / height)
+        if max_scales:
+            max_scale = min(max_scales)
+            width = int(round(width * max_scale))
+            height = int(round(height * max_scale))
+        if new_w > width or new_h > height:
             new_image = new_image.resize((width, height), PIL.Image.ANTIALIAS)
         new_image.crop = self
         return new_image
 
-    def best_fit(self, w=None, h=None, min_w=None, min_h=None):
+    def best_fit(self, w=None, h=None, min_w=None, min_h=None, max_w=None, max_h=None):
         if w and h:
             aspect_ratio = w / h
         else:
@@ -285,6 +303,7 @@ class Crop(object):
 
     def generate_xmp(self, size):
         from cropduster.standalone.metadata import libxmp
+        from cropduster.utils import json
 
         NS_MWG_RS = "http://www.metadataworkinggroup.com/schemas/regions/"
         NS_XMPMM = "http://ns.adobe.com/xap/1.0/mm/"
@@ -303,6 +322,7 @@ class Crop(object):
         md.register_namespace(NS_CROP, 'crop')
         md.set_property(NS_CROP, 'crop:size/stDim:w', '%s' % (size.width or ''))
         md.set_property(NS_CROP, 'crop:size/stDim:h', '%s' % (size.height or ''))
+        md.set_property(NS_CROP, 'crop:size/crop:json', json.dumps(size))
         md.set_property(NS_XMPMM, 'xmpMM:DerivedFrom', u'xmp.did:%s' % digest.upper())
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions', '', prop_value_is_struct=True)
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:w', unicode(self.image.size[0]))

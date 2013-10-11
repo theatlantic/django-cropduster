@@ -6,6 +6,7 @@ import PIL.Image
 from django.core.exceptions import ImproperlyConfigured
 
 from cropduster.files import ImageFile
+from cropduster.utils import json
 
 
 try:
@@ -204,6 +205,8 @@ class MetadataDict(dict):
                         v = None
                 elif k == 'DerivedFrom' and isinstance(v, basestring):
                     v = re.sub(r'^xmp\.did:', '', v).lower()
+                elif ns_prefix == 'crop' and k == 'json':
+                    v = json.loads(v)
 
                 m = re.search(r'^(.*)\[(\d+)\](?=\/|\Z)', k)
                 if m:
@@ -227,7 +230,9 @@ class MetadataDict(dict):
     @property
     def crop_size(self):
         from cropduster.resizing import Size
-
+        size_json = self.get('size', {}).get('json') or None
+        if size_json:
+            return size_json
         size_w = self.get('size', {}).get('w') or None
         size_h = self.get('size', {}).get('h') or None
         return Size('crop', w=size_w, h=size_h)

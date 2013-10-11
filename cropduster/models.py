@@ -58,7 +58,7 @@ class Thumb(models.Model):
             return None
         return Box(x1, y1, x2, y2)
 
-    def crop(self, original_image=None, w=None, h=None, min_w=None, min_h=None):
+    def crop(self, original_image=None, w=None, h=None, min_w=None, min_h=None, max_w=None, max_h=None):
         if original_image is None:
             if not self.pk:
                 raise Exception(
@@ -107,7 +107,7 @@ class Thumb(models.Model):
             elif not self.height:
                 height = fit.box.h * (self.width / fit.box.w)
                 self.height = min(int(round(height)), crop.bounds.h)
-            return fit.create_image(width=self.width, height=self.height)
+            new_image = fit.create_image(width=self.width, height=self.height, max_w=max_w, max_h=max_h)
         else:
             if w and h:
                 self.width = w
@@ -118,7 +118,11 @@ class Thumb(models.Model):
             elif h:
                 width = crop_box.h * (h / crop_box.h)
                 self.width = min(int(round(width)), crop.bounds.w)
-            return crop.create_image(width=self.width, height=self.height)
+
+            new_image = crop.create_image(width=self.width, height=self.height, max_w=max_w, max_h=max_h)
+
+        self.width, self.height = new_image.size
+        return new_image
 
 
 class Image(models.Model):
@@ -331,10 +335,12 @@ class Image(models.Model):
 
         thumb.reference_thumb = ref_thumb
 
+        crop_kwargs = dict([(k, getattr(size, k))
+                            for k in ['w', 'h', 'min_w', 'min_h', 'max_w', 'max_h']])
         if standalone and not(size.w or size.h) and (thumb.crop_w and thumb.crop_h):
-            thumb_image = thumb.crop(image, w=thumb.crop_w, h=thumb.crop_h)
-        else:
-            thumb_image = thumb.crop(image, w=size.width, h=size.height, min_w=size.min_w, min_h=size.min_h)
+            crop_kwargs['w'] = thumb.crop_w
+            crop_kwargs['h'] = thumb.crop_h
+        thumb_image = thumb.crop(image, **crop_kwargs)
 
         if standalone:
             thumb_path = self.get_image_path(thumb.name)
