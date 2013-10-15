@@ -47,8 +47,6 @@ class CropDusterStandaloneIndex(CropDusterIndex):
             pass
         else:
             orig_w = getattr(self.orig_image, 'width', None) or 0
-            #
-            # orig_w, orig_h = self.image_file.dimensions
             if not orig_w or max_w < orig_w:
                 return max_w
         return None

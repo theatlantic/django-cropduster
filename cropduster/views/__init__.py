@@ -309,9 +309,8 @@ def crop(request):
             # Clear existing primary key to force new thumb creation
             thumb.pk = None
 
-            if standalone_mode:
-                thumb.width = min(filter(None, [thumb.width, thumb.crop_w]))
-                thumb.height = min(filter(None, [thumb.height, thumb.crop_h]))
+            thumb.width = min(filter(None, [thumb.width, thumb.crop_w]))
+            thumb.height = min(filter(None, [thumb.height, thumb.crop_h]))
 
             try:
                 new_thumbs = db_image.save_size(size, thumb, tmp=True, standalone=standalone_mode)
