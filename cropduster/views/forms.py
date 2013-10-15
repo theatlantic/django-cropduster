@@ -15,7 +15,8 @@ from django.utils.encoding import force_unicode
 from django.utils.safestring import mark_safe
 
 from cropduster.models import Thumb
-from cropduster.utils import json, get_upload_foldername, get_min_size
+from cropduster.utils import (json, get_upload_foldername, get_min_size,
+    get_image_extension)
 
 
 class ErrorDict(_ErrorDict):
@@ -43,8 +44,9 @@ def clean_upload_data(data):
         else:
             error_msg = u"Invalid or unsupported image file"
         raise forms.ValidationError({"image": [error_msg]})
+    else:
+        extension = get_image_extension(pil_image)
 
-    base_file, extension = os.path.splitext(image.name)
     upload_to = data['upload_to'] or None
     folder_path = get_upload_foldername(image.name, upload_to=upload_to)
 
