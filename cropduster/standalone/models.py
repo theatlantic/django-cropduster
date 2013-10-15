@@ -27,15 +27,18 @@ class StandaloneImageManager(models.Manager):
         if basefile == 'original':
             basepath, basename = os.path.split(basepath)
             basename += extension
-        file_data = clean_upload_data({
-            'image': SimpleUploadedFile(basename, image_contents),
-            'upload_to': upload_to,
-        })
-        file_path = get_relative_media_url(file_data['image'].name)
         standalone, created = self.get_or_create(md5=md5.hexdigest().lower())
-        if created:
+        if created or not standalone.image:
+            file_data = clean_upload_data({
+                'image': SimpleUploadedFile(basename, image_contents),
+                'upload_to': upload_to,
+            })
+            file_path = get_relative_media_url(file_data['image'].name)
             standalone.image = file_path
             standalone.save()
+        else:
+            file_path = standalone.image.path
+
         cropduster_image, created = Image.objects.get_or_create(
             content_type=ContentType.objects.get_for_model(StandaloneImage),
             object_id=standalone.pk)

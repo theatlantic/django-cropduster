@@ -57,15 +57,43 @@
             $('form#size').find('.row.width,.row.height').show();
         }
 
-        if ($width.val() && !$height.val() && crop_w) {
+        var userWidth = $width.val();
+        var userHeight = $height.val();
+
+        if (size.max_w) {
+            userWidth = Math.min(size.max_w, userWidth);
+        }
+        if (size.max_h) {
+            userHeight = Math.min(size.max_h, userHeight);
+        }
+        if (userWidth && !userHeight && crop_w) {
             var height = Math.round((sizes[0].w / crop_w) * crop_h);
             $height.attr('placeholder', height);
-        } else if ($height.val() && !$width.val() && crop_h) {
+        } else if (userHeight && !userWidth && crop_h) {
             var width = Math.round((sizes[0].h / crop_h) * crop_w);
             $width.attr('placeholder', width);
-        } else {
+        } else if (!userWidth && !userHeight) {
             var max_scales = [], max_scale;
-            if (orig_w && orig_h && crop_w && crop_h) {
+            if (crop_w && crop_h && (size.max_w && crop_w > size.max_w) || (size.max_h && crop_h > size.max_h)) {
+                var crop_scales = [], crop_scale;
+                if (size.max_w && size.max_w < crop_w) {
+                    crop_scales.push(size.max_w / crop_w);
+                }
+                if (size.max_h && size.max_h < crop_h) {
+                    crop_scales.push(size.max_h / crop_h);
+                }
+                if (crop_scales.length) {
+                    crop_scale = Math.max.apply(null, crop_scales);
+                    crop_w = Math.max(1, Math.round(crop_w * crop_scale));
+                    crop_h = Math.max(1, Math.round(crop_h * crop_scale));
+                    if (size.max_w) {
+                        crop_w = Math.min(size.max_w, crop_w);
+                    }
+                    if (size.max_h) {
+                        crop_h = Math.min(size.max_h, crop_h);
+                    }
+                }
+            } else if (orig_w && orig_h && crop_w && crop_h) {
                 if (size.max_w && size.max_w < orig_w) {
                     max_scales.push(size.max_w / orig_w);
                 }

@@ -235,6 +235,8 @@ class MetadataDict(dict):
             return size_json
         size_w = self.get('size', {}).get('w') or None
         size_h = self.get('size', {}).get('h') or None
+        if not size_w and not size_h:
+            return None
         return Size('crop', w=size_w, h=size_h)
 
     @property

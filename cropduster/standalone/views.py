@@ -27,8 +27,9 @@ class CropDusterStandaloneIndex(CropDusterIndex):
         try:
             standalone = StandaloneImage.objects.get(md5=self.image_file.metadata.get('DerivedFrom'))
         except StandaloneImage.DoesNotExist:
+            (preview_w, preview_h) = self.preview_size
             standalone = StandaloneImage.objects.get_from_file(self.image_file.name,
-                upload_to=self.upload_to)
+                upload_to=self.upload_to, preview_w=preview_w, preview_h=preview_h)
         db_image = standalone.image.cropduster_image
         if not getattr(db_image, 'pk', None):
             raise Exception("Image does not exist in database")
