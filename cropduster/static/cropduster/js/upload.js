@@ -416,8 +416,52 @@
         return data;
     };
 
+    var registerStandaloneSizeHandlers = function() {
+        var sizes, size;
+        try {
+            sizes = JSON.parse($('#id_sizes').val());
+        } catch(e) {}
+
+        if (sizes && $.isArray(sizes) && sizes.length == 1) {
+            size = sizes[0];
+        }
+
+        var $inputs = $('#id_size-width,#id_size-height');
+
+        $inputs.on('focus', function(e) {
+            var $input = $(e.target);
+            $input.data('originalValue', $input.val());
+        });
+        $inputs.on('change', function(e) {
+            var $input = $(e.target);
+            var originalValue = $input.data('originalValue');
+            var val = $input.val();
+
+            var sizeType = ($input.attr('id').indexOf('width') > -1) ? 'w' : 'h';
+
+            var originalSize = parseInt($('#id_crop-orig_' + sizeType).val(), 10) || 0;
+            var maxSize = (typeof size == 'object') ? size['max_' + sizeType] : undefined;
+
+            if (val !== "0" && !val) { return; }
+
+            val = parseInt(val, 10);
+
+            if (val < 1) {
+                $input.val(originalValue);
+            }
+            if (originalSize && val > originalSize) {
+                $input.val(originalValue);
+            }
+            if (maxSize && val > maxSize) {
+                $input.val(originalValue);
+            }
+        });
+    };
+
     $(document).ready(function(){
         var imageElementId = $('#id_image_element_id').val();
+
+        registerStandaloneSizeHandlers();
 
         var $P;
         var parent = (window.opener) ? window.opener : window.parent;
