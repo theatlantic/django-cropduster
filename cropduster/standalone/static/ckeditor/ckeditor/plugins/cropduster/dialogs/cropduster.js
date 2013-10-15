@@ -7,6 +7,10 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
 
     'use strict';
 
+    if (typeof editor.config.cropduster_dialogAdd == 'function') {
+        editor.config.cropduster_dialogAdd(editor);
+    }
+
     // RegExp: 123, 123px, empty string ""
     var regexGetSizeOrEmpty = /(^\s*(\d+)(px)?\s*$)|^$/i,
 
@@ -314,29 +318,29 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
         }
     };
 
-	var isPlainObject = function(obj) {
-		// Must be an Object.
-		// Because of IE, we also have to check the presence of the constructor property.
-		// Make sure that DOM nodes and window objects don't pass through, as well
-		if (!obj || typeof obj !== "object" || obj.nodeType || obj.window == obj) {
-			return false;
-		}
+    var isPlainObject = function(obj) {
+        // Must be an Object.
+        // Because of IE, we also have to check the presence of the constructor property.
+        // Make sure that DOM nodes and window objects don't pass through, as well
+        if (!obj || typeof obj !== "object" || obj.nodeType || obj.window == obj) {
+            return false;
+        }
 
-		// Not own constructor property must be Object
-		if (obj.constructor &&
-			!Object.prototype.hasOwnProperty.call(obj, "constructor") &&
-			!Object.prototype.hasOwnProperty.call(obj.constructor.prototype, "isPrototypeOf")) {
-			return false;
-		}
+        // Not own constructor property must be Object
+        if (obj.constructor &&
+            !Object.prototype.hasOwnProperty.call(obj, "constructor") &&
+            !Object.prototype.hasOwnProperty.call(obj.constructor.prototype, "isPrototypeOf")) {
+            return false;
+        }
 
-		// Own properties are enumerated firstly, so to speed up,
-		// if last one is own, then all properties are own.
+        // Own properties are enumerated firstly, so to speed up,
+        // if last one is own, then all properties are own.
 
-		var key;
-		for (key in obj) {}
+        var key;
+        for (key in obj) {}
 
-		return key === undefined || Object.prototype.hasOwnProperty.call(obj, key);
-	};
+        return key === undefined || Object.prototype.hasOwnProperty.call(obj, key);
+    };
 
     var okButton = CKEDITOR.dialog.okButton.override({
         onClick: function(evt) {
@@ -349,20 +353,119 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
                 }
             }
             var dialog = evt.data.dialog;
-			if (dialog.fire('ok', {hide: true}).hide !== false) {
-				dialog.hide();
-			}
+            if (dialog.fire('ok', {hide: true}).hide !== false) {
+                dialog.hide();
+            }
         }
     });
 
+    var tabElements = [{
+        id: 'iframe',
+        type: 'html',
+        html: '<div style="width:100%;text-align:center;">' + '<iframe style="border:0;width:650px;height:500px;font-size:20px" scrolling="no" frameborder="0" allowTransparency="true"></iframe>' + '</div>',
+        onLoad: function (widget) {},
+        setup: function (widget) {
+            var dialogElement = this.getDialog().getElement();
+            dialogElement.addClass('cke_editor_cropduster_content_dialog');
+            var tabs = dialogElement.findOne('.cke_dialog_tabs');
+            if (tabs) {
+                tabs.hide();
+            }
+            var contents = dialogElement.findOne('.cke_dialog_contents');
+            if (contents) {
+                contents.setStyles({'border-top': '0', 'margin-top': '0'});
+            }
+            var domId = this.domId.replace(/_uiElement$/, '');
+            var callback_fn = domId + '_callback';
+            var image = widget.parts.image;
+            var url = widget.config.url + '?';
+            var params = {
+                'callback_fn': callback_fn
+            };
+            if (widget.config.uploadTo) {
+                params['upload_to'] = widget.config.uploadTo;
+            }
+            if (widget.config.previewSize) {
+                if (Object.prototype.toString.call(widget.config.previewSize) == '[object Array]') {
+                    if (widget.config.previewSize.length == 2) {
+                        params['preview_size'] = widget.config.previewSize.join('x');
+                    }
+                }
+            }
+            if (image.$.naturalWidth != image.$.width) {
+                params['max_w'] = image.$.width;
+            }
+            if (widget.data && widget.data.src) {
+                params['image'] = widget.data.src;
+            }
+            if (widget.config.urlParams && isPlainObject(widget.config.urlParams)) {
+                params = CKEDITOR.tools.extend({}, params, widget.config.urlParams);
+            }
+            var url_query = [];
+            for (var k in params) {
+                url_query.push([k, encodeURIComponent(params[k])].join('='));
+            }
+            url += url_query.join('&');
+            cropdusterIframe = CKEDITOR.document.getById(this.domId).getChild(0);
+            cropdusterIframe.$.src = url;
+
+            var self = this;
+            var callback = function (prefix, data) {
+                if (typeof data == 'object' && Object.prototype.toString.call(data.thumbs) == '[object Array]' && data.thumbs.length) {
+                    var thumbData = data.thumbs[0];
+                    widthField.setValue(thumbData.width);
+                    widget.setData('width', thumbData.width);
+                    heightField.setValue(thumbData.height);
+                    widget.setData('height', thumbData.height);
+                    srcField.setValue(thumbData.url);
+                    updateValue(url);
+                }
+                var dialog = self.getDialog();
+                if (dialog.fire('ok', {hide: true}).hide !== false) {
+                    dialog.hide();
+                }
+            };
+            window[callback_fn] = callback;
+        }
+    }, {
+        id: 'hasCaption',
+        type: 'checkbox',
+        label: lang.captioned,
+        setup: function (widget) {
+            this.setValue(widget.data.hasCaption);
+        },
+        commit: function (widget) {
+            widget.setData('hasCaption', this.getValue());
+        }
+    }];
+
+    var tabElementIdIndexMap = {};
+
+    var i;
+
+    for (i = 0; i < tabElements.length; i++) {
+        tabElementIdIndexMap[tabElements[i].id] = i;
+    }
+
+    var configTabElements = editor.config.cropduster_tabElements;
+
+    if (typeof configTabElements == 'object' && Object.prototype.toString.call(configTabElements) == '[object Array]') {
+        for (i = 0; i < configTabElements.length; i++) {
+            var tabElement = configTabElements[i];
+            var existingTabIndex = tabElementIdIndexMap[tabElement.id];
+            if (typeof existingTabIndex != 'undefined') {
+                tabElements[existingTabIndex] = tabElement;
+            } else {
+                tabElements.push(tabElement);
+            }
+        }
+    }
+
     return {
         title: lang.title,
-        minWidth: 600,
+        minWidth: 650,
         minHeight: 500,
         buttons: [ CKEDITOR.dialog.cancelButton, okButton ],
-        // onOk: function() {
-        //
-        //      },
         onLoad: function () {
             // Create a "global" reference to the document for this dialog instance.
             doc = this._.element.getDocument();
@@ -392,91 +495,7 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
         contents: [{
             id: 'tab-basic',
             label: 'Basic',
-            // label: 'Basic Settings',
-            // style: 'width: 100%; height: 100%; margin: 0; padding: 0',
-            elements: [{
-                id: 'iframe',
-                type: 'html',
-                html: '<div style="width:100%;text-align:center;">' + '<iframe style="border:0;width:580px;height:500px;font-size:20px" scrolling="no" frameborder="0" allowTransparency="true"></iframe>' + '</div>',
-                onLoad: function (widget) {},
-                setup: function (widget) {
-                    var dialogElement = this.getDialog().getElement();
-                    dialogElement.addClass('cke_editor_cropduster_content_dialog');
-                    var tabs = dialogElement.findOne('.cke_dialog_tabs');
-                    if (tabs) {
-                        tabs.hide();
-                    }
-                    var contents = dialogElement.findOne('.cke_dialog_contents');
-                    if (contents) {
-                        contents.setStyles({'border-top': '0', 'margin-top': '0'});
-                    }
-                    var domId = this.domId.replace(/_uiElement$/, '');
-                    var callback_fn = domId + '_callback';
-                    // window[callback_fn] = widget.callback;
-                    // console.log('widget.callback=', widget.callback);
-                    var image = widget.parts.image;
-                    var url = widget.config.url + '?';
-                    var params = {
-                        'callback_fn': callback_fn
-                    };
-                    if (widget.config.uploadTo) {
-                        params['upload_to'] = widget.config.uploadTo;
-                    }
-                    if (widget.config.previewSize) {
-                        if (Object.prototype.toString.call(widget.config.previewSize) == '[object Array]') {
-                            if (widget.config.previewSize.length == 2) {
-                                params['preview_size'] = widget.config.previewSize.join('x');
-                            }
-                        }
-                    }
-                    if (image.$.naturalWidth != image.$.width) {
-                        params['init_w'] = image.$.width;
-                    }
-                    if (widget.data && widget.data.src) {
-                        params['image'] = widget.data.src;
-                    }
-                    if (widget.config.urlParams && isPlainObject(widget.config.urlParams)) {
-                        params = CKEDITOR.tools.extend({}, params, widget.config.urlParams);
-                    }
-                    var url_query = [];
-                    for (var k in params) {
-                        url_query.push([k, encodeURIComponent(params[k])].join('='));
-                    }
-                    url += url_query.join('&');
-                    cropdusterIframe = CKEDITOR.document.getById(this.domId).getChild(0);
-                    cropdusterIframe.$.src = url;
-
-                    var self = this;
-                    var callback = function (prefix, data) {
-                        if (typeof data == 'object' && Object.prototype.toString.call(data.thumbs) == '[object Array]' && data.thumbs.length) {
-                            var thumbData = data.thumbs[0];
-                            // var url = thumbData.url;
-                            widthField.setValue(thumbData.width);
-                            widget.setData('width', thumbData.width);
-                            heightField.setValue(thumbData.height);
-                            widget.setData('height', thumbData.height);
-                            srcField.setValue(thumbData.url);
-                            updateValue(url);
-                        }
-                        // self._.dialog.getButton('ok').click();
-                        var dialog = self.getDialog();
-                        if (dialog.fire('ok', {hide: true}).hide !== false) {
-            				dialog.hide();
-            			}
-                    };
-                    window[callback_fn] = callback;
-                }
-            }, {
-                id: 'hasCaption',
-                type: 'checkbox',
-                label: lang.captioned,
-                setup: function (widget) {
-                    this.setValue(widget.data.hasCaption);
-                },
-                commit: function (widget) {
-                    widget.setData('hasCaption', this.getValue());
-                }
-            }]
+            elements: tabElements
         }, {
             id: 'info',
             label: 'Advanced',
@@ -550,26 +569,6 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
                     style: lockResetStyle,
                     onLoad: onLoadLockReset,
                     html: lockResetHtml
-                }]
-            }, {
-                type: 'hbox',
-                id: 'alignment',
-                children: [{
-                    id: 'align',
-                    type: 'radio',
-                    items: [
-                        ['None', 'none'],
-                        ['Left', 'left'],
-                        ['Center', 'center'],
-                        ['Right', 'right']
-                    ],
-                    label: commonLang.align,
-                    setup: function (widget) {
-                        this.setValue(widget.data.align);
-                    },
-                    commit: function (widget) {
-                        widget.setData('align', this.getValue());
-                    }
                 }]
             }]
         }]

@@ -14,6 +14,8 @@
             '</figure>',
         regexPercent = /^\s*(\d+\%)\s*$/i;
 
+    var CKEDITOR = window.CKEDITOR;
+
     CKEDITOR.plugins.add('cropduster', {
         lang: 'en', // %REMOVE_LINE_CORE%
         requires: 'widget,dialog',
@@ -53,8 +55,19 @@
         },
 
         init: function(editor) {
+            if (typeof editor.config.cropduster_beforeInit == 'function') {
+                editor.config.cropduster_beforeInit(editor);
+            }
+
+            var widgetConfig = CKEDITOR.tools.clone(cropduster);
+            if (typeof editor.config.cropduster_widgetConfig == 'function') {
+                var customWidgetConfig = editor.config.cropduster_widgetConfig(cropduster);
+                for (var k in customWidgetConfig) {
+                    widgetConfig[k] = customWidgetConfig[k];
+                }
+            }
             // Register the widget.
-            editor.widgets.add('cropduster', cropduster);
+            editor.widgets.add('cropduster', widgetConfig);
 
             // Add toolbar button for this plugin.
             editor.ui.addButton && editor.ui.addButton('cropduster', {
@@ -83,6 +96,9 @@
 
             for (var value in align) {
                 integrate(value);
+            }
+            if (typeof editor.config.cropduster_afterInit == 'function') {
+                editor.config.cropduster_afterInit(editor);
             }
         }
     });
@@ -164,36 +180,33 @@
                 },
 
                 init: function(element) {
-                    // Create a new widget. This widget will be either captioned
-                    // non-captioned, block or inline according to what is the
-                    // new state of the widget.
                     if (this.destroyed) {
+                        // Create a new widget. This widget will be either captioned
+                        // non-captioned, block or inline according to what is the
+                        // new state of the widget.
                         widget = editor.widgets.initOn(element, 'cropduster', widget.data);
-
-                        // The focus must be transferred from the old one (destroyed)
-                        // to the new one (just created).
                         if (this.focused) {
+                            // The focus must be transferred from the old one (destroyed)
+                            // to the new one (just created).
                             widget.focus();
                             delete this.focused;
                         }
-
                         delete this.destroyed;
+                    } else {
+                        // If now widget was destroyed just update wrapper's alignment.
+                        // According to the new state.
+                        widget.setWrapperAlign();
                     }
-
-                    // If now widget was destroyed just update wrapper's alignment.
-                    // According to the new state.
-                    else {
-                        setWrapperAlign(widget);
+                    if (typeof editor.config.cropduster_widgetStateInit == 'function') {
+                        editor.config.cropduster_widgetStateInit.call(this, element, widget);
                     }
                 }
             });
 
             widget.parts.image.setAttributes({
                 src: widget.data.src,
-
                 // This internal is required by the editor.
                 'data-cke-saved-src': widget.data.src,
-
                 alt: widget.data.alt
             });
 
@@ -205,6 +218,14 @@
         },
 
         init: function() {
+            var configVars = ['uploadTo', 'previewSize', 'url', 'urlParams', 'widgetConfig', 'initData'];
+            this.config = {};
+            for (var i = 0; i < configVars.length; i++) {
+                var configVar = configVars[i];
+                var key = 'cropduster_' + configVar;
+                this.config[configVar] = this.editor.config[key];
+            }
+
             var image = this.parts.image,
                 imageSizeCss = {
                     width: CKEDITOR.tools.convertToPx(image.getStyle('width')),
@@ -215,7 +236,8 @@
                     src: image.getAttribute('src'),
                     alt: image.getAttribute('alt') || '',
                     width: image.getAttribute('width') || imageSizeCss.width || '',
-                    height: image.getAttribute('height') || imageSizeCss.height || ''
+                    height: image.getAttribute('height') || imageSizeCss.height || '',
+                    className: image.getAttribute('class') || ''
                 };
 
             if (imageSizeCss.width) {
@@ -226,6 +248,10 @@
             }
             image.removeStyle('width');
             image.removeStyle('height');
+
+            if (typeof this.config.initData == 'function') {
+                data = this.config.initData(data, this);
+            }
 
             // Read initial float style from figure/image and
             // then remove it. This style will be set on wrapper in #data listener.
@@ -252,209 +278,196 @@
             this.on('contextMenu', function(evt) {
                 evt.data.cropduster = CKEDITOR.TRISTATE_OFF;
             });
-
-            var configVars = ['uploadTo', 'previewSize', 'url', 'urlParams'];
-            this.config = {};
-            for (var i = 0; i < configVars.length; i++) {
-                var configVar = configVars[i];
-                var key = 'cropduster_' + configVar;
-                this.config[configVar] = this.editor.config[key];
-            }
-
         },
 
         upcast: upcastWidgetElement,
-        downcast: downcastWidgetElement
-    };
+        downcast: downcastWidgetElement,
 
-    CKEDITOR.plugins.cropduster = {
-        stateShifter: function(editor) {
-            // Tag name used for centering non-captioned widgets.
-            var centerElement = editor.config.enterMode == CKEDITOR.ENTER_P ? 'p' : 'div',
+        setWrapperAlign: function setWrapperAlign(widget) {
+            var widget = this,
+                wrapper = widget.wrapper,
+                align = widget.data.align;
 
-                doc = editor.document,
-                editable = editor.editable(),
-
-                // The order that stateActions get executed. It matters!
-                shiftables = ['hasCaption', 'align'],
-
-                // Atomic procedures, one per state variable.
-                stateActions = {
-                    align: function(data, oldValue, newValue) {
-                        var hasCaptionAfter = data.newState.hasCaption,
-                            element = data.element;
-
-                        // Alignment changed.
-                        if (changed(data, 'align')) {
-                            // No caption in the new state.
-                            if (!hasCaptionAfter) {
-                                // Changed to "center" (non-captioned).
-                                if (newValue == 'center') {
-                                    data.destroy();
-                                    data.element = wrapInCentering(element);
-                                }
-
-                                // Changed to "non-center" from "center" while caption removed.
-                                if (!changed(data, 'hasCaption') && oldValue == 'center' && newValue != 'center') {
-                                    data.destroy();
-                                    data.element = unwrapFromCentering(element);
-                                }
-                            }
-                        }
-
-                        // Alignment remains and "center" removed caption.
-                        else if (newValue == 'center' && changed(data, 'hasCaption') && !hasCaptionAfter) {
-                            data.destroy();
-                            data.element = wrapInCentering(element);
-                        }
-
-                        // Finally set display for figure.
-                        if (element.is('figure')) {
-                            if (newValue == 'center') {
-                                element.setStyle('display', 'inline-block');
-                            } else {
-                                element.removeStyle('display');
-                            }
-                        }
-                    },
-
-                    hasCaption: function(data, oldValue, newValue) {
-                        // This action is for real state change only.
-                        if (!changed(data, 'hasCaption')) {
-                            return;
-                        }
-
-                        var element = data.element,
-                            oldState = data.oldState,
-                            newState = data.newState,
-                            img;
-
-                        // Switching hasCaption always destroys the widget.
-                        data.destroy();
-
-                        // There was no caption, but the caption is to be added.
-                        if (newValue) {
-                            // Get <img> from element. As element may be either
-                            // <img> or centering <p>, consider it now.
-                            img = element.findOne('img') || element;
-
-                            // Create new <figure> from widget template.
-                            var figure = CKEDITOR.dom.element.createFromHtml(templateBlock, doc);
-
-                            // Replace element with <figure>.
-                            replaceSafely(figure, element);
-
-                            // Use old <img> instead of the one from the template,
-                            // so we won't lose additional attributes.
-                            img.replace(figure.findOne('img'));
-
-                            // Update widget's element.
-                            data.element = figure;
-                        }
-
-                        // The caption was present, but now it's to be removed.
-                        else {
-                            // Unwrap <img> from figure.
-                            img = element.findOne('img');
-                            img.replace(element);
-
-                            // Update widget's element.
-                            data.element = img;
-                        }
-                    }
-                };
-
-            function getValue(state, name) {
-                return state && state[name] !== undefined ? state[name] : null;
-            }
-
-            function changed(data, name) {
-                if (!data.oldState) {
-                    return false;
-                } else {
-                    return data.oldState[name] !== data.newState[name];
+            if (align == 'center') {
+                if (!widget.inline) {
+                    wrapper.setStyle('text-align', 'center');
                 }
-            }
-
-            function wrapInCentering(element) {
-                // When widget gets centered. Wrapper must be created.
-                // Create new <p|div> with text-align:center.
-                var center = doc.createElement(centerElement, {
-                    styles: { 'text-align': 'center' }
-                });
-
-                // Replace element with centering wrapper.
-                replaceSafely(center, element);
-                element.move(center);
-
-                return center;
-            }
-
-            function unwrapFromCentering(element) {
-                var img = element.findOne('img');
-
-                img.replace(element);
-
-                return img;
-            }
-
-            function replaceSafely(replacing, replaced) {
-                if (replaced.getParent()) {
-                    var range = editor.createRange();
-
-                    // Move the range before old element and insert element into it.
-                    range.moveToPosition(replaced, CKEDITOR.POSITION_BEFORE_START);
-                    editable.insertElementIntoRange(replacing, range);
-
-                    // Remove old element.
-                    replaced.remove();
-                }
-                else {
-                    replacing.replace(replaced);
-                }
-            }
-
-            return function(data) {
-                var oldState = data.oldState,
-                    newState = data.newState,
-                    name;
-
-                // Iterate over possible state variables.
-                for (var i = 0; i < shiftables.length; i++) {
-                    name = shiftables[i];
-
-                    stateActions[name](data,
-                        oldState ? oldState[name] : null,
-                        newState[name]);
-                }
-
-                data.init(data.element);
-            };
-        }
-    };
-
-    function setWrapperAlign(widget) {
-        var wrapper = widget.wrapper,
-            align = widget.data.align;
-
-        if (align == 'center') {
-            if (!widget.inline) {
-                wrapper.setStyle('text-align', 'center');
-            }
-
-            wrapper.removeStyle('float');
-        } else {
-            if (!widget.inline) {
-                wrapper.removeStyle('text-align');
-            }
-
-            if (align == 'none') {
                 wrapper.removeStyle('float');
             } else {
-                wrapper.setStyle('float', align);
+                if (!widget.inline) {
+                    wrapper.removeStyle('text-align');
+                }
+                if (align == 'none') {
+                    wrapper.removeStyle('float');
+                } else {
+                    wrapper.setStyle('float', align);
+                }
             }
         }
-    }
+    };
+
+    CKEDITOR.plugins.cropduster = CKEDITOR.plugins.cropduster || {};
+
+    CKEDITOR.plugins.cropduster.stateShifter = function(editor) {
+        // Tag name used for centering non-captioned widgets.
+        var centerElement = editor.config.enterMode == CKEDITOR.ENTER_P ? 'p' : 'div',
+            doc = editor.document,
+            editable = editor.editable(),
+            shiftables = ['hasCaption', 'align'], // The order that stateActions get executed. It matters!
+            // Atomic procedures, one per state variable.
+            stateActions = {
+                align: function(data, oldValue, newValue) {
+                    var hasCaptionAfter = data.newState.hasCaption,
+                        element = data.element;
+
+                    if (changed(data, 'align')) {
+                        // Alignment changed.
+                        if (!hasCaptionAfter) {
+                            // No caption in the new state.
+                            if (newValue == 'center') {
+                                // Changed to "center" (non-captioned).
+                                data.destroy();
+                                data.element = wrapInCentering(element);
+                            }
+                            if (!changed(data, 'hasCaption') && oldValue == 'center' && newValue != 'center') {
+                                // Changed to "non-center" from "center" while caption removed.
+                                data.destroy();
+                                data.element = unwrapFromCentering(element);
+                            }
+                        }
+                    } else if (newValue == 'center' && changed(data, 'hasCaption') && !hasCaptionAfter) {
+                        // Alignment remains and "center" removed caption.
+                        data.destroy();
+                        data.element = wrapInCentering(element);
+                    }
+
+                    // Finally set display for figure.
+                    if (element.is('figure')) {
+                        if (newValue == 'center') {
+                            element.setStyle('display', 'inline-block');
+                        } else {
+                            element.removeStyle('display');
+                        }
+                    }
+                },
+
+                hasCaption: function(data, oldValue, newValue) {
+                    // This action is for real state change only.
+                    if (!changed(data, 'hasCaption')) {
+                        return;
+                    }
+
+                    var element = data.element,
+                        oldState = data.oldState,
+                        newState = data.newState,
+                        img;
+
+                    // Switching hasCaption always destroys the widget.
+                    data.destroy();
+
+                    // There was no caption, but the caption is to be added.
+                    if (newValue) {
+                        // Get <img> from element. As element may be either
+                        // <img> or centering <p>, consider it now.
+                        img = element.findOne('img') || element;
+
+                        // Create new <figure> from widget template.
+                        var figure = CKEDITOR.dom.element.createFromHtml(templateBlock, doc);
+
+                        // Replace element with <figure>.
+                        replaceSafely(figure, element);
+
+                        // Use old <img> instead of the one from the template,
+                        // so we won't lose additional attributes.
+                        img.replace(figure.findOne('img'));
+
+                        // Update widget's element.
+                        data.element = figure;
+                    // The caption was present, but now it's to be removed.
+                    } else {
+                        // Unwrap <img> from figure.
+                        img = element.findOne('img');
+                        img.replace(element);
+                        // Update widget's element.
+                        data.element = img;
+                    }
+                }
+            };
+
+        function changed(data, name) {
+            if (!data.oldState) {
+                return false;
+            } else {
+                return data.oldState[name] !== data.newState[name];
+            }
+        }
+
+        function wrapInCentering(element) {
+            // When widget gets centered. Wrapper must be created.
+            // Create new <p|div> with text-align:center.
+            var center = doc.createElement(centerElement, {
+                styles: { 'text-align': 'center' }
+            });
+
+            // Replace element with centering wrapper.
+            replaceSafely(center, element);
+            element.move(center);
+
+            return center;
+        }
+
+        function unwrapFromCentering(element) {
+            var img = element.findOne('img');
+            img.replace(element);
+            return img;
+        }
+
+        function replaceSafely(replacing, replaced) {
+            if (replaced.getParent()) {
+                var range = editor.createRange();
+
+                // Move the range before old element and insert element into it.
+                range.moveToPosition(replaced, CKEDITOR.POSITION_BEFORE_START);
+                editable.insertElementIntoRange(replacing, range);
+
+                // Remove old element.
+                replaced.remove();
+            }
+            else {
+                replacing.replace(replaced);
+            }
+        }
+
+        return function(data) {
+            if (typeof editor.config.cropduster_shiftables == 'object') {
+                shiftables = editor.config.cropduster_shiftables;
+            }
+
+            var actions = CKEDITOR.tools.clone(stateActions);
+
+            if (typeof editor.config.cropduster_stateActions == 'function') {
+                var configActions = editor.config.cropduster_stateActions(editor);
+                for (var k in configActions) {
+                    actions[k] = configActions[k];
+                }
+            }
+
+            var oldState = data.oldState,
+                newState = data.newState,
+                name;
+
+            // Iterate over possible state variables.
+            for (var i = 0; i < shiftables.length; i++) {
+                name = shiftables[i];
+
+                actions[name](data,
+                    oldState ? oldState[name] : null,
+                    newState[name]);
+            }
+
+            data.init(data.element);
+        };
+    };
 
     // Creates widgets from all <img> and <figure>.
     //
@@ -479,14 +492,12 @@
             }
 
             data.align = 'center';
-
             image = el.getFirst('img');
         // No center wrapper has been found.
-        } else if (name == 'figure' && el.getFirst('figcaption')) {
+        } else if (name == 'figure' && el.getFirst('img')) {
             image = el.getFirst('img');
-        }
         // Inline widget from plain img.
-        else if (name == 'img') {
+        } else if (name == 'img') {
             image = el;
         }
 
@@ -498,7 +509,6 @@
         // Now just remove dimension attributes expressed with %.
         for (var d in dimensions) {
             var dimension = image.attributes[d];
-
             if (dimension && dimension.match(regexPercent)) {
                 delete image.attributes[d];
             }
@@ -567,7 +577,7 @@
 
         // The only child of centering wrapper can be <figure> with
         // class="caption" or plain <img>.
-        if (childName != 'img' && !(childName == 'figure' && child.getFirst('figcaption'))) {
+        if (childName != 'img' && !(childName == 'figure' && child.getFirst('img'))) {
             return false;
         }
 
@@ -875,13 +885,9 @@
                 }
 
                 this.setState(
-                    (widget.data.align == value) ?
-                            CKEDITOR.TRISTATE_ON
-                        :
-                            (value in allowed) ?
-                                    CKEDITOR.TRISTATE_OFF
-                                :
-                                    CKEDITOR.TRISTATE_DISABLED);
+                    (widget.data.align == value)
+                      ? CKEDITOR.TRISTATE_ON
+                      : (value in allowed) ? CKEDITOR.TRISTATE_OFF : CKEDITOR.TRISTATE_DISABLED);
 
                 evt.cancel();
             });
@@ -895,11 +901,6 @@
     // @returns {CKEDITOR.plugins.widget}
     function getFocusedWidget(editor) {
         var widget = editor.widgets.focused;
-
-        if (widget && widget.name == 'cropduster') {
-            return widget;
-        }
-
-        return null;
+        return (widget && widget.name == 'cropduster') ? widget : null;
     }
 })();
