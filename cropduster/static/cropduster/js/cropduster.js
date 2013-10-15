@@ -123,7 +123,7 @@ window.CropDuster = {};
                 'image': data.crop.orig_image
             };
             $('#id_' + prefix + '-0-id').val(data.crop.image_id);
-            if ($('#id_mt_image-0-image').val() != data.crop.orig_image) {
+            if ($('#id_' + prefix + '-0-image').val() != data.crop.orig_image) {
                 formData['id'] = '';
             }
             $('#id_' + prefix + '-0-image').val(data.crop.orig_image);
