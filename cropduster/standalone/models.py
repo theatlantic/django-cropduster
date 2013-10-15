@@ -37,7 +37,7 @@ class StandaloneImageManager(models.Manager):
             standalone.image = file_path
             standalone.save()
         else:
-            file_path = standalone.image.path
+            file_path = get_relative_media_url(standalone.image.name)
 
         cropduster_image, created = Image.objects.get_or_create(
             content_type=ContentType.objects.get_for_model(StandaloneImage),
