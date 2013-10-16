@@ -87,7 +87,9 @@ class CropDusterWidget(Input):
         obj = None
         image_value = ''
 
-        if isinstance(value, ImageFieldFile):
+        if not value:
+            obj = None
+        elif isinstance(value, ImageFieldFile):
             obj = value.cropduster_image
             image_value = value.name
             if image_value.startswith('/') and obj.image:
