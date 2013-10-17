@@ -12,6 +12,7 @@ from django.db import models
 
 import PIL.Image
 
+from .exceptions import CropDusterResizeException
 from .fields import CropDusterField, CropDusterThumbField
 from .files import VirtualFieldFile
 from .resizing import Size, Box, Crop
@@ -278,7 +279,7 @@ class Image(models.Model):
             else:
                 return img.size
 
-    def save_size(self, size, thumb=None, image=None, tmp=False, standalone=False):
+    def save_size(self, size, thumb=None, image=None, tmp=False, standalone=False, permissive=False):
         thumbs = {}
         if not image and not self.image:
             raise Exception("Cannot save sizes without an image")
@@ -290,10 +291,17 @@ class Image(models.Model):
             return self._save_thumb(size, image, thumb, standalone=True)
 
         for sz in Size.flatten([size]):
-            if sz.is_auto:
-                new_thumb = self._save_thumb(sz, image, ref_thumb=thumb, tmp=tmp)
-            else:
-                thumb = new_thumb = self._save_thumb(sz, image, thumb, tmp=tmp)
+            try:
+                if sz.is_auto:
+                    new_thumb = self._save_thumb(sz, image, ref_thumb=thumb, tmp=tmp)
+                else:
+                    thumb = new_thumb = self._save_thumb(sz, image, thumb, tmp=tmp)
+            except CropDusterResizeException:
+                if permissive:
+                    continue
+                else:
+                    raise
+
             if new_thumb:
                 thumbs[sz.name] = new_thumb
         return thumbs
