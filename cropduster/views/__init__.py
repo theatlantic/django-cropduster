@@ -337,10 +337,10 @@ def crop(request):
             })
 
             for name, new_thumb in new_thumbs.iteritems():
-                if new_thumb.reference_thumb_id:
-                    continue
                 thumb_data = dict([(k, getattr(new_thumb, k)) for k in json_thumb_fields])
                 crop_data['thumbs'].update({name: thumb_data})
+                if new_thumb.reference_thumb_id:
+                    continue
                 thumbs_data[i]['thumbs'].update({name: thumb_data})
         elif thumb.pk and thumb.name and thumb.crop_w and thumb.crop_h:
             thumb_path = db_image.get_image_path(thumb.name, tmp=False)

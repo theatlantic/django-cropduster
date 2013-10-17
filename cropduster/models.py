@@ -392,13 +392,6 @@ def thumbs_added(sender, **kwargs):
                 image.get_image_path(thumb.name))
         except (IOError, OSError):
             pass
-        for auto_thumb in thumb.auto_set.all():
-            try:
-                os.rename(
-                    image.get_image_path(auto_thumb.name, tmp=True),
-                    image.get_image_path(auto_thumb.name))
-            except (IOError, OSError):
-                pass
 
 
 models.signals.m2m_changed.connect(thumbs_added, sender=Image.thumbs.through)

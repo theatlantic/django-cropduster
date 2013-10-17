@@ -89,10 +89,8 @@ window.CropDuster = {};
             }
             cropdusterUrl += '&el_id=' + encodeURI(prefix);
             var windowName = String(prefix).replace(/\-/g,"____").split(".").join("___");
-            if (typeof window.location.getParameter == 'function') {
-                if (window.location.getParameter('cropduster_debug') == '1') {
-                    cropdusterUrl += '&cropduster_debug=1';
-                }
+            if (typeof GET_params == 'object' && GET_params.cropduster_debug == '1') {
+                cropdusterUrl += '&cropduster_debug=1';
             }
             window.open(cropdusterUrl, windowName, 'height=650,width=960,resizable=yes,scrollbars=yes').focus();
         },
@@ -100,16 +98,17 @@ window.CropDuster = {};
         setThumbnails: function(prefix, thumbs) {
             var $select = $('#id_' + prefix + '-0-thumbs');
             $select.find('option').detach();
-            for (var i = 0; i < thumbs.length; i++) {
-                var thumbData = thumbs[i];
-                var $option = $(document.createElement('OPTION'));
-                if (!thumbData.id) {
+
+            for (var name in thumbs) {
+                var thumb = thumbs[name];
+                if (!thumb.id) {
                     continue;
                 }
-                $option.html(thumbData.name).attr({
-                    'value': thumbData.id,
-                    'data-width': thumbData.width,
-                    'data-height': thumbData.height,
+                var $option = $(document.createElement('OPTION'));
+                $option.html(thumb.name).attr({
+                    'value': thumb.id,
+                    'data-width': thumb.width,
+                    'data-height': thumb.height,
                     'data-tmp-file': 'true',
                     'selected': 'selected'
                 });
@@ -132,11 +131,7 @@ window.CropDuster = {};
             if (typeof data.thumbs != 'object') {
                 return;
             }
-            var thumbs = ($.isArray(data.thumbs)) ? data.thumbs : data._thumbs;
-            if (!$.isArray(thumbs)) {
-                return;
-            }
-            CropDuster.setThumbnails(prefix, thumbs);
+            CropDuster.setThumbnails(prefix, data.crop.thumbs);
             CropDuster.createThumbnails(prefix);
         },
 
