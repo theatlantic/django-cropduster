@@ -206,6 +206,9 @@ window.CropDuster = {};
                 return;
             }
             var image = $('#id_' + prefix + '-0-image').val();
+            if (!image) {
+                return;
+            }
             // The groups in this regex correspond to the path, basename (sans
             // extension), and file extension of a file path or url.
             var matches = image.match(/^(.*)(\/(?:[^\/](?!\.[^\.\/\?]+))*[^\.\/\?])(\.[^\.\/\?]+)?$/);
