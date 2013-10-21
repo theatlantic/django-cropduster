@@ -52,7 +52,7 @@ def import_app(app_name, model_name=None, field_name=None):
 
     # if we have a specific model, use only that particular one.
     if model_name is not None:
-        models = [ m for m in modules if m.__name__ == model_name]
+        models = [ m for m in models if m.__name__ == model_name]
         if len(models) != 1:
             raise NameError("Can't find model %s" % model_name)
 

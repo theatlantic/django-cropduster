@@ -193,7 +193,7 @@ class Command(BaseCommand):
                            orig_height >= size.height):
 
                 sizes.append( Size(size.slug,
-                                   cd_image.thumbnail_path(size),
+                                   cd_image.thumbnail_path(size.slug),
                                    size.auto_size,
                                    size.width,
                                    size.height) )
@@ -340,7 +340,7 @@ class Command(BaseCommand):
                 os._exit(0)
         finally:
             # wait for the kids to finish, no zombies for us.
-            self.wait_all()
+            self.wait_all(proc_list)
 
     @PrettyError("Failed to regenerate thumbs: %(error)s")
     def handle(self, *apps, **options):
