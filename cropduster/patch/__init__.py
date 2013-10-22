@@ -27,10 +27,16 @@ def patch_model_form():
             return BoundField(self, field, name)
 
 
-def patch_model_admin():
-    from django.contrib.admin.options import ModelAdmin, BaseModelAdmin, InlineModelAdmin
+def patch_model_admin(BaseModelAdmin=None, ModelAdmin=None, InlineModelAdmin=None):
     from cropduster.admin import cropduster_inline_factory
     from cropduster.models import CropDusterField
+
+    if not BaseModelAdmin:
+        from django.contrib.admin.options import BaseModelAdmin
+    if not ModelAdmin:
+        from django.contrib.admin.options import ModelAdmin
+    if not InlineModelAdmin:
+        from django.contrib.admin.options import InlineModelAdmin
 
     def get_cropduster_fields_for_model(model):
         """Returns a list of cropduster fields on a given model"""

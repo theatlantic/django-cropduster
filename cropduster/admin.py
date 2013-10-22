@@ -10,7 +10,7 @@ def cropduster_inline_factory(field=None, **kwargs):
     attrs = {
         'sizes': getattr(field, 'sizes', kwargs.get('sizes')),
         'model': getattr(getattr(field, 'rel', None), 'to', None) or kwargs.get('model', Image),
-        'default_prefix': getattr(field, 'name', kwargs.get('name')),
+        'default_prefix': kwargs.get('name') or getattr(field, 'name', None),
         'field': field,
     }
 

@@ -76,7 +76,7 @@ class CropDusterWidget(Input):
             self.attrs = attrs.copy()
         else:
             self.attrs = {}
-    
+
     def render(self, name, value, attrs=None, bound_field=None):
         final_attrs = self.build_attrs(attrs, type=self.input_type, name=name)
         # Whether we are rendering from the generated inline formset
@@ -164,11 +164,11 @@ class CropDusterWidget(Input):
         if dbfield is None:
             return None
         request = getattr(formfield, 'request', None)
-        inline_cls = cropduster_inline_factory(field=dbfield)
+        inline_cls = cropduster_inline_factory(field=dbfield, name=name)
         inline = inline_cls(dbfield.model, site)
 
         FormSet = inline.get_formset(request, obj=instance)
-        
+
         formset_kwargs = {
             'data': getattr(request, 'POST', None) or bound_field.form.data or None,
             'prefix': name,
