@@ -71,10 +71,15 @@
 
             // Add toolbar button for this plugin.
             editor.ui.addButton && editor.ui.addButton('cropduster', {
-                label: editor.lang.common.image,
+                label: 'CropDuster Image',
                 command: 'cropduster',
                 toolbar: 'insert,10'
             });
+
+            if (typeof editor.ui.items.Image == 'object') {
+                editor.ui.items.Image.label = "Legacy Image Upload";
+                editor.ui.items.Image.args[0].label = "Legacy Image Upload";
+            }
 
             // Register context menu option for editing widget.
             if (editor.contextMenu) {
