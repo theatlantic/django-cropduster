@@ -1,3 +1,8 @@
+body.cropduster-upload-form ul.messagelist,
+body.cropduster-upload-form ul.grp-messagelist {
+    overflow: hidden;
+}
+
 body.cropduster-upload-form #crop-form {
     margin-top: 15px;
 }

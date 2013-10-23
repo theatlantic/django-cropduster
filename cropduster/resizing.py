@@ -3,6 +3,7 @@ import os
 import re
 import math
 import hashlib
+import tempfile
 
 
 __all__ = ('Size', 'Box', 'Crop')
@@ -79,6 +80,11 @@ class Size(object):
         if not self.width or not self.height:
             return None
         return self.width / self.height
+
+    def fit_image(self, original_image):
+        orig_w, orig_h = original_image.size
+        crop = Crop(Box(0, 0, orig_w, orig_h), original_image)
+        return self.fit_to_crop(crop, original_image=original_image)
 
     def fit_to_crop(self, crop, original_image=None):
         from cropduster.models import Thumb
@@ -160,15 +166,12 @@ class Crop(object):
         self.image = image
         self.bounds = Box(0, 0, *image.size)
 
-    def create_image(self, width=None, height=None, max_w=None, max_h=None):
+    def create_image(self, output_filename, width=None, height=None, max_w=None, max_h=None):
         import PIL.Image
         from cropduster.exceptions import CropDusterResizeException
+        from cropduster.utils import process_image, get_image_extension
 
-        image = self.image.copy()
-        image.load()
-        new_image = image.crop(self.box.as_tuple())
-        new_image.load()
-        new_w, new_h = new_image.size
+        new_w, new_h = self.box.size
         if new_w < width or new_h < height:
             raise CropDusterResizeException(
                 u"Crop box (%dx%d) is too small for resize to (%dx%d)" % (new_w, new_h, width, height))
@@ -183,9 +186,26 @@ class Crop(object):
             max_scale = min(max_scales)
             width = int(round(width * max_scale))
             height = int(round(height * max_scale))
-        if new_w > width or new_h > height:
-            new_image = new_image.resize((width, height), PIL.Image.ANTIALIAS)
+
+        temp_file = tempfile.NamedTemporaryFile(suffix=get_image_extension(self.image), delete=False)
+        temp_filename = temp_file.name
+        with open(self.image.filename) as f:
+            temp_file.write(f.read())
+        temp_file.seek(0)
+        image = PIL.Image.open(temp_filename)
+
+        crop_args = self.box.as_tuple()
+
+        def crop_and_resize(im):
+            im = im.crop(crop_args)
+            if new_w > width or new_h > height:
+                im = im.resize((width, height), PIL.Image.ANTIALIAS)
+            return im
+            
+        new_image = process_image(image, output_filename, callback=crop_and_resize)
         new_image.crop = self
+        temp_file.close()
+        os.unlink(temp_filename)
         return new_image
 
     def best_fit(self, w=None, h=None, min_w=None, min_h=None, max_w=None, max_h=None):

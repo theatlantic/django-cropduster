@@ -21,7 +21,9 @@ from cropduster.models import Thumb, Size, StandaloneImage, Image
 from cropduster.settings import (
     CROPDUSTER_PREVIEW_WIDTH as PREVIEW_WIDTH,
     CROPDUSTER_PREVIEW_HEIGHT as PREVIEW_HEIGHT)
-from cropduster.utils import json, get_relative_media_url
+from cropduster.utils import (
+    json, get_relative_media_url, is_animated_gif, has_animated_gif_support,
+    process_image)
 from cropduster.exceptions import json_error, CropDusterResizeException, full_exc_info
 
 from .base import View
@@ -168,6 +170,11 @@ def upload(request):
     if request.method == 'GET':
         return index(request)
 
+    # The data we'll be returning as JSON
+    data = {
+        'warning': [],
+    }
+
     form = UploadForm(request.POST, request.FILES)
 
     if not form.is_valid():
@@ -182,28 +189,32 @@ def upload(request):
     img = PIL.Image.open(orig_file_path)
     (w, h) = (orig_w, orig_h) = img.size
 
+    if is_animated_gif(img) and not has_animated_gif_support():
+        data['warning'] = (
+            u"This server does not have animated gif support; your uploaded image "
+            u"has been made static.")
+
     tmp_image = Image(image=orig_image)
     preview_w = form_data.get('preview_width') or PREVIEW_WIDTH
     preview_h = form_data.get('preview_height') or PREVIEW_HEIGHT
 
     # First pass resize if it's too large
     resize_ratio = min(preview_w / w, preview_h / h)
+
+    def fit_preview(im):
+        (w, h) = im.size
     if resize_ratio < 1:
         w = int(round(w * resize_ratio))
         h = int(round(h * resize_ratio))
-        preview_img = img.resize((w, h), PIL.Image.ANTIALIAS)
+            preview_img = im.resize((w, h), PIL.Image.ANTIALIAS)
     else:
-        preview_img = img
+            preview_img = im
+        return preview_img
 
     preview_file_path = tmp_image.get_image_path('_preview')
+    process_image(img, preview_file_path, fit_preview)
 
-    img_save_params = {}
-    if preview_img.format == 'JPEG':
-        img_save_params['quality'] = 95
-
-    preview_img.save(preview_file_path, **img_save_params)
-
-    data = {
+    data.update({
         'crop': {
             'orig_image': orig_image,
             'orig_w': orig_w,
@@ -215,7 +226,7 @@ def upload(request):
         'orig_h': orig_h,
         'width': w,
         'height': h,
-    }
+    })
     if not form_data.get('standalone'):
         return HttpResponse(json.dumps(data), mimetype='application/json')
 
@@ -361,6 +372,7 @@ def crop(request):
                     'crop_w': best_fit.box.w,
                     'crop_h': best_fit.box.h,
                     'changed': True,
+                    'id': None,
                 })
 
     for thumb_data in thumbs_data:

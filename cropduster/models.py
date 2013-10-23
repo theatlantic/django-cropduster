@@ -2,6 +2,7 @@ from __future__ import division
 
 import hashlib
 import random
+import types
 import os
 from datetime import datetime
 
@@ -48,6 +49,14 @@ class Thumb(models.Model):
     def __unicode__(self):
         return self.name
 
+    def to_dict(self):
+        """Returns a dict of the thumb's values which are JSON serializable."""
+        dct = {}
+        for k, v in vars(self).iteritems():
+            if isinstance(v, (basestring, int, long, float, bool, types.NoneType)):
+                dct[k] = v
+        return dct
+
     def get_crop_box(self):
         if self.reference_thumb:
             ref_thumb = self.reference_thumb
@@ -59,7 +68,7 @@ class Thumb(models.Model):
             return None
         return Box(x1, y1, x2, y2)
 
-    def crop(self, original_image=None, w=None, h=None, min_w=None, min_h=None, max_w=None, max_h=None):
+    def crop(self, output_filename, original_image=None, w=None, h=None, min_w=None, min_h=None, max_w=None, max_h=None):
         if original_image is None:
             if not self.pk:
                 raise Exception(
@@ -108,7 +117,7 @@ class Thumb(models.Model):
             elif not self.height:
                 height = fit.box.h * (self.width / fit.box.w)
                 self.height = min(int(round(height)), crop.bounds.h)
-            new_image = fit.create_image(width=self.width, height=self.height, max_w=max_w, max_h=max_h)
+            new_image = fit.create_image(output_filename, width=self.width, height=self.height, max_w=max_w, max_h=max_h)
         else:
             if w and h:
                 self.width = w
@@ -120,7 +129,7 @@ class Thumb(models.Model):
                 width = crop_box.h * (h / crop_box.h)
                 self.width = min(int(round(width)), crop.bounds.w)
 
-            new_image = crop.create_image(width=self.width, height=self.height, max_w=max_w, max_h=max_h)
+            new_image = crop.create_image(output_filename, width=self.width, height=self.height, max_w=max_w, max_h=max_h)
 
         self.width, self.height = new_image.size
         return new_image
@@ -348,14 +357,13 @@ class Image(models.Model):
         if standalone and not(size.w or size.h) and (thumb.crop_w and thumb.crop_h):
             crop_kwargs['w'] = thumb.crop_w
             crop_kwargs['h'] = thumb.crop_h
-        thumb_image = thumb.crop(image, **crop_kwargs)
 
         if standalone:
             thumb_path = self.get_image_path(thumb.name)
         else:
             thumb_path = self.get_image_path(size.name, tmp=tmp)
 
-        thumb_image.save(thumb_path, **img_save_params)
+        thumb_image = thumb.crop(thumb_path, image, **crop_kwargs)
 
         if StandaloneImage:
             thumb_image.crop.add_xmp_to_crop(thumb_path, size)

@@ -137,14 +137,14 @@ class CropForm(forms.Form):
         css = {'all': (
             u"%scropduster/css/cropduster.css?v=4" % settings.STATIC_URL,
             u"%scropduster/css/jquery.jcrop.css?v=4" % settings.STATIC_URL,
-            u"%scropduster/css/upload.css?v=4" % settings.STATIC_URL,
+            u"%scropduster/css/upload.css?v=5" % settings.STATIC_URL,
         )}
         js = (
             u"%scropduster/js/json2.js" % settings.STATIC_URL,
             u"%scropduster/js/jquery.class.js" % settings.STATIC_URL,
             u"%scropduster/js/jquery.form.js?v=1" % settings.STATIC_URL,
             u"%scropduster/js/jquery.jcrop.js?v=4" % settings.STATIC_URL,
-            u"%scropduster/js/upload.js?v=5" % settings.STATIC_URL,
+            u"%scropduster/js/upload.js?v=6" % settings.STATIC_URL,
             u"%scropduster/js/cropduster.js?v=4" % settings.STATIC_URL,
         )
 

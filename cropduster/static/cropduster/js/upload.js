@@ -569,12 +569,23 @@
             } else if (!data.url && !data.x && !data.crop) {
                 error = unknownErrorMsg;
             }
+            var $errorContainer = $('#error-container');
             if (error) {
-                $('#error-container').find('.errornote').html(data.error);
-                $('#error-container').show();
+                $errorContainer.find('.errornote').html(data.error);
+                $errorContainer.show();
                 return;
             }
-            $('#error-container').hide();
+
+            $errorContainer.hide();
+
+            if (typeof data == 'object' && data.warning) {
+                var $messagelist = $errorContainer.parent().find('ul.messagelist,ul.grp-messagelist');
+                if (!$messagelist.length) {
+                    $errorContainer.after($('<ul class="messagelist grp-messagelist"><li class="warning grp-warning"></li></ul>'));
+                    $messagelist = $errorContainer.parent().find('.messagelist,.grp-messagelist');
+                }
+                $messagelist.find('li.warning').html(data.warning);
+            }
 
             if (action == 'upload') {
                 $(':input[name^="thumbs-"]').each(function(i, input) {
