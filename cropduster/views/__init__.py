@@ -203,11 +203,11 @@ def upload(request):
 
     def fit_preview(im):
         (w, h) = im.size
-    if resize_ratio < 1:
-        w = int(round(w * resize_ratio))
-        h = int(round(h * resize_ratio))
+        if resize_ratio < 1:
+            w = int(round(w * resize_ratio))
+            h = int(round(h * resize_ratio))
             preview_img = im.resize((w, h), PIL.Image.ANTIALIAS)
-    else:
+        else:
             preview_img = im
         return preview_img
 
