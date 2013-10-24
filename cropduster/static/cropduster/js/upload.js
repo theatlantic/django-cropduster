@@ -578,13 +578,15 @@
 
             $errorContainer.hide();
 
-            if (typeof data == 'object' && data.warning) {
+            if (typeof data == 'object' && $.isArray(data.warning) && data.warning.length) {
                 var $messagelist = $errorContainer.parent().find('ul.messagelist,ul.grp-messagelist');
                 if (!$messagelist.length) {
                     $errorContainer.after($('<ul class="messagelist grp-messagelist"><li class="warning grp-warning"></li></ul>'));
                     $messagelist = $errorContainer.parent().find('.messagelist,.grp-messagelist');
                 }
                 $messagelist.find('li.warning').html(data.warning);
+            } else {
+                $errorContainer.parent().find('ul.messagelist,ul.grp-messagelist');
             }
 
             if (action == 'upload') {
