@@ -171,8 +171,8 @@ def process_image(im, save_filename=None, callback=lambda i: i, nq=0, save_param
             save_params = save_params or {}
             if im.format == 'JPEG':
                 save_params.setdefault('quality', 95)
-            images[0].save(save_filename, **save_params)
+            new_images[0].save(save_filename, **save_params)
 
         return PIL.Image.open(save_filename)
 
-    return images[0]
+    return new_images[0]
