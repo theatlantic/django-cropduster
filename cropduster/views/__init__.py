@@ -213,8 +213,8 @@ def upload(request):
         return preview_img
 
     if not is_standalone:
-    preview_file_path = tmp_image.get_image_path('_preview')
-    process_image(img, preview_file_path, fit_preview)
+        preview_file_path = tmp_image.get_image_path('_preview')
+        process_image(img, preview_file_path, fit_preview)
 
     data.update({
         'crop': {
