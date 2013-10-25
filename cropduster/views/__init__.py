@@ -183,6 +183,7 @@ def upload(request):
                 errors=[unicode(errors)])
 
     form_data = form.cleaned_data
+    is_standalone = bool(form_data.get('standalone'))
 
     orig_file_path = form_data['image'].name
     orig_image = get_relative_media_url(orig_file_path)
@@ -211,6 +212,7 @@ def upload(request):
             preview_img = im
         return preview_img
 
+    if not is_standalone:
     preview_file_path = tmp_image.get_image_path('_preview')
     process_image(img, preview_file_path, fit_preview)
 
@@ -227,7 +229,7 @@ def upload(request):
         'width': w,
         'height': h,
     })
-    if not form_data.get('standalone'):
+    if not is_standalone:
         return HttpResponse(json.dumps(data), mimetype='application/json')
 
     size = Size('crop', w=img.size[0], h=img.size[1])
@@ -244,6 +246,16 @@ def upload(request):
 
     if not cropduster_image.image:
         cropduster_image.image = orig_image
+        cropduster_image.save()
+    elif cropduster_image.image.name != orig_image:
+        data['crop']['orig_image'] = data['orig_image'] = cropduster_image.image.name
+        data['url'] = cropduster_image.get_image_url('_preview')
+
+    img = PIL.Image.open(cropduster_image.image.path)
+    preview_file_path = cropduster_image.get_image_path('_preview')
+    if not os.path.exists(preview_file_path):
+        process_image(img, preview_file_path, fit_preview)
+
     thumb = cropduster_image.save_size(size, standalone=True)
 
     sizes = form_data.get('sizes') or []

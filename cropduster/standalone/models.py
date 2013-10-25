@@ -42,10 +42,10 @@ class StandaloneImageManager(models.Manager):
         cropduster_image, created = Image.objects.get_or_create(
             content_type=ContentType.objects.get_for_model(StandaloneImage),
             object_id=standalone.pk)
+        standalone.image.cropduster_image = cropduster_image
         cropduster_image.image = file_path
         cropduster_image.save()
         cropduster_image.save_preview(preview_w, preview_h)
-        standalone.image.cropduster_image = cropduster_image
         return standalone
 
 
