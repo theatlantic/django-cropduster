@@ -409,8 +409,6 @@ class GifWriter(object):
 
                 # Write
                 fp.write(header)
-                if isinstance(global_palette, list):
-                    import ipdb; ipdb.set_trace()
                 fp.write(global_palette)
                 fp.write(appext)
 
@@ -827,7 +825,7 @@ class NeuQuant:
         try:
             type(np.transpose(np.transpose(p - np.array([b, g, r])) * a))
         except ValueError:
-            import ipdb; ipdb.set_trace()
+            pass
         p3 = p2 * a
         p4 = np.transpose(p3)
         p -= p4
