@@ -99,7 +99,10 @@ class BaseCropDusterInlineFormSet(BaseGenericInlineFormSet):
                 self.fields.append(field)
 
         if self.prefix_override:
-            kwargs['prefix'] = self.prefix_override
+            if kwargs.get('prefix') and self.prefix_override in kwargs['prefix']:
+                pass
+            else:    
+                kwargs['prefix'] = self.prefix_override
 
         super(BaseCropDusterInlineFormSet, self).__init__(*args, **kwargs)
 
