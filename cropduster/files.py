@@ -17,6 +17,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.conf import settings
 from django.db.models.fields.files import FieldFile, FileField
 from django.utils.functional import cached_property
+from django.utils.http import urlunquote_plus
 
 from .utils import get_relative_media_url, get_media_path
 
@@ -79,6 +80,9 @@ class ImageFile(VirtualFieldFile):
 
         if not path:
             return
+
+        if '%' in path:
+            path = urlunquote_plus(path)
 
         if path.startswith(settings.MEDIA_URL):
             # Strips leading MEDIA_URL, if starts with
