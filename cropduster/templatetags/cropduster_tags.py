@@ -1,8 +1,9 @@
 from django import template
+from cropduster.models import Image
 register = template.Library()
 
 @register.assignment_tag
-def get_crop(image, crop_name, size=False):
+def get_crop(image, crop_name, size=None):
     """
     Get the crop of an image. Usage:
 
@@ -22,13 +23,8 @@ def get_crop(image, crop_name, size=False):
     since the size lookup is a database call.
 
     """
-
-    # If this isn't a cropduster field, abort
-    if not getattr(image, 'cropduster_image', None):
-        return None
-
     data = {}
-    data['url'] = image.cropduster_image.get_image_url(size_name=crop_name)
+    data['url'] = getattr(Image.get_file_for_size(image, crop_name), 'url', None)
     if size:
         data['width'], data['height'] = image.cropduster_image.get_image_size(size_name=crop_name)
     return data
