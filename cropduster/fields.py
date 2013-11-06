@@ -126,6 +126,13 @@ class CropDusterThumbField(models.ManyToManyField):
         Identical to super's contribute_to_class, except that it uses the above
         ReverseManyRelatedObjectsDescriptor as the descriptor class rather
         than the class in django.db.models.fields.related of the same name
+
+        Besides the setattr(cls, self.name, ...) line, this logic is identical
+        to what can be found in ManyToManyField.contribute_to_class(). We
+        cannot call the super() and then override the descriptor here, because
+        then it would be using ReverseManyRelatedObjectsDescriptor.__set__(),
+        so we need to call the super of ManyToManyField and duplicate all of
+        the logic in ManyToManyField.contribute_to_class().
         """
         if self.rel.symmetrical and (self.rel.to in ("self", cls._meta.object_name)):
             self.rel.related_name = "%s_rel_+" % name

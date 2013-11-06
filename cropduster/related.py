@@ -1,15 +1,38 @@
+"""
+Defines CropDusterGenericRelation, a subclass of GenericRelation from
+django.contrib.contenttypes, which is the base class for
+cropduster.fields.CropDusterField.
+"""
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.base import File
 from django.db import connection, router, models
-from django.db.models.fields.files import FieldFile
+from django.db.models.fields.files import FieldFile, ImageFileDescriptor
 from django.contrib.contenttypes.generic import GenericRelation, GenericRel
 
 from .settings import CROPDUSTER_MEDIA_ROOT
 
 
 class CropDusterGenericRelation(GenericRelation):
-    """Provides an accessor to generic related objects (e.g. comments)"""
+    """
+    The base class for CropDusterField; adds descriptors to the model.
 
+    This field accepts the same keyword arguments as models.ImageField.
+
+    If assigned to a model with name ``field_name``, allows retrieval of
+    cropduster image information by several attributes (via descriptors):
+
+    getattr(instance, field_name):
+            An instance of ImageFieldFile, with obj.field_name.cropduster_image
+            as the related cropduster.Image instance (or None if there is no
+            related cropduster.Image). A getattr on ``field_name`` will
+            perform a database query.
+    getattr(instance, '%%s_raw' %% field_name):
+            An instance of ImageFieldFile that does not sync with
+            cropduster.Image. Use this if you need to retrieve the image path
+            but do not want to make a database query.
+    getattr(instance, '%%s_generic_rel' %% field_name):
+            The generic related manager for the field.
+    """
     image_kwargs = None
     image_field = None
 
@@ -57,6 +80,7 @@ class CropDusterGenericRelation(GenericRelation):
 
     def contribute_to_class(self, cls, name):
         self.generic_rel_name = '%s_generic_rel' % name
+        self.raw_image_field_name = '%s_raw' % name
         super(GenericRelation, self).contribute_to_class(cls, name)
         self.image_field_name = name
 
@@ -88,29 +112,72 @@ class CropDusterGenericRelation(GenericRelation):
             'db_field': self,
             'generic_field': getattr(cls, self.generic_rel_name),
         })
+        setattr(cls, self.raw_image_field_name, ImageFileDescriptor(self.image_field))
+
 
     def south_init(self):
+        """
+        This method is called by south before it introspects the field.
+
+        South assumes that this is a related field if self.rel is set and it
+        is not None. While this is a reasonable assumption, and it is *mostly*
+        true for CropDusterField, it is incorrect as far as South is
+        concerned; we need South to treat this as a FileField so that
+        it creates a column in the containing model.
+
+        To deal with this situation we conditionally return the same values as
+        FileField from get_internal_type() and db_type() while south is
+        introspecting the field, and otherwise return the values that would be
+        returned by a GenericRelation (which are the same as those returned
+        by a ManyToManyField)
+
+        self.south_executing is the basis for the conditional logic. It is set
+        to True in this method (south_init()) and then back to False in
+        CropDusterGenericRelation.post_create_sql().
+        """
+        self.south_executing = True
         self._rel = self.rel
         self.rel = None
-        self.south_executing = True
 
     def post_create_sql(self, style, db_table):
+        """
+        This method is called after south is done introspecting the field.
+
+        See CropDusterGenericRelation.south_init() for more documentation
+        about the reason this is overridden here.        
+        """
         self.south_executing = False
         if self.rel is None and hasattr(self, '_rel'):
             self.rel = self._rel
         return []
 
     def get_internal_type(self):
+        """
+        Related to the implementation of db_type(), returns the pre-existing
+        Django Field class whose database column is the same as the current
+        field class, if such a class exists.
+
+        See CropDusterGenericRelation.south_init() for more documentation
+        about the reason this is overridden here.
+        """
         if self.south_executing:
             return 'FileField'
         else:
-            # ManyToManyField
+            # super() returns 'ManyToManyField'
             return super(CropDusterGenericRelation, self).get_internal_type()
 
     def db_type(self, connection):
+        """
+        Returns the database column data type for this field, for the provided
+        connection.
+
+        See CropDusterGenericRelation.south_init() for more documentation
+        about the reason this is overridden here.
+        """
         if self.south_executing:
             return models.Field.db_type(self, connection)
         else:
+            # super() returns None
             return super(CropDusterGenericRelation, self).db_type(connection)
 
 

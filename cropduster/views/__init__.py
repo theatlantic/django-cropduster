@@ -1,3 +1,29 @@
+"""
+View functions used by the cropduster dialog.
+
+index() (defined in CropDusterIndex)
+====================================
+
+The initial page that a user sees when clicking on the "Upload Image" button.
+This view renders the form used to interact with upload() and crop() via ajax.
+
+
+standalone() (defined in CropDusterStandalone)
+==============================================
+
+Subclass of CropDusterIndex used for "standalone mode", which saves minimal
+information in the database and instead stores information about the original
+image and crop dimensions in metadata on the generated image. The intended use
+case for standalone mode is a dialog in a WYSIWYG editor.
+
+upload() / crop()
+=================
+
+Both upload() and crop() interact with the index page's html in the same way:
+they receive a POST with data from the django forms and formsets, create new
+image and thumb instances (respectively), and return a JSON object that map
+back onto fields on the index page's forms / formsets.
+"""
 from __future__ import division
 
 import os
