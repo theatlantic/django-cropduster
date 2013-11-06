@@ -9,7 +9,7 @@ from django.db import connection, router, models
 from django.db.models.fields.files import FieldFile, ImageFileDescriptor
 from django.contrib.contenttypes.generic import GenericRelation, GenericRel
 
-from .settings import CROPDUSTER_MEDIA_ROOT
+from cropduster.settings import CROPDUSTER_MEDIA_ROOT
 
 
 class CropDusterGenericRelation(GenericRelation):
@@ -299,7 +299,7 @@ class CropDusterDescriptor(object):
         return instance.__dict__[self.image_field.name]
 
     def __set__(self, instance, value):
-        from .models import Image
+        from cropduster.models import Image
 
         if instance is None:
             raise AttributeError("Manager must be accessed via instance")

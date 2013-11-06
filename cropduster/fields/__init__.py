@@ -1,10 +1,12 @@
 from django.core.files.uploadedfile import UploadedFile
 from django.db import models, router
-from django.db.models.fields import related
+from django.db.models.fields.related import (
+    add_lazy_relation, create_many_to_many_intermediary_model,
+    ReverseManyRelatedObjectsDescriptor)
 from django.db.models.fields.files import FieldFile
 from django.utils.functional import curry
 
-from . import settings as cropduster_settings
+import cropduster.settings
 from .related import CropDusterGenericRelation
 
 
@@ -18,7 +20,7 @@ class CropDusterField(CropDusterGenericRelation):
             from cropduster.utils import json
             sizes = json.loads(json.dumps(sizes))
         self.sizes = sizes
-        to = kwargs.pop('to', '%s.Image' % cropduster_settings.CROPDUSTER_APP_LABEL)
+        to = kwargs.pop('to', '%s.Image' % cropduster.settings.CROPDUSTER_APP_LABEL)
         super(CropDusterField, self).__init__(to, verbose_name=verbose_name, **kwargs)
 
     def save_form_data(self, instance, data):
@@ -49,8 +51,8 @@ class CropDusterField(CropDusterGenericRelation):
             instance.save()
 
     def formfield(self, **kwargs):
-        from .forms import cropduster_formfield_factory
-        from .widgets import cropduster_widget_factory
+        from cropduster.forms import (
+            cropduster_formfield_factory, cropduster_widget_factory)
 
         factory_kwargs = {
             'sizes': self.sizes,
@@ -67,7 +69,7 @@ class CropDusterField(CropDusterGenericRelation):
         return super(CropDusterField, self).formfield(**kwargs)
 
 
-class ReverseManyRelatedObjectsDescriptor(related.ReverseManyRelatedObjectsDescriptor):
+class ReverseManyRelatedObjectsDescriptor(ReverseManyRelatedObjectsDescriptor):
     """
     Implements the patch at https://code.djangoproject.com/ticket/6707#comment:15
 
@@ -140,7 +142,7 @@ class CropDusterThumbField(models.ManyToManyField):
         super(models.ManyToManyField, self).contribute_to_class(cls, name)
 
         if not self.rel.through and not cls._meta.abstract:
-            self.rel.through = related.create_many_to_many_intermediary_model(self, cls)
+            self.rel.through = create_many_to_many_intermediary_model(self, cls)
 
         # Add the descriptor for the m2m relation
         setattr(cls, self.name, ReverseManyRelatedObjectsDescriptor(self))
@@ -150,7 +152,7 @@ class CropDusterThumbField(models.ManyToManyField):
         if isinstance(self.rel.through, basestring):
             def resolve_through_model(field, model, cls):
                 field.rel.through = model
-            related.add_lazy_relation(cls, self, self.rel.through, resolve_through_model)
+            add_lazy_relation(cls, self, self.rel.through, resolve_through_model)
 
         if isinstance(self.rel.to, basestring):
             target = self.rel.to
