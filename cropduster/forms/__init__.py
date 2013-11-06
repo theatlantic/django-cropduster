@@ -9,8 +9,13 @@ from django.forms.forms import BoundField
 from django.forms.models import ModelMultipleChoiceField, ModelFormMetaclass
 from django.core.exceptions import ValidationError
 
-from .models import Image, Thumb
+from cropduster.models import Image, Thumb
 from .widgets import cropduster_widget_factory, CropDusterWidget, CropDusterThumbWidget
+
+
+__all__ = (
+    'CropDusterFormField', 'cropduster_formset_factory', 'CropDusterBoundField',
+    'cropduster_formfield_factory', 'cropduster_widget_factory')
 
 
 class CropDusterFormField(forms.Field):

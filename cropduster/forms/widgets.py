@@ -16,9 +16,9 @@ from django.db.models.fields.files import ImageFieldFile
 from django.template.loader import render_to_string
 from django.utils.encoding import force_unicode
 
-from .admin import cropduster_inline_factory
-from .models import Image, Thumb
-from .utils import json
+from cropduster.admin import cropduster_inline_factory
+from cropduster.models import Image, Thumb
+from cropduster.utils import json
 
 
 class CropDusterThumbWidget(forms.SelectMultiple):
