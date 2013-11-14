@@ -62,7 +62,7 @@ class CropDusterWidget(Input):
     field = None
 
     class Media:
-        css = {'all': (u'%scropduster/css/cropduster.css?v=4' % settings.STATIC_URL,),}
+        css = {'all': (u'%scropduster/css/cropduster.css?v=5' % settings.STATIC_URL,),}
         js = (
             u'%scropduster/js/jsrender.js' % settings.STATIC_URL,
             u'%scropduster/js/cropduster.js?v=4' % settings.STATIC_URL,

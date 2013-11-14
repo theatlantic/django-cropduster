@@ -637,6 +637,9 @@
 
         $('#crop-form').ajaxForm({
             dataType: 'json',
+            beforeSubmit: function() {
+                $('#crop-button').addClass('disabled').val('Cropping...');
+            },
             success: function(data, responseType) {
                 onSuccess(data, responseType, 'crop');
             }
@@ -646,6 +649,9 @@
             $('#upload').ajaxSubmit({
                 dataType: 'json',
                 url: $('#upload').attr('action'),
+                beforeSubmit: function() {
+                    $('#upload-button').addClass('disabled').val('Uploading...');
+                },
                 success: function(data, responseType) {
                     onSuccess(data, responseType, 'upload');
                 }

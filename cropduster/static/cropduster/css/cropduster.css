@@ -99,6 +99,7 @@ body.cropduster-debug .cropduster-form fieldset {
 	background-color: #ECECEC;
 	border: 1px solid rgba(0, 0, 0, 0.36); /* #a3a3a3 */
 	border-bottom: 1px solid rgba(0, 0, 0, 0.4); /* #9a9a9a */
+    outline: none;
 }
 
 .cropduster-upload-form .rounded-button.red,
