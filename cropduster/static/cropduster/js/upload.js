@@ -642,14 +642,6 @@
             }
         });
 
-        $('#upload').ajaxForm({
-            dataType: 'json',
-            url: $('#upload').attr('action'),
-            success: function(data, responseType) {
-                onSuccess(data, responseType, 'upload');
-            }
-        });
-
         window.uploadSubmit = function() {
             $('#upload').ajaxSubmit({
                 dataType: 'json',
