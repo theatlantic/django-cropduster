@@ -243,7 +243,17 @@ class CropDusterDescriptor(object):
             query = manager.core_filters or {
                 '%s__pk' % manager.content_type_field_name : manager.content_type.id,
                 '%s__exact' % manager.object_id_field_name : manager.pk_val,
+                'prev_object_id__isnull': True,
             }
+
+            try:
+                prev_object_id_field = instance._meta.get_field(
+                    'prev_%s' % manager.object_id_field_name)
+            except models.FieldDoesNotExist:
+                pass
+            else:
+                query['%s__isnull' % prev_object_id_field.attname] = True
+
             qset = superclass.get_query_set(manager).using(db)
             try:
                 val = qset.get(**query)
