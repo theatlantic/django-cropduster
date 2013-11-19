@@ -217,7 +217,7 @@ def upload(request):
     (w, h) = (orig_w, orig_h) = img.size
 
     if is_animated_gif(img) and not has_animated_gif_support():
-        data['warning'] = (
+        data['warning'].append(
             u"This server does not have animated gif support; your uploaded image "
             u"has been made static.")
 
