@@ -24,6 +24,16 @@ from . import settings as cropduster_settings
 __all__ = ('Image', 'Thumb', 'StandaloneImage', 'CropDusterField', 'Size', 'Box', 'Crop')
 
 
+def safe_str_path(file_path):
+    """
+    Convert unicode paths to bytestrings so that os.path does not throw
+    string conversion errors
+    """
+    if isinstance(file_path, unicode):
+        return file_path.encode('utf-8')
+    return file_path
+
+
 class Thumb(models.Model):
 
     name = models.CharField(max_length=255, db_index=True)
@@ -182,7 +192,7 @@ class Image(models.Model):
         ''' returns the file extension with a dot (.) prepended to it '''
         if not self.image:
             return u''
-        return os.path.splitext(self.image.path)[1]
+        return os.path.splitext(safe_str_path(self.image.path))[1]
 
     @staticmethod
     def get_file_for_size(image, size_name='original', tmp=False):
@@ -190,7 +200,7 @@ class Image(models.Model):
             image = VirtualFieldFile(image)
         if not image:
             return None
-        path, basename = os.path.split(image.path)
+        path, basename = os.path.split(safe_str_path(image.path))
         filename, extension = os.path.splitext(basename)
         if size_name == 'preview':
             size_name = '_preview'
@@ -203,7 +213,7 @@ class Image(models.Model):
 
     @classmethod
     def save_preview_file(cls, image_file, preview_w=None, preview_h=None):
-        pil_img = PIL.Image.open(image_file.path)
+        pil_img = PIL.Image.open(safe_str_path(image_file.path))
         orig_w, orig_h = pil_img.size
 
         preview_w = preview_w or cropduster_settings.CROPDUSTER_PREVIEW_WIDTH
@@ -220,7 +230,7 @@ class Image(models.Model):
         img_save_params = {}
         if preview_img.format == 'JPEG':
             img_save_params['quality'] = 95
-        preview_img.save(preview_file.path, **img_save_params)
+        preview_img.save(safe_str_path(preview_file.path), **img_save_params)
         return preview_file
 
     def save_preview(self, preview_w=None, preview_h=None):
@@ -276,13 +286,13 @@ class Image(models.Model):
                 return (thumb.width, thumb.height)
 
         # Get the original size
-        if not self.image or not os.path.exists(self.image.path):
+        if not self.image or not os.path.exists(safe_str_path(self.image.path)):
             return (0, 0)
         elif self.width and self.height:
             return (self.width, self.height)
         else:
             try:
-                img = PIL.Image.open(self.image.path)
+                img = PIL.Image.open(safe_str_path(self.image.path))
             except (IOError, ValueError, TypeError):
                 return (0, 0)
             else:
@@ -292,7 +302,8 @@ class Image(models.Model):
         thumbs = {}
         if not image and not self.image:
             raise Exception("Cannot save sizes without an image")
-        image = image or PIL.Image.open(self.image.path)
+
+        image = image or PIL.Image.open(safe_str_path(self.image.path))
 
         if standalone:
             if not StandaloneImage:
