@@ -3,6 +3,7 @@ from __future__ import division
 import os
 import tempfile
 import warnings
+import math
 
 import PIL.Image
 
@@ -22,7 +23,7 @@ from .images2gif import read_gif, write_gif
 __all__ = (
     'get_image_extension', 'is_transparent', 'exif_orientation',
     'correct_colorspace', 'is_animated_gif', 'has_animated_gif_support',
-    'process_image')
+    'process_image', 'smart_resize')
 
 
 IMAGE_EXTENSIONS = {
@@ -176,3 +177,48 @@ def process_image(im, save_filename=None, callback=lambda i: i, nq=0, save_param
         return PIL.Image.open(save_filename)
 
     return new_images[0]
+
+
+def smart_resize(im, final_w, final_h):
+    """
+    Resizes a given image in multiple steps to ensure maximum quality and performance
+
+    :param im: PIL.Image instance the image to be resized
+    :param final_w: int the intended final width of the image
+    :param final_h: int the intended final height of the image
+    """
+
+    (orig_w, orig_h) = im.size
+    if orig_w <= final_w and orig_h <= final_h:
+        # If the image is already the right size, don't change it
+        return im
+
+    # Attempt to resize the image 1/8, 2/8, such that it is at least 1.5x bigger
+    # than the final size
+    # (Libjpg-Turbo has optimizations for resizing images by a ratio of eights)
+    (goal_w, goal_h) = (final_w * 1.5, final_h * 1.5)
+    # Ratios from 1/8, 2/8... 7/8
+    for i in range(1, 8):
+        ratio = i / 8
+        scaled_w = orig_w * ratio
+        scaled_h = orig_h * ratio
+        if scaled_w >= goal_w and scaled_h >= goal_h:
+
+            # The image may need to be cropped slightly to ensure an even
+            # size reduction
+            crop_w = orig_w % 8
+            crop_h = orig_h % 8
+            if not crop_w or not crop_h:
+                im.crop((math.floor(crop_w / 2),
+                         math.floor(crop_h / 2),
+                         orig_w - math.ceil(crop_w / 2),
+                         orig_h - math.ceil(crop_h / 2)))
+                (orig_w, orig_h) = im.size
+
+            # Resize part of the way using the fastest algorithm
+            im = im.resize((int(orig_w * ratio), int(orig_w * ratio)),
+                           PIL.Image.NEAREST)
+            break
+
+    # Return the image with the final resizing done at best quality
+    return im.resize((final_w, final_h), PIL.Image.ANTIALIAS)

@@ -196,13 +196,12 @@ class Crop(object):
 
         crop_args = self.box.as_tuple()
 
-        def crop_and_resize(im):
+        def crop_and_resize_callback(im):
+            from cropduster.utils import smart_resize
             im = im.crop(crop_args)
-            if new_w > width or new_h > height:
-                im = im.resize((width, height), PIL.Image.ANTIALIAS)
-            return im
-            
-        new_image = process_image(image, output_filename, callback=crop_and_resize)
+            return smart_resize(im, final_w=width, final_h=height)
+
+        new_image = process_image(image, output_filename, crop_and_resize_callback)
         new_image.crop = self
         temp_file.close()
         os.unlink(temp_filename)
