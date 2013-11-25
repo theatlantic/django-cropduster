@@ -205,11 +205,11 @@ class Image(models.Model):
         if size_name == 'preview':
             size_name = '_preview'
         if tmp:
-            size_name = u'%s_tmp' % size_name
+            size_name = '%s_tmp' % size_name
         return VirtualFieldFile(
-            u'/'.join([
+            '/'.join([
                 get_relative_media_url(path),
-                size_name + extension]))
+                safe_str_path(size_name) + extension]))
 
     @classmethod
     def save_preview_file(cls, image_file, preview_w=None, preview_h=None):
