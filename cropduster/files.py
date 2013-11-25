@@ -86,7 +86,6 @@ class ImageFile(VirtualFieldFile):
 
         if path.startswith(settings.MEDIA_URL):
             # Strips leading MEDIA_URL, if starts with
-            path = getattr(urlparse(path), 'path', path)
             self._path = get_relative_media_url(path, clean_slashes=False)
         elif re.search(r'^(?:http(?:s)?:)?//', path):
             # url on other server? download it.
