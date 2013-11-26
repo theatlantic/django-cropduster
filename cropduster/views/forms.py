@@ -202,11 +202,22 @@ class ThumbFormSet(BaseModelFormSet):
     ValueError).
     """
 
+    def _existing_object(self, pk):
+        """
+        Avoid potentially expensive list comprehension over self.queryset()
+        in the parent method.
+        """
+        if not hasattr(self, '_object_dict'):
+            self._object_dict = {}
+        obj = self.get_queryset().get(pk=pk)
+        self._object_dict[obj.pk] = obj
+        return super(ThumbFormSet, self)._existing_object(pk)
+
     def _construct_form(self, i, **kwargs):
         if self.is_bound and i < self.initial_form_count():
             mutable = getattr(self.data, '_mutable', False)
             self.data._mutable = True
             pk_key = "%s-%s" % (self.add_prefix(i), self.model._meta.pk.name)
             self.data[pk_key] = self.data.get(pk_key) or None
-            self.data._multable = mutable
+            self.data._mutable = mutable
         return super(ThumbFormSet, self)._construct_form(i, **kwargs)
