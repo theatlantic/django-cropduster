@@ -6,6 +6,7 @@ import hashlib
 import PIL.Image
 
 from django import forms
+from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 from django.forms.forms import NON_FIELD_ERRORS
 from django.forms.models import BaseModelFormSet
@@ -209,8 +210,14 @@ class ThumbFormSet(BaseModelFormSet):
         """
         if not hasattr(self, '_object_dict'):
             self._object_dict = {}
-        obj = self.get_queryset().get(pk=pk)
-        self._object_dict[obj.pk] = obj
+        if not pk:
+            return None
+        try:
+            obj = self.get_queryset().get(pk=pk)
+        except ObjectDoesNotExist:
+            return None
+        else:
+            self._object_dict[obj.pk] = obj
         return super(ThumbFormSet, self)._existing_object(pk)
 
     def _construct_form(self, i, **kwargs):
