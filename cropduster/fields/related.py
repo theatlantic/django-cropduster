@@ -247,7 +247,7 @@ class CropDusterDescriptor(object):
             }
 
             try:
-                prev_object_id_field = instance._meta.get_field(
+                prev_object_id_field = rel_model._meta.get_field(
                     'prev_%s' % manager.object_id_field_name)
             except models.FieldDoesNotExist:
                 pass
