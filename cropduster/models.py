@@ -245,20 +245,10 @@ class Image(models.Model):
 
     def save(self, **kwargs):
         self.date_modified = datetime.now()
-        if self.pk:
-            original = Image.objects.get(pk=self.pk)
-            old_date_modified = original.date_modified or datetime.min
-            for thumb in self.thumbs.all():
-                if thumb.date_modified > old_date_modified:
-                    try:
-                        os.rename(
-                            self.get_image_path(thumb.name, tmp=True),
-                            self.get_image_path(thumb.name))
-                    except (IOError, OSError):
-                        pass
         if not self.pk and self.content_type and self.object_id:
             try:
-                original = Image.objects.get(content_type=self.content_type, object_id=self.object_id)
+                original = Image.objects.get(content_type=self.content_type, object_id=self.object_id,
+                        prev_object_id__isnull=True)
             except Image.DoesNotExist:
                 pass
             else:

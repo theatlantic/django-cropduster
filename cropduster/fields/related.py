@@ -239,30 +239,33 @@ class CropDusterDescriptor(object):
                 object_id_field_name=self.field.object_id_field_name,
                 **manager_kwargs)
 
-            db = manager._db or router.db_for_read(rel_model, instance=instance)
-            query = manager.core_filters or {
-                '%s__pk' % manager.content_type_field_name : manager.content_type.id,
-                '%s__exact' % manager.object_id_field_name : manager.pk_val,
-                'prev_object_id__isnull': True,
-            }
-
-            try:
-                prev_object_id_field = rel_model._meta.get_field(
-                    'prev_%s' % manager.object_id_field_name)
-            except models.FieldDoesNotExist:
-                pass
+            if not manager.pk_val:
+                val = None
             else:
-                query['%s__isnull' % prev_object_id_field.attname] = True
+                db = manager._db or router.db_for_read(rel_model, instance=instance)
+                query = manager.core_filters or {
+                    '%s__pk' % manager.content_type_field_name : manager.content_type.id,
+                    '%s__exact' % manager.object_id_field_name : manager.pk_val,
+                }
 
-            qset = superclass.get_query_set(manager).using(db)
-            try:
-                val = qset.get(**query)
-            except rel_model.DoesNotExist:
-                if not self.is_image_field:
-                    return None
+                try:
+                    prev_object_id_field = rel_model._meta.get_field(
+                        'prev_%s' % manager.object_id_field_name)
+                except models.FieldDoesNotExist:
+                    pass
                 else:
+                    query['%s__isnull' % prev_object_id_field.attname] = True
+
+                qset = superclass.get_query_set(manager).using(db)
+
+                try:            
+                    val = qset.get(**query)
+                except rel_model.DoesNotExist:
+                    if not self.is_image_field:
+                        return None
                     val = None
-            else:
+
+            if val:
                 setattr(instance, cache_name, manager)
                 if val.image:
                     image_val = instance.__dict__[self.image_field.name] = val.image
