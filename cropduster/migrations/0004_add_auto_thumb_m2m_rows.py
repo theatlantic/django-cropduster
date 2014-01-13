@@ -7,6 +7,9 @@ from django.db import models
 class Migration(DataMigration):
     
     def forwards(self, orm):
+        if db.dry_run:
+            return
+
         Thumb = orm['cropduster.Thumb']
         Image = orm['cropduster.Image']
         M2M = Image.thumbs.through
