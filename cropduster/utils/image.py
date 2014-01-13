@@ -53,7 +53,7 @@ def is_transparent(image):
     """
     Check to see if an image is transparent.
     """
-    if not isinstance(image, PIL.Image.PIL.Image):
+    if not isinstance(image, PIL.Image.Image):
         # Can only deal with PIL images, fall back to the assumption that that
         # it's not transparent.
         return False
