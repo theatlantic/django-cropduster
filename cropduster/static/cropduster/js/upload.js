@@ -342,7 +342,7 @@
                 if (typeof(value) == 'object' && $.isEmptyObject(value)) {
                     value = '';
                 }
-                if (!value && field.match(/(sizes|orig_w|orig_h|image_id)/)) {
+                if (!value && field.match(/(sizes|orig_w|orig_h)/)) {
                     continue;
                 }
                 $('#id_crop-' + field).val(value);

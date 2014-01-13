@@ -65,7 +65,7 @@ class CropDusterWidget(Input):
         css = {'all': (u'%scropduster/css/cropduster.css?v=5' % settings.STATIC_URL,),}
         js = (
             u'%scropduster/js/jsrender.js' % settings.STATIC_URL,
-            u'%scropduster/js/cropduster.js?v=4' % settings.STATIC_URL,
+            u'%scropduster/js/cropduster.js?v=5' % settings.STATIC_URL,
         )
 
     def __init__(self, field=None, sizes=None, attrs=None):

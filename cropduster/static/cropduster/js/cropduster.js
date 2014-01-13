@@ -117,13 +117,10 @@ window.CropDuster = {};
         },
 
         complete: function(prefix, data) {
-            var formData = {
-                'id': data.crop.image_id,
-                'image': data.crop.orig_image
-            };
             $('#id_' + prefix + '-0-id').val(data.crop.image_id);
-            if ($('#id_' + prefix + '-0-image').val() != data.crop.orig_image) {
-                formData['id'] = '';
+            // If no image id, set INITIAL_FORM count to 0
+            if ($('#id_' + prefix + '-0-id').val() == '') {
+                $('#id_' + prefix + '-INITIAL_FORMS').val('0');
             }
             $('#id_' + prefix + '-0-image').val(data.crop.orig_image);
             $('#id_' + prefix).val(data.crop.orig_image);

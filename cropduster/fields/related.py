@@ -267,11 +267,13 @@ class CropDusterDescriptor(object):
 
             if val:
                 setattr(instance, cache_name, manager)
-                if val.image:
-                    image_val = instance.__dict__[self.image_field.name] = val.image
                 if not self.is_image_field:
                     return manager
 
+        self.set_image_value(instance, image_val, obj=val)
+        return instance.__dict__[self.image_field.name]
+
+    def set_image_value(self, instance, value, obj=None):
         # Sort out what to do with the image_val
         # For reference, see django.db.models.fields.files.FileDescriptor, upon
         # which this logic is based.
@@ -284,32 +286,31 @@ class CropDusterDescriptor(object):
         # object understands how to convert a path to a file, and also how to
         # handle None.
         attr_cls = self.image_field.attr_class
-        if isinstance(image_val, basestring) or image_val is None:
-            attr = attr_cls(instance, self.image_field, image_val)
-            attr.cropduster_image = val
+        if isinstance(value, basestring) or value is None:
+            attr = attr_cls(instance, self.image_field, value)
+            attr.cropduster_image = obj
             instance.__dict__[self.image_field.name] = attr
 
         # Other types of files may be assigned as well, but they need to have
         # the FieldFile interface added to the. Thus, we wrap any other type of
         # File inside a FieldFile (well, the field's attr_class, which is
         # usually FieldFile).
-        elif isinstance(image_val, File) and not isinstance(image_val, FieldFile):
-            file_copy = attr_cls(instance, self.image_field, image_val.name)
-            file_copy.file = image_val
-            file_copy.cropduster_image = val
+        elif isinstance(value, File) and not isinstance(value, FieldFile):
+            file_copy = attr_cls(instance, self.image_field, value.name)
+            file_copy.file = value
+            file_copy.cropduster_image = obj
             file_copy._committed = False
             instance.__dict__[self.image_field.name] = file_copy
 
         # Finally, because of the (some would say boneheaded) way pickle works,
         # the underlying FieldFile might not actually itself have an associated
         # file. So we need to reset the details of the FieldFile in those cases.
-        elif isinstance(image_val, FieldFile):
-            image_val.instance = instance
-            image_val.field = self.image_field
-            image_val.storage = self.image_field.storage
-            image_val.cropduster_image = val
-
-        return instance.__dict__[self.image_field.name]
+        elif isinstance(value, FieldFile):
+            value.instance = instance
+            value.field = self.image_field
+            value.storage = self.image_field.storage
+            value.cropduster_image = obj
+            instance.__dict__[self.image_field.name] = value
 
     def __set__(self, instance, value):
         from cropduster.models import Image
@@ -317,7 +318,8 @@ class CropDusterDescriptor(object):
         if instance is None:
             raise AttributeError("Manager must be accessed via instance")
         if self.is_image_field:
-            instance.__dict__[self.image_field.name] = value
+            self.set_image_value(instance, value)
+            self.__get__(instance)
         else:
             manager = self.__get__(instance)
             manager.clear()

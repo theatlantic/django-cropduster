@@ -247,6 +247,7 @@ def upload(request):
             'orig_image': orig_image,
             'orig_w': orig_w,
             'orig_h': orig_h,
+            'image_id': None,
         },
         'url': tmp_image.get_image_url('_preview'),
         'orig_image': orig_image,
