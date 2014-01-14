@@ -319,7 +319,6 @@ class CropDusterDescriptor(object):
             raise AttributeError("Manager must be accessed via instance")
         if self.is_image_field:
             self.set_image_value(instance, value)
-            self.__get__(instance)
         else:
             manager = self.__get__(instance)
             manager.clear()
