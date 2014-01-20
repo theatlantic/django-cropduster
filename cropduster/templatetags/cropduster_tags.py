@@ -26,5 +26,5 @@ def get_crop(image, crop_name, size=None):
     data = {}
     data['url'] = getattr(Image.get_file_for_size(image, crop_name), 'url', None)
     if size:
-        data['width'], data['height'] = image.cropduster_image.get_image_size(size_name=crop_name)
+        data['width'], data['height'] = image.related_object.get_image_size(size_name=crop_name)
     return data

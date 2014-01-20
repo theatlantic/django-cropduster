@@ -1,72 +1,66 @@
-from django.core.files.uploadedfile import UploadedFile
 from django.db import models, router
 from django.db.models.fields.related import (
     add_lazy_relation, create_many_to_many_intermediary_model,
     ReverseManyRelatedObjectsDescriptor)
-from django.db.models.fields.files import FieldFile
+from django.db.models.fields.files import ImageFileDescriptor
 from django.utils.functional import curry
 
+from generic_plus.fields import GenericForeignFileField
+from generic_plus.forms import (
+    generic_fk_file_formset_factory, generic_fk_file_formfield_factory,
+    generic_fk_file_widget_factory)
+
 import cropduster.settings
-from .related import CropDusterGenericRelation
+from .forms import CropDusterInlineFormSet, CropDusterThumbFormField, CropDusterWidget
+from .utils import json
 
 
-class CropDusterField(CropDusterGenericRelation):
+class CropDusterField(GenericForeignFileField):
 
-    sizes = None
+    file_field_cls = models.ImageField
+    file_descriptor_cls = ImageFileDescriptor
+    rel_file_field_name = 'image'
 
     def __init__(self, verbose_name=None, **kwargs):
         sizes = kwargs.pop('sizes', None)
         if isinstance(sizes, (list, tuple)) and all([isinstance(s, dict) for s in sizes]):
-            from cropduster.utils import json
             sizes = json.loads(json.dumps(sizes))
         self.sizes = sizes
         to = kwargs.pop('to', '%s.Image' % cropduster.settings.CROPDUSTER_APP_LABEL)
+        kwargs.update({
+            'upload_to': kwargs.pop('upload_to', None) or cropduster.settings.CROPDUSTER_MEDIA_ROOT,
+        })
         super(CropDusterField, self).__init__(to, verbose_name=verbose_name, **kwargs)
 
-    def save_form_data(self, instance, data):
-        super(CropDusterField, self).save_form_data(instance, data)
-
-        # pre_save returns getattr(instance, self.name), which is itself
-        # the return value of the descriptor's __get__() method.
-        # This method (CropDusterDescriptor.__get__()) has side effects,
-        # for the same reason that the descriptors of ImageField and
-        # GenericForeignKey have side-effects.
-        #
-        # So, although we don't _appear_ to be doing anything with the
-        # value if not(isinstance(data, UploadedFile)), it is still
-        # necessary to call pre_save() for the ImageField part of the
-        # instance's CropDusterField to sync.
-        value = self.pre_save(instance, False)
-
-        # If we have a file uploaded via the fallback ImageField, make
-        # sure that it's saved.
-        if isinstance(data, UploadedFile):
-            if value and isinstance(value, FieldFile) and not value._committed:
-                # save=True saves the instance. Since this field (CropDusterField)
-                # is considered a "related field" by Django, its save_form_data()
-                # gets called after the instance has already been saved. We need
-                # to resave it if we have a new image.
-                value.save(value.name, value, save=True)
-        else:
-            instance.save()
-
     def formfield(self, **kwargs):
-        from cropduster.forms import (
-            cropduster_formfield_factory, cropduster_widget_factory)
-
         factory_kwargs = {
             'sizes': self.sizes,
             'related': self.related,
         }
-        widget = cropduster_widget_factory(**factory_kwargs)
-        formfield = cropduster_formfield_factory(widget=widget, **factory_kwargs)
-        widget.parent_admin = formfield.parent_admin = kwargs.pop('parent_admin', None)
-        widget.request = formfield.request = kwargs.pop('request', None)
+
+        widget = generic_fk_file_widget_factory(CropDusterWidget, **factory_kwargs)
+        formfield = generic_fk_file_formfield_factory(widget=widget, **factory_kwargs)
         kwargs.update({
             'widget': widget,
             'form_class': formfield,
         })
         return super(CropDusterField, self).formfield(**kwargs)
+
+    def get_inline_admin_formset(self, *args, **kwargs):
+        def get_formset(self, request, obj=None):
+            return generic_fk_file_formset_factory(
+                formset=CropDusterInlineFormSet,
+                field=self.field,
+                formset_attrs={'sizes': self.field.sizes},
+                prefix=self.default_prefix)
+
+        return super(CropDusterField, self).get_inline_admin_formset(
+            formset_cls=CropDusterInlineFormSet,
+            attrs={
+                'sizes': self.sizes,
+                'get_formset': get_formset,
+                'field': self,
+        })
 
 
 class ReverseManyRelatedObjectsDescriptor(ReverseManyRelatedObjectsDescriptor):
@@ -84,7 +78,7 @@ class ReverseManyRelatedObjectsDescriptor(ReverseManyRelatedObjectsDescriptor):
         for obj in objs:
             if isinstance(obj, manager.model):
                 if not router.allow_relation(obj, manager.instance):
-                   raise ValueError('Cannot add "%r": instance is on database "%s", value is on database "%s"' %
+                    raise ValueError('Cannot add "%r": instance is on database "%s", value is on database "%s"' %
                                        (obj, manager.instance._state.db, obj._state.db))
                 new_ids.add(obj.pk)
             elif isinstance(obj, models.Model):
@@ -100,7 +94,10 @@ class ReverseManyRelatedObjectsDescriptor(ReverseManyRelatedObjectsDescriptor):
 
         if not self.field.rel.through._meta.auto_created:
             opts = self.field.rel.through._meta
-            raise AttributeError("Cannot set values on a ManyToManyField which specifies an intermediary model.  Use %s.%s's Manager instead." % (opts.app_label, opts.object_name))
+            raise AttributeError((
+                "Cannot set values on a ManyToManyField which specifies an "
+                "intermediary model.  Use %s.%s's Manager instead."
+              ) % (opts.app_label, opts.object_name))
 
         mgr = self.__get__(instance)
         if value:
@@ -159,3 +156,12 @@ class CropDusterThumbField(models.ManyToManyField):
         else:
             target = self.rel.to._meta.db_table
         cls._meta.duplicate_targets[self.column] = (target, "m2m")
+
+    def formfield(self, **kwargs):
+        from cropduster.models import Thumb
+
+        kwargs.update({
+            'form_class': CropDusterThumbFormField,
+            'queryset': Thumb.objects.none(),
+        })
+        return super(CropDusterThumbField, self).formfield(**kwargs)

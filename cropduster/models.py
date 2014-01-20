@@ -406,9 +406,6 @@ def thumbs_added(sender, **kwargs):
 models.signals.m2m_changed.connect(thumbs_added, sender=Image.thumbs.through)
 
 
-from .patch import patch_django
-patch_django()
-
 
 try:
     from cropduster.standalone.models import StandaloneImage
