@@ -5,11 +5,12 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import models
 
+from generic_plus.utils import get_relative_media_url
+
 from cropduster import settings as cropduster_settings
 from cropduster.fields import CropDusterField
 from cropduster.files import VirtualFieldFile
 from cropduster.resizing import Size
-from cropduster.utils import get_relative_media_url
 
 
 class StandaloneImageManager(models.Manager):

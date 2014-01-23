@@ -42,14 +42,15 @@ from django.views.decorators.csrf import csrf_exempt
 
 import PIL.Image
 
+from generic_plus.utils import get_relative_media_url
+
 from cropduster.files import ImageFile
 from cropduster.models import Thumb, Size, StandaloneImage, Image
 from cropduster.settings import (
     CROPDUSTER_PREVIEW_WIDTH as PREVIEW_WIDTH,
     CROPDUSTER_PREVIEW_HEIGHT as PREVIEW_HEIGHT)
 from cropduster.utils import (
-    json, get_relative_media_url, is_animated_gif, has_animated_gif_support,
-    process_image)
+    json, is_animated_gif, has_animated_gif_support, process_image)
 from cropduster.exceptions import json_error, CropDusterResizeException, full_exc_info
 
 from .base import View

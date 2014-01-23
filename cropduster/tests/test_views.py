@@ -6,6 +6,8 @@ from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User
 from django.http import HttpRequest
 
+from generic_plus.utils import get_media_path
+
 from . import CropdusterTestCase
 from .. import views
 from .. import utils
@@ -102,7 +104,7 @@ class TestUpload(CropdusterViewTestRunner):
         request.user = self.user
         response = views.upload(request)
         data = json.loads(response.content)
-        uploaded_img_path = utils.get_media_path(data['url'])
+        uploaded_img_path = get_media_path(data['url'])
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(os.path.exists(uploaded_img_path))

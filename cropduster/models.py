@@ -13,11 +13,12 @@ from django.db import models
 
 import PIL.Image
 
+from generic_plus.utils import get_relative_media_url
+
 from .exceptions import CropDusterResizeException
 from .fields import CropDusterField, CropDusterThumbField
 from .files import VirtualFieldFile
 from .resizing import Size, Box, Crop
-from .utils import get_relative_media_url
 from . import settings as cropduster_settings
 
 

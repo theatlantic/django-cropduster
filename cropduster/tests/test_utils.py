@@ -91,7 +91,7 @@ class TestUtilsPaths(CropdusterTestCase):
         self.assertEqual(get_min_size(sizes), (200, 300))
 
     def test_get_media_path(self):
-        from ..utils import get_media_path
+        from generic_plus.utils import get_media_path
 
         img_name = '/test/some-test-image.jpg'
         from_url = settings.MEDIA_URL + img_name

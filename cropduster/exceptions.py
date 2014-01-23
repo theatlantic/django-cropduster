@@ -66,7 +66,7 @@ def full_exc_info():
 
 
 def format_error(error):
-    from .utils import get_relative_media_url
+    from generic_plus.utils import get_relative_media_url
 
     if isinstance(error, basestring):
         return error

@@ -19,7 +19,7 @@ from django.db.models.fields.files import FieldFile, FileField
 from django.utils.functional import cached_property
 from django.utils.http import urlunquote_plus
 
-from .utils import get_relative_media_url, get_media_path
+from generic_plus.utils import get_relative_media_url, get_media_path
 
 
 class VirtualFieldFile(FieldFile):
