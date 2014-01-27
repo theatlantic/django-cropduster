@@ -1,13 +1,15 @@
 def get_admin_base_template():
     try:
+        import django_admin_mod
+    except ImportError:
+        pass
+    else:
+        return 'admin_mod/base.html'
+
+    try:
         import custom_admin
     except ImportError:
-        try:
-            import admin_mod
-        except ImportError:
-            return 'admin/base.html'
-        else:
-            return 'admin_mod/base.html'
+        return 'admin/base.html'
     else:
         return 'custom_admin/base.html'
 
