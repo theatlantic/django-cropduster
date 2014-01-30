@@ -1,10 +1,20 @@
+.cropduster-form .image,
+.cropduster-form .thumbs,
+.cropduster-form .DELETE,
+.cropduster-form .inline-related .grp-collapse-handler {
+    display: none;
+}
+.cropduster-form .inline-related .grp-module,
+.cropduster-form .inline-related .grp-row {
+    border: none;
+}
+.cropduster-form .inline-related .grp-row input {
+    width: 588px;
+}
 .cropduster-form {
     border: 0 !important;
 }
 
-.cropduster-form fieldset {
-    display: none;
-}
 
 body.cropduster-debug .cropduster-form fieldset {
     display: block;

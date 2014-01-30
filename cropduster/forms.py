@@ -111,7 +111,7 @@ class CropDusterThumbFormField(ModelMultipleChoiceField):
 
 class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
 
-    fields = ('image', 'thumbs',)
+    fields = ('image', 'thumbs', 'attribution', 'attribution_link', 'caption')
 
     def _construct_form(self, i, **kwargs):
         """

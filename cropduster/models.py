@@ -175,6 +175,8 @@ class Image(models.Model):
     date_modified = models.DateTimeField(auto_now=True)
 
     attribution = models.CharField(max_length=255, blank=True, null=True)
+    attribution_link = models.URLField(max_length=255, blank=True, null=True)
+    caption = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         app_label = cropduster_settings.CROPDUSTER_APP_LABEL
