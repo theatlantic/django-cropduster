@@ -1,4 +1,4 @@
-__version_info__ = (4, 3, '0b2')
+__version_info__ = (4, 3, 0)
 __version__ = '.'.join(map(str, __version_info__))
 
 # Import these into module root for API simplicity
