@@ -15,9 +15,11 @@
     border: 0 !important;
 }
 
-
-body.cropduster-debug .cropduster-form fieldset {
-    display: block;
+body.cropduster-debug .cropduster-form .image,
+body.cropduster-debug .cropduster-form .thumbs,
+body.cropduster-debug .cropduster-form .DELETE,
+body.cropduster-debug .cropduster-form .inline-related .grp-collapse-handler {
+    display: block !important;
 }
 
 .cropduster-customfield img{
