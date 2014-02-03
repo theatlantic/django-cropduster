@@ -18,6 +18,10 @@ def get_upload_foldername(file_name, upload_to='%Y/%m'):
         file_name = 'no_name'
     filename = file_field.generate_filename(None, file_name)
     filename = re.sub(r'[_\-]+', '_', filename)
+
+    if isinstance(filename, unicode):
+        filename = filename.encode('utf-8')
+
     root_dir = os.path.splitext(filename)[0]
     root_dir = dir_name = os.path.join(settings.MEDIA_ROOT, root_dir)
     i = 1
