@@ -26,7 +26,7 @@ def get_upload_foldername(file_name, upload_to='%Y/%m'):
     root_dir = dir_name = os.path.join(settings.MEDIA_ROOT, root_dir)
     i = 1
     while os.path.exists(dir_name):
-        dir_name = u'%s-%d' % (root_dir, i)
+        dir_name = '%s-%d' % (root_dir, i)
         i += 1
     os.makedirs(dir_name)
     return dir_name
