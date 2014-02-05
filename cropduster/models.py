@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
+from django.core.files.storage import FileSystemStorage
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 from django.db import models
@@ -146,6 +147,21 @@ class Thumb(models.Model):
         return new_image
 
 
+class StrFileSystemStorage(FileSystemStorage):
+    """Converts paths to byte-strings.
+
+    Linux uses str/bytes for file paths, but Django tries to use unicode.
+    """
+    def path(self, name):
+        path = super(StrFileSystemStorage, self).path(name)
+        if isinstance(path, unicode):
+            path = path.encode('utf-8')
+        return path
+
+
+image_storage = StrFileSystemStorage()
+
+
 class Image(models.Model):
 
     content_type = models.ForeignKey(ContentType)
@@ -163,7 +179,7 @@ class Image(models.Model):
     height = models.PositiveIntegerField(blank=True, null=True)
 
     image = models.ImageField(db_index=True, upload_to=generate_filename, db_column='path',
-        width_field='width', height_field='height')
+        storage=image_storage, width_field='width', height_field='height')
 
     thumbs = CropDusterThumbField(Thumb,
         related_name='image_set',
