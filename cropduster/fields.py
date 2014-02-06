@@ -2,7 +2,7 @@ from django.db import models, router
 from django.db.models.fields.related import (
     add_lazy_relation, create_many_to_many_intermediary_model,
     ReverseManyRelatedObjectsDescriptor)
-from django.db.models.fields.files import ImageFileDescriptor
+from django.db.models.fields.files import ImageFileDescriptor, ImageFieldFile
 from django.utils.functional import curry
 
 from generic_plus.fields import GenericForeignFileField
@@ -15,9 +15,24 @@ from .forms import CropDusterInlineFormSet, CropDusterThumbFormField, CropDuster
 from .utils import json
 
 
+class CropDusterImageFieldFile(ImageFieldFile):
+
+    @property
+    def sizes(self):
+        if callable(self.field.db_field.sizes):
+            return self.field.db_field.sizes(self.instance, related=self.related_object)
+        else:
+            return self.field.db_field.sizes
+
+
+class CropDusterImageField(models.ImageField):
+
+    attr_class = CropDusterImageFieldFile
+
+
 class CropDusterField(GenericForeignFileField):
 
-    file_field_cls = models.ImageField
+    file_field_cls = CropDusterImageField
     file_descriptor_cls = ImageFileDescriptor
     rel_file_field_name = 'image'
 

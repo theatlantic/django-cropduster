@@ -37,13 +37,20 @@ class CropDusterWidget(GenericForeignFileWidget):
 
         thumbs = OrderedDict({})
 
+        sizes = self.sizes
+
+        if callable(sizes):
+            obj = getattr(ctx['instance'], 'content_object', None)
+            sizes_callable = getattr(sizes, 'im_func', sizes)
+            sizes = sizes_callable(obj)
+
         if ctx['value'] and ctx['instance'] is not None:
             for thumb in ctx['instance'].thumbs.all().order_by('-width'):
                 size_name = thumb.name
                 thumbs[size_name] = ctx['instance'].get_image_url(size_name)
 
         ctx.update({
-            'sizes': json.dumps(self.sizes),
+            'sizes': json.dumps(sizes),
             'thumbs': thumbs,
         })
         return ctx
