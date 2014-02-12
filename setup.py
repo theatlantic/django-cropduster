@@ -21,7 +21,7 @@ setup(
         'Pillow',
         'jsonutil',
         'Django>=1.2',
-        'python-xmp-toolkit',
+        'python-xmp-toolkit<2.0.0',
         'django-generic-plus>=1.0.1',
     ],
     include_package_data=True,
