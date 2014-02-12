@@ -255,7 +255,28 @@ class Image(models.Model):
     def save_preview(self, preview_w=None, preview_h=None):
         return Image.save_preview_file(self.image, preview_w=preview_w, preview_h=preview_h)
 
+    def has_thumb(self, size_name):
+        try:
+            self.thumbs.get(name=size_name)
+        except Thumb.DoesNotExist:
+            return False
+        else:
+            return True
+
+    def get_image_filesize(self, size_name='original'):
+        size_name = size_name or 'original'
+        if size_name != 'original' and not self.has_thumb(size_name):
+            return 0
+        return os.path.getsize(self.get_image_path(size_name))
+
+    def get_image_filename(self, size_name='original'):
+        size_name = size_name or 'original'
+        if size_name != 'original' and not self.has_thumb(size_name):
+            return ''
+        return os.path.basename(self.get_image_path(size_name))
+
     def get_image_path(self, size_name='original', tmp=False):
+        size_name = size_name or 'original'
         converted = Image.get_file_for_size(self.image, size_name, tmp=tmp)
         if not converted:
             return u''
