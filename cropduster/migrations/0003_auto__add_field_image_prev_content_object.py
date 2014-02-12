@@ -15,7 +15,10 @@ class Migration(SchemaMigration):
         db.alter_column('cropduster4_image', 'object_id', self.gf('django.db.models.fields.PositiveIntegerField')(null=True, blank=True))
 
         # Removing unique constraint on 'Image', fields ['object_id', 'content_type']
-        db.delete_unique('cropduster4_image', ['object_id', 'content_type_id'])
+        try:
+            db.delete_unique('cropduster4_image', ['object_id', 'content_type_id'])
+        except:
+            pass
 
         # Adding unique constraint on 'Image', fields ['object_id', 'content_type', 'prev_object_id']
         db.create_unique('cropduster4_image', ['object_id', 'content_type_id', 'prev_object_id'])
