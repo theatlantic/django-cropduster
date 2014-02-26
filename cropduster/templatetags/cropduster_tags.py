@@ -7,9 +7,9 @@ def get_crop(image, crop_name, size=None):
     """
     Get the crop of an image. Usage:
 
-    {% get_crop article.image 'square_thumbnail' as size=1 %}
+    {% get_crop article.image 'square_thumbnail' size=1 as img %}
 
-    will return a dictionary of
+    will a dictionary to `img` that looks like:
 
     {
         "url": /media/path/to/my.jpg,
@@ -17,7 +17,9 @@ def get_crop(image, crop_name, size=None):
         "height" 150,
     }
 
-    For use in an image tag or style block.
+    For use in an image tag or style block like:
+
+        <img src="{{ img.url }}">
 
     Omitting the `size` kwarg will omit width and height. You usually want to do this,
     since the size lookup is a database call.
