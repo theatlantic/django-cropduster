@@ -22,7 +22,7 @@ setup(
         'jsonutil',
         'Django>=1.2',
         'python-xmp-toolkit<2.0.0',
-        'django-generic-plus>=1.0.1',
+        'django-generic-plus>=1.0.3',
     ],
     include_package_data=True,
     classifiers=[
