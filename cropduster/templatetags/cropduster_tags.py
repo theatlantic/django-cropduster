@@ -1,5 +1,6 @@
 from django import template
 from cropduster.models import Image
+from cropduster.resizing import Size
 register = template.Library()
 
 @register.assignment_tag
@@ -30,10 +31,24 @@ def get_crop(image, crop_name, size=None, attribution=None):
     Omitting the `attribution` kwarg will omit the attribution, attribution_link,
     and caption.
     """
+    if size:
+        raise DeprecationWarning("The size kwarg is deprecated.")
+
     data = {}
     data['url'] = getattr(Image.get_file_for_size(image, crop_name), 'url', None)
-    if size:
-        data['width'], data['height'] = image.related_object.get_image_size(size_name=crop_name)
+
+    sizes = Size.flatten(image.sizes)
+    try:
+        size = next(size_obj for size_obj in sizes if size_obj.name == crop_name)
+    except StopIteration:
+        pass
+    else:
+        if size.width:
+            data['width'] = size.width
+
+        if size.height:
+            data['height'] = size.height
+
     if attribution:
         data.update({
             "attribution": image.related_object.attribution,
