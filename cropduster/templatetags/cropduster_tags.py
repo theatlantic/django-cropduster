@@ -1,13 +1,14 @@
 from django import template
 from cropduster.models import Image
+from cropduster.resizing import Size
 register = template.Library()
 
 @register.assignment_tag
-def get_crop(image, crop_name, size=None, attribution=None):
+def get_crop(image, crop_name, size=None, attribution=None, exact_size=False):
     """
     Get the crop of an image. Usage:
 
-    {% get_crop article.image 'square_thumbnail' size=1 attribution=1 as img %}
+    {% get_crop article.image 'square_thumbnail' attribution=1 exact_size=1 as img %}
 
     will a dictionary to `img` that looks like:
 
@@ -24,16 +25,36 @@ def get_crop(image, crop_name, size=None, attribution=None):
 
         <img src="{{ img.url }}">
 
-    Omitting the `size` kwarg will omit width and height. You usually want to do this,
-    since the size lookup is a database call.
+    The `size` kwarg is deprecated.
 
     Omitting the `attribution` kwarg will omit the attribution, attribution_link,
     and caption.
+
+    Omitting the `exact_size` kwarg will return the width and/or the height of
+    the crop size that was passed in. Crop sizes do not always require both
+    values so `exact_size` gives you access to the actual size of an image.
     """
+    if size:
+        raise DeprecationWarning("The size kwarg is deprecated.")
+
     data = {}
     data['url'] = getattr(Image.get_file_for_size(image, crop_name), 'url', None)
-    if size:
+
+    if not exact_size:
+        sizes = Size.flatten(image.sizes)
+        try:
+            size = next(size_obj for size_obj in sizes if size_obj.name == crop_name)
+        except StopIteration:
+            pass
+        else:
+            if size.width:
+                data['width'] = size.width
+
+            if size.height:
+                data['height'] = size.height
+    else:
         data['width'], data['height'] = image.related_object.get_image_size(size_name=crop_name)
+
     if attribution:
         data.update({
             "attribution": image.related_object.attribution,
