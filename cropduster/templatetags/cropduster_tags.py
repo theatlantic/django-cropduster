@@ -4,7 +4,7 @@ from cropduster.resizing import Size
 register = template.Library()
 
 @register.assignment_tag
-def get_crop(image, crop_name, size=None, attribution=None):
+def get_crop(image, crop_name, size=None, attribution=None, exact_size=False):
     """
     Get the crop of an image. Usage:
 
@@ -37,17 +37,20 @@ def get_crop(image, crop_name, size=None, attribution=None):
     data = {}
     data['url'] = getattr(Image.get_file_for_size(image, crop_name), 'url', None)
 
-    sizes = Size.flatten(image.sizes)
-    try:
-        size = next(size_obj for size_obj in sizes if size_obj.name == crop_name)
-    except StopIteration:
-        pass
-    else:
-        if size.width:
-            data['width'] = size.width
+    if not exact_size:
+        sizes = Size.flatten(image.sizes)
+        try:
+            size = next(size_obj for size_obj in sizes if size_obj.name == crop_name)
+        except StopIteration:
+            pass
+        else:
+            if size.width:
+                data['width'] = size.width
 
-        if size.height:
-            data['height'] = size.height
+            if size.height:
+                data['height'] = size.height
+    else:
+        data['width'], data['height'] = data['width'], data['height'] = image.related_object.get_image_size(size_name=crop_name)
 
     if attribution:
         data.update({
