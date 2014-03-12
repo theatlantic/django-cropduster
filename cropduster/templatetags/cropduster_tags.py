@@ -8,7 +8,7 @@ def get_crop(image, crop_name, size=None, attribution=None, exact_size=False):
     """
     Get the crop of an image. Usage:
 
-    {% get_crop article.image 'square_thumbnail' size=1 attribution=1 as img %}
+    {% get_crop article.image 'square_thumbnail' attribution=1 exact_size=1 as img %}
 
     will a dictionary to `img` that looks like:
 
@@ -25,11 +25,14 @@ def get_crop(image, crop_name, size=None, attribution=None, exact_size=False):
 
         <img src="{{ img.url }}">
 
-    Omitting the `size` kwarg will omit width and height. You usually want to do this,
-    since the size lookup is a database call.
+    The `size` kwarg is deprecated.
 
     Omitting the `attribution` kwarg will omit the attribution, attribution_link,
     and caption.
+
+    Omitting the `exact_size` kwarg will return the width and/or the height of
+    the crop size that was passed in. Crop sizes do not always require both
+    values so `exact_size` gives you access to the actual size of an image.
     """
     if size:
         raise DeprecationWarning("The size kwarg is deprecated.")
