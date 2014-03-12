@@ -50,7 +50,7 @@ def get_crop(image, crop_name, size=None, attribution=None, exact_size=False):
             if size.height:
                 data['height'] = size.height
     else:
-        data['width'], data['height'] = data['width'], data['height'] = image.related_object.get_image_size(size_name=crop_name)
+        data['width'], data['height'] = image.related_object.get_image_size(size_name=crop_name)
 
     if attribution:
         data.update({
