@@ -254,6 +254,52 @@ window.CropDuster = {};
                     $thumb.html($thumb.html() + $.render.cropdusterImage(thumbData[size.name]));
                 }
             });
+        },
+
+        removeSize: function(prefix, sizeName) {
+            var $selector = $('#id_' + prefix);
+
+            var sizes = $selector.data('sizes');
+
+            for (var i = 0; i < sizes.length; i++) {
+                if (sizes[i].name == sizeName) {
+                    break;
+                }
+            }
+
+            // Check that we found the size we need
+            if (i == sizes.length) {
+                return;
+            }
+
+            // values returned from $.fn.data() are references, so any modifications
+            // we make to the array will persist across calls to $.fn.data()
+            var removedSizes = sizes.splice(i, 1);
+
+            var removedSizesData = $selector.data('removedSizes') || {};
+            if ($.isEmptyObject(removedSizesData)) {
+                $selector.data('removedSizes', removedSizesData);
+            }
+
+            removedSizesData[sizeName] = {
+                index: i,
+                size: removedSizes[0]
+            };
+        },
+
+        restoreSize: function(prefix, sizeName) {
+            var $selector = $('#id_' + prefix);
+            var sizes = $selector.data('sizes');
+            var removedSizesData = $selector.data('removedSizes');
+
+            // If no size with sizeName has yet been removed, return
+            if (!removedSizesData || !removedSizesData[sizeName]) {
+                return;
+            }
+
+            sizeToRestore = removedSizesData[sizeName];
+            sizes.splice(sizeToRestore.index, 0, sizeToRestore.size);
+            delete removedSizesData[sizeName];
         }
 
     };
