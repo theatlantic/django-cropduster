@@ -1,3 +1,5 @@
+import warnings
+
 from django import template
 from cropduster.models import Image
 from cropduster.resizing import Size
@@ -35,7 +37,7 @@ def get_crop(image, crop_name, size=None, attribution=None, exact_size=False):
     values so `exact_size` gives you access to the actual size of an image.
     """
     if size:
-        raise DeprecationWarning("The size kwarg is deprecated.")
+        warnings.warn("The size kwarg is deprecated.", DeprecationWarning)
 
     data = {}
     data['url'] = getattr(Image.get_file_for_size(image, crop_name), 'url', None)
