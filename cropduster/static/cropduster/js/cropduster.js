@@ -138,6 +138,7 @@ window.CropDuster = {};
         registerInput: function(input) {
             var $input = $(input);
             var data = $input.data();
+            data.prefix = $input.attr('id').replace(/^id_/, '');
             var $customField = $input.parent().find('> .cropduster-customfield');
 
             $customField.click(function(e) {
@@ -197,7 +198,7 @@ window.CropDuster = {};
         },
 
         createThumbnails: function(prefix) {
-            $input = $("input[data-prefix='" + prefix + "']");
+            $input = $("#id_" + prefix);
             var data = $input.data();
             if (!$input.length) {
                 return;

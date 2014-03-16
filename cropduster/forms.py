@@ -29,7 +29,7 @@ class CropDusterWidget(GenericForeignFileWidget):
         css = {'all': (u'%scropduster/css/cropduster.css?v=5' % settings.STATIC_URL,)}
         js = (
             u'%scropduster/js/jsrender.js' % settings.STATIC_URL,
-            u'%scropduster/js/cropduster.js?v=5' % settings.STATIC_URL,
+            u'%scropduster/js/cropduster.js?v=6' % settings.STATIC_URL,
         )
 
     def get_context_data(self, name, value, attrs=None, bound_field=None):
