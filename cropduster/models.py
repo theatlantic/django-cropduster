@@ -140,6 +140,8 @@ class Thumb(models.Model):
             elif h:
                 width = crop_box.h * (h / crop_box.h)
                 self.width = min(int(round(width)), crop.bounds.w)
+            else:
+                self.width, self.height = crop.box.size
 
             new_image = crop.create_image(output_filename, width=self.width, height=self.height, max_w=max_w, max_h=max_h)
 
