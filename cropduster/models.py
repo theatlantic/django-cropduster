@@ -138,7 +138,7 @@ class Thumb(models.Model):
                 height = crop_box.h * (w / crop_box.w)
                 self.height = min(int(round(height)), crop.bounds.h)
             elif h:
-                width = crop_box.h * (h / crop_box.h)
+                width = crop_box.w * (h / crop_box.h)
                 self.width = min(int(round(width)), crop.bounds.w)
             else:
                 self.width, self.height = crop.box.size
