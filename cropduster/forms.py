@@ -40,9 +40,10 @@ class CropDusterWidget(GenericForeignFileWidget):
         sizes = self.sizes
 
         if callable(sizes):
-            obj = getattr(ctx['instance'], 'content_object', None)
+            instance = getattr(getattr(bound_field, 'form', None), 'instance', None)
+            related_object = ctx['instance']
             sizes_callable = getattr(sizes, 'im_func', sizes)
-            sizes = sizes_callable(obj)
+            sizes = sizes_callable(instance, related=related_object)
 
         if ctx['value'] and ctx['instance'] is not None:
             for thumb in ctx['instance'].thumbs.all().order_by('-width'):
