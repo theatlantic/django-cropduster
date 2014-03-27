@@ -49,7 +49,7 @@ class CropDusterField(GenericForeignFileField):
 
     def formfield(self, **kwargs):
         factory_kwargs = {
-            'sizes': self.sizes,
+            'sizes': kwargs.pop('sizes', None) or self.sizes,
             'related': self.related,
         }
 
