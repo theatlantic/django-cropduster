@@ -1,5 +1,6 @@
-__version_info__ = (4, 4, 15)
-__version__ = '.'.join(map(str, __version_info__))
+import pkg_resources
 
-# Import these into module root for API simplicity
-from .resizing import Size, Box, Crop
+try:
+    __version__ = pkg_resources.get_distribution('django-cropduster').version
+except pkg_resources.DistributionNotFound:
+    __version__ = None
