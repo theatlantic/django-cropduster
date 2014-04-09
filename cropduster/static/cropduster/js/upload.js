@@ -199,8 +199,8 @@
             } catch(e) {}
             data = $.extend({}, getFormData(), data);
             if (typeof data == 'object' && typeof data.crop == 'object' && data.crop) {
-                this.orig_w = data.crop.orig_w;
-                this.orig_h = data.crop.orig_h;
+                this.orig_w = parseInt(data.crop.orig_w, 10);
+                this.orig_h = parseInt(data.crop.orig_h, 10);
             }
 
             this.index = i;
