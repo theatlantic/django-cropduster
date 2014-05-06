@@ -56,6 +56,8 @@ class CropDusterStandaloneIndex(CropDusterIndex):
         size = getattr(self.image_file.metadata, 'crop_size', None)
         if not size:
             size = Size('crop', max_w=self.max_w)
+        else:
+            size.max_w = self.max_w
         return [size]
 
     @cached_property

@@ -344,7 +344,7 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
 
     var okButton = CKEDITOR.dialog.okButton.override({
         onClick: function(evt) {
-            var $j = cropdusterIframe.$.contentWindow.$;
+            var $j = cropdusterIframe.iframeElement.$.contentWindow.$;
             if ($j) {
                 var $cropButton = $j('#crop-button');
                 if ($j.length && !$cropButton.hasClass('disabled')) {
@@ -365,6 +365,7 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
         html: '<div style="width:100%;text-align:center;">' + '<iframe style="border:0;width:650px;height:500px;font-size:20px" scrolling="no" frameborder="0" allowTransparency="true"></iframe>' + '</div>',
         onLoad: function (widget) {},
         setup: function (widget) {
+
             var dialogElement = this.getDialog().getElement();
             dialogElement.addClass('cke_editor_cropduster_content_dialog');
             var tabs = dialogElement.findOne('.cke_dialog_tabs');
@@ -375,39 +376,51 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
             if (contents) {
                 contents.setStyles({'border-top': '0', 'margin-top': '0'});
             }
-            var domId = this.domId.replace(/_uiElement$/, '');
-            var callback_fn = domId + '_callback';
-            var image = widget.parts.image;
-            var url = widget.config.url + '?';
-            var params = {
-                'callback_fn': callback_fn
-            };
-            if (widget.config.uploadTo) {
-                params['upload_to'] = widget.config.uploadTo;
-            }
-            if (widget.config.previewSize) {
-                if (Object.prototype.toString.call(widget.config.previewSize) == '[object Array]') {
-                    if (widget.config.previewSize.length == 2) {
-                        params['preview_size'] = widget.config.previewSize.join('x');
+
+            cropdusterIframe = {
+                setup: function (domId, baseUrl) {
+                    this.iframeElement = CKEDITOR.document.getById(domId).getChild(0)
+                    this.baseUrl = baseUrl;
+                    this.callback_fn = domId.replace(/_uiElement$/, '') + '_callback';
+
+                    var image = widget.parts.image;
+                    var params = {'callback_fn': this.callback_fn};
+                    if (widget.config.uploadTo) {
+                        params['upload_to'] = widget.config.uploadTo;
                     }
+                    if (widget.config.previewSize) {
+                        if (Object.prototype.toString.call(widget.config.previewSize) == '[object Array]') {
+                            if (widget.config.previewSize.length == 2) {
+                                params['preview_size'] = widget.config.previewSize.join('x');
+                            }
+                        }
+                    }
+                    if (image.$.naturalWidth != image.$.width) {
+                        params['max_w'] = image.$.width;
+                    }
+                    if (widget.data && widget.data.src) {
+                        params['image'] = widget.data.src;
+                    }
+                    if (widget.config.urlParams && isPlainObject(widget.config.urlParams)) {
+                        params = CKEDITOR.tools.extend({}, params, widget.config.urlParams);
+                    }
+                    this.params = params;
+                    this.reload();
+                },
+                getUrl: function () {
+                    var urlQuery = [];
+                    for (var k in this.params) {
+                        urlQuery.push([k, encodeURIComponent(this.params[k])].join('='));
+                    }
+                    return this.baseUrl + urlQuery.join('&');
+                },
+                reload: function () {
+                    var url = this.getUrl();
+                    this.iframeElement.$.src = url;
                 }
             }
-            if (image.$.naturalWidth != image.$.width) {
-                params['max_w'] = image.$.width;
-            }
-            if (widget.data && widget.data.src) {
-                params['image'] = widget.data.src;
-            }
-            if (widget.config.urlParams && isPlainObject(widget.config.urlParams)) {
-                params = CKEDITOR.tools.extend({}, params, widget.config.urlParams);
-            }
-            var url_query = [];
-            for (var k in params) {
-                url_query.push([k, encodeURIComponent(params[k])].join('='));
-            }
-            url += url_query.join('&');
-            cropdusterIframe = CKEDITOR.document.getById(this.domId).getChild(0);
-            cropdusterIframe.$.src = url;
+            cropdusterIframe.setup(this.domId, widget.config.url + '?');
+            widget.cropdusterIframe = cropdusterIframe;
 
             var self = this;
             var callback = function (prefix, data) {
@@ -418,14 +431,14 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
                     heightField.setValue(thumbData.height);
                     widget.setData('height', thumbData.height);
                     srcField.setValue(thumbData.url);
-                    updateValue(url);
+                    updateValue(cropdusterIframe.getUrl());
                 }
                 var dialog = self.getDialog();
                 if (dialog.fire('ok', {hide: true}).hide !== false) {
                     dialog.hide();
                 }
             };
-            window[callback_fn] = callback;
+            window[cropdusterIframe.callback_fn] = callback;
         }
     }, {
         id: 'hasCaption',
