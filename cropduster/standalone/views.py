@@ -1,3 +1,5 @@
+from __future__ import division
+
 from django.utils.functional import cached_property
 
 from cropduster.models import Size, Thumb
