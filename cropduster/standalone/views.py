@@ -2,6 +2,7 @@ from __future__ import division
 
 from django.utils.functional import cached_property
 
+from cropduster.files import VirtualFieldFile
 from cropduster.models import Size, Thumb
 from cropduster.standalone.metadata import MetadataImageFile
 from cropduster.views import CropDusterIndex
@@ -79,7 +80,10 @@ class CropDusterStandaloneIndex(CropDusterIndex):
 
     @cached_property
     def orig_image(self):
-        return self.image_file.get_for_size('original')
+        if self.db_image:
+            return VirtualFieldFile(self.db_image.get_image_path())
+        else:
+            return None
 
 
 index = CropDusterStandaloneIndex.as_view()
