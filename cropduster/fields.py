@@ -62,11 +62,13 @@ class CropDusterField(GenericForeignFileField):
         return super(CropDusterField, self).formfield(**kwargs)
 
     def get_inline_admin_formset(self, *args, **kwargs):
-        def get_formset(self, request, obj=None):
+        def get_formset(self, request, obj=None, **kwargs):
+            formset_attrs = {'sizes': self.field.sizes}
+            formset_attrs.update(kwargs)
             return generic_fk_file_formset_factory(
                 formset=CropDusterInlineFormSet,
                 field=self.field,
-                formset_attrs={'sizes': self.field.sizes},
+                formset_attrs=formset_attrs,
                 prefix=self.default_prefix)
 
         return super(CropDusterField, self).get_inline_admin_formset(
