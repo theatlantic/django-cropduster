@@ -12,10 +12,10 @@ def get_crop(image, crop_name, size=None, attribution=None, exact_size=False):
 
     {% get_crop article.image 'square_thumbnail' attribution=1 exact_size=1 as img %}
 
-    will a dictionary to `img` that looks like:
+    will assign to `img` a dictionary that looks like:
 
     {
-        "url": /media/path/to/my.jpg,
+        "url": '/media/path/to/my.jpg',
         "width": 150,
         "height" 150,
         "attribution": 'Stock Photoz',
