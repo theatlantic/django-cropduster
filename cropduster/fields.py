@@ -1,9 +1,8 @@
-from django.db import models, router
-from django.db.models.fields.related import (
-    add_lazy_relation, create_many_to_many_intermediary_model,
-    ReverseManyRelatedObjectsDescriptor)
+from django.db import models
+from django.db.models.fields import Field
 from django.db.models.fields.files import ImageFileDescriptor, ImageFieldFile
-from django.utils.functional import curry
+from django.db.models.fields.related import ManyToManyRel, ForeignRelatedObjectsDescriptor, ManyToManyField
+from django.db.models.related import RelatedObject
 
 from generic_plus.fields import GenericForeignFileField
 from generic_plus.forms import (
@@ -11,7 +10,7 @@ from generic_plus.forms import (
     generic_fk_file_widget_factory)
 
 import cropduster.settings
-from .forms import CropDusterInlineFormSet, CropDusterThumbFormField, CropDusterWidget
+from .forms import CropDusterInlineFormSet, CropDusterWidget
 from .utils import json
 
 
@@ -80,105 +79,62 @@ class CropDusterField(GenericForeignFileField):
         })
 
 
-class ReverseManyRelatedObjectsDescriptor(ReverseManyRelatedObjectsDescriptor):
-    """
-    Implements the patch at https://code.djangoproject.com/ticket/6707#comment:15
-
-    The effect of this patch is that, unlike current django (~1.6dev), m2m_changed
-    is only fired when the ManyToManyField is passed new through rows, and the
-    list of their ids (pk_set) in the m2m_changed signal is limited only to the
-    through rows being added.
-    """
-
-    def _check_new_ids(self, manager, objs):
-        new_ids = set()
-        for obj in objs:
-            if isinstance(obj, manager.model):
-                if not router.allow_relation(obj, manager.instance):
-                    raise ValueError('Cannot add "%r": instance is on database "%s", value is on database "%s"' %
-                                       (obj, manager.instance._state.db, obj._state.db))
-                new_ids.add(obj.pk)
-            elif isinstance(obj, models.Model):
-                raise TypeError("'%s' instance expected, got %r" % (manager.model._meta.object_name, obj))
-            else:
-                obj = self.field.rel.to._meta.pk.get_prep_value(obj)
-                new_ids.add(obj)
-        return new_ids
-
-    def __set__(self, instance, value):
-        if instance is None:
-            raise AttributeError("Manager must be accessed via instance")
-
-        if not self.field.rel.through._meta.auto_created:
-            opts = self.field.rel.through._meta
-            raise AttributeError((
-                "Cannot set values on a ManyToManyField which specifies an "
-                "intermediary model.  Use %s.%s's Manager instead."
-              ) % (opts.app_label, opts.object_name))
-
-        mgr = self.__get__(instance)
-        if value:
-            new_ids = self._check_new_ids(mgr, value)
-            old_ids = set(self._check_new_ids(mgr, mgr.values_list('pk', flat=True)))
-            mgr.remove(*(old_ids - new_ids))
-            add_ids = new_ids - old_ids
-            # Check for duplicates
-            db = router.db_for_write(self.field.rel.through, instance=instance)
-            vals = mgr.through._default_manager.using(db).values_list(mgr.target_field_name, flat=True)
-            vals = vals.filter(**{
-                mgr.source_field_name: mgr._pk_val,
-                ('%s__in' % mgr.target_field_name): add_ids,
-            })
-            add_ids = add_ids - set(self._check_new_ids(mgr, vals))
-            mgr.add(*add_ids)
-        else:
-            mgr.clear()
+class CropDusterThumbField(ManyToManyField):
+    pass
 
 
-class CropDusterThumbField(models.ManyToManyField):
+class ReverseForeignRelation(ManyToManyField):
+    """Provides an accessor to reverse foreign key related objects"""
+
+    def __init__(self, to, field_name, **kwargs):
+        kwargs['verbose_name'] = kwargs.get('verbose_name', None)
+        kwargs['rel'] = ManyToManyRel(to,
+                            related_name='+',
+                            symmetrical=False,
+                            limit_choices_to=kwargs.pop('limit_choices_to', None),
+                            through=None)
+        self.field_name = field_name
+
+        kwargs['blank'] = True
+        kwargs['editable'] = True
+        kwargs['serialize'] = False
+        Field.__init__(self, **kwargs)
+
+    def m2m_db_table(self):
+        return self.rel.to._meta.db_table
+
+    def m2m_column_name(self):
+        return self.field_name
+
+    def m2m_reverse_name(self):
+        return self.rel.to._meta.pk.column
+
+    def m2m_target_field_name(self):
+        return self.model._meta.pk.name
+
+    def m2m_reverse_target_field_name(self):
+        return self.rel.to._meta.pk.name
 
     def contribute_to_class(self, cls, name):
-        """
-        Identical to super's contribute_to_class, except that it uses the above
-        ReverseManyRelatedObjectsDescriptor as the descriptor class rather
-        than the class in django.db.models.fields.related of the same name
-
-        Besides the setattr(cls, self.name, ...) line, this logic is identical
-        to what can be found in ManyToManyField.contribute_to_class(). We
-        cannot call the super() and then override the descriptor here, because
-        then it would be using ReverseManyRelatedObjectsDescriptor.__set__(),
-        so we need to call the super of ManyToManyField and duplicate all of
-        the logic in ManyToManyField.contribute_to_class().
-        """
-        if self.rel.symmetrical and (self.rel.to in ("self", cls._meta.object_name)):
-            self.rel.related_name = "%s_rel_+" % name
-
-        super(models.ManyToManyField, self).contribute_to_class(cls, name)
-
-        if not self.rel.through and not cls._meta.abstract:
-            self.rel.through = create_many_to_many_intermediary_model(self, cls)
+        self.model = cls
+        super(ManyToManyField, self).contribute_to_class(cls, name)
 
         # Add the descriptor for the m2m relation
-        setattr(cls, self.name, ReverseManyRelatedObjectsDescriptor(self))
+        field = self.rel.to._meta.get_field(self.field_name)
+        setattr(cls, self.name, ForeignRelatedObjectsDescriptor(
+            RelatedObject(cls, self.rel.to, field)))
 
-        self.m2m_db_table = curry(self._get_m2m_db_table, cls._meta)
+    def contribute_to_related_class(self, cls, related):
+        pass
 
-        if isinstance(self.rel.through, basestring):
-            def resolve_through_model(field, model, cls):
-                field.rel.through = model
-            add_lazy_relation(cls, self, self.rel.through, resolve_through_model)
-
-        if isinstance(self.rel.to, basestring):
-            target = self.rel.to
-        else:
-            target = self.rel.to._meta.db_table
-        cls._meta.duplicate_targets[self.column] = (target, "m2m")
+    def get_internal_type(self):
+        return "ManyToManyField"
 
     def formfield(self, **kwargs):
-        from cropduster.models import Thumb
+        from cropduster.forms import CropDusterThumbFormField
 
         kwargs.update({
             'form_class': CropDusterThumbFormField,
-            'queryset': Thumb.objects.none(),
+            'queryset': self.rel.to._default_manager.none(),
         })
-        return super(CropDusterThumbField, self).formfield(**kwargs)
+        return super(ManyToManyField, self).formfield(**kwargs)

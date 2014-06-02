@@ -17,7 +17,7 @@ import PIL.Image
 from generic_plus.utils import get_relative_media_url
 
 from .exceptions import CropDusterResizeException
-from .fields import CropDusterField, CropDusterThumbField
+from .fields import CropDusterField, ReverseForeignRelation
 from .files import VirtualFieldFile
 from .resizing import Size, Box, Crop
 from . import settings as cropduster_settings
@@ -54,12 +54,30 @@ class Thumb(models.Model):
 
     date_modified = models.DateTimeField(auto_now=True)
 
+    image = models.ForeignKey('Image', related_name='+', null=True, blank=True)
+
     class Meta:
         app_label = cropduster_settings.CROPDUSTER_APP_LABEL
         db_table = '%s_thumb' % cropduster_settings.CROPDUSTER_DB_PREFIX
 
     def __unicode__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            try:
+                orig_thumb = Thumb.objects.get(pk=self.pk)
+            except Thumb.DoesNotExist:
+                pass
+            else:
+                if self.image_id and not orig_thumb.image_id:                    
+                    try:
+                        os.rename(
+                            self.image.get_image_path(self.name, tmp=True),
+                            self.image.get_image_path(self.name))
+                    except (IOError, OSError):
+                        pass
+        return super(Thumb, self).save(*args, **kwargs)
 
     def to_dict(self):
         """Returns a dict of the thumb's values which are JSON serializable."""
@@ -87,23 +105,12 @@ class Thumb(models.Model):
                     u"The `original_image` argument is required for"
                     u" thumbnails which have not yet been saved")
 
-            images = self.image_set.all()
-            try:
-                original_image = images[0]
-            except IndexError:
+            if not self.image_id:
                 raise Exception(
                     u"The `original_image` argument is required for"
                     u" thumbnails which are not associated with an image")
-            else:
-                # Throw exception if there is more than one image associated
-                # with the thumb
-                try:
-                    images[1]
-                except IndexError:
-                    pass
-                else:
-                    raise Exception(
-                        u"Thumb has more than one image associated with it")
+
+            original_image = self.image
 
         crop_box = self.get_crop_box()
         if crop_box is None:
@@ -183,11 +190,7 @@ class Image(models.Model):
     image = models.ImageField(db_index=True, upload_to=generate_filename, db_column='path',
         storage=image_storage, width_field='width', height_field='height')
 
-    thumbs = CropDusterThumbField(Thumb,
-        related_name='image_set',
-        verbose_name='thumbs',
-        null=True,
-        blank=True)
+    thumbs = ReverseForeignRelation(Thumb, field_name='image')
 
     date_created = models.DateTimeField(auto_now_add=True)
     date_modified = models.DateTimeField(auto_now=True)
@@ -422,33 +425,6 @@ class Image(models.Model):
         return thumb
 
 
-def thumbs_added(sender, **kwargs):
-    if kwargs.get('action') != 'pre_add':
-        return
-    instance = kwargs.get('instance')
-    pk_set = kwargs.get('pk_set')
-
-    if isinstance(instance, Thumb):
-        thumbs = [instance]
-        image_id = list(pk_set)[0]
-        image = Image.objects.get(pk=image_id)
-    else:
-        thumbs = Thumb.objects.filter(pk__in=pk_set)
-        image = instance
-
-    for thumb in thumbs:
-        try:
-            os.rename(
-                image.get_image_path(thumb.name, tmp=True),
-                image.get_image_path(thumb.name))
-        except (IOError, OSError):
-            pass
-
-
-models.signals.m2m_changed.connect(thumbs_added, sender=Image.thumbs.through)
-
-
-
 try:
     from cropduster.standalone.models import StandaloneImage
 except:
@@ -463,10 +439,12 @@ except:
 
 
 try:
-    from south.modelsinspector import add_introspection_rules
+    from south.modelsinspector import add_introspection_rules, add_ignored_fields
 except ImportError:
     pass
 else:
+    add_ignored_fields(["^cropduster\.fields\.ReverseForeignRelation"])
+
     def converter(value):
         """Custom south converter so that Size objects serialize properly"""
         if isinstance(value, Size):
@@ -495,7 +473,3 @@ else:
             },
         ),
     ], patterns=["^cropduster\.fields\.CropDusterField"])
-
-    add_introspection_rules(
-        rules=[((models.ManyToManyField,), [], {})],
-        patterns=["^cropduster\.fields\.CropDusterThumbField"])

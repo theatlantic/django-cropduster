@@ -1,13 +1,9 @@
-try:
-    from collections import OrderedDict
-except ImportError:
-    from django.utils.datastructures import SortedDict as OrderedDict
-
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.forms.models import ModelChoiceIterator
 from django.forms.util import flatatt
-from django.forms.models import ModelMultipleChoiceField
+from django.forms.models import ChoiceField, ModelMultipleChoiceField
 from django.utils.html import escape, conditional_escape
 from django.utils.encoding import force_unicode
 
@@ -34,27 +30,22 @@ class CropDusterWidget(GenericForeignFileWidget):
 
     def get_context_data(self, name, value, attrs=None, bound_field=None):
         ctx = super(CropDusterWidget, self).get_context_data(name, value, attrs, bound_field)
-
-        thumbs = OrderedDict({})
-
         sizes = self.sizes
-
         if callable(sizes):
             instance = getattr(getattr(bound_field, 'form', None), 'instance', None)
             related_object = ctx['instance']
             sizes_callable = getattr(sizes, 'im_func', sizes)
             sizes = sizes_callable(instance, related=related_object)
-
-        if ctx['value'] and ctx['instance'] is not None:
-            for thumb in ctx['instance'].thumbs.all().order_by('-width'):
-                size_name = thumb.name
-                thumbs[size_name] = ctx['instance'].get_image_url(size_name)
-
         ctx.update({
             'sizes': json.dumps(sizes),
-            'thumbs': thumbs,
         })
         return ctx
+
+
+class ThumbChoiceIterator(ModelChoiceIterator):
+
+    def choice(self, obj):
+        return (obj, self.field.label_from_instance(obj))
 
 
 class CropDusterThumbWidget(forms.SelectMultiple):
@@ -67,15 +58,20 @@ class CropDusterThumbWidget(forms.SelectMultiple):
 
     def render_option(self, selected_choices, option_value, option_label):
         attrs = {}
-        try:
-            thumb = self.model.objects.get(pk=option_value)
-        except (TypeError, self.model.DoesNotExist):
-            pass
+        if isinstance(option_value, self.model):
+            thumb = option_value
+            option_value = thumb.pk
         else:
+            try:
+                thumb = self.model.objects.get(pk=option_value)
+            except (TypeError, self.model.DoesNotExist):
+                thumb = None
+
+        if thumb:
             # If the thumb has no images associated with it then
             # it has not yet been saved, and so its file path has
             # '_tmp' appended before the extension.
-            use_tmp_file = not(thumb.image_set.all().count())
+            use_tmp_file = not(thumb.image_id)
             attrs = {
                 'data-width': thumb.width,
                 'data-height': thumb.height,
@@ -116,6 +112,13 @@ class CropDusterThumbFormField(ModelMultipleChoiceField):
                 raise
         return value
 
+    def _get_choices(self):
+        if hasattr(self, '_choices'):
+            return self._choices
+        return ThumbChoiceIterator(self)
+
+    choices = property(_get_choices, ChoiceField._set_choices)
+
 
 class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
 
@@ -126,20 +129,15 @@ class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
         Limit the queryset of the thumbs for performance reasons (so that it doesn't
         pull in every available thumbnail into the selectbox)
         """
-        from cropduster.models import Image, Thumb
+        from cropduster.models import Thumb
 
         form = super(CropDusterInlineFormSet, self)._construct_form(i, **kwargs)
 
-        try:
-            instance = Image.objects.get(pk=form['id'].value())
-        except (ValueError, Image.DoesNotExist):
-            instance = None
-
         thumbs_field = form.fields['thumbs']
 
-        if instance:
+        if form.instance and form.instance.pk:
             # Set the queryset to the current list of thumbs on the image
-            thumbs_field.queryset = instance.thumbs.get_query_set()
+            thumbs_field.queryset = form.instance.thumbs.get_query_set()
         else:
             # Start with an empty queryset
             thumbs_field.queryset = Thumb.objects.none()

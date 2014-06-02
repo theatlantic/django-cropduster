@@ -296,12 +296,10 @@ class Crop(object):
         elif isinstance(cropped_image, FieldFile):
             image_path = cropped_image.path
         elif isinstance(cropped_image, Thumb):
-            try:
-                image = cropped_image.image_set.all()[0]
-            except IndexError:
+            image = cropped_image.image
+            if not cropped_image:
                 return False
-            else:
-                image_path = image.get_image_path(cropped_image.name)
+            image_path = image.get_image_path(cropped_image.name)
         elif isinstance(cropped_image, basestring):
             image_path = cropped_image
 
