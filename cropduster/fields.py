@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, DEFAULT_DB_ALIAS
 from django.db.models.fields import Field
 from django.db.models.fields.files import ImageFileDescriptor, ImageFieldFile
 from django.db.models.fields.related import ManyToManyRel, ForeignRelatedObjectsDescriptor, ManyToManyField
@@ -138,3 +138,12 @@ class ReverseForeignRelation(ManyToManyField):
             'queryset': self.rel.to._default_manager.none(),
         })
         return super(ManyToManyField, self).formfield(**kwargs)
+
+    def bulk_related_objects(self, objs, using=DEFAULT_DB_ALIAS):
+        """
+        Return all objects related to ``objs`` via this ``ReverseForeignRelation``.
+        """
+        rel_field_attname = self.rel.to._meta.get_field(self.field_name).attname
+        return self.rel.to._base_manager.db_manager(using).filter(**{
+            '%s__in' % rel_field_attname: [obj.pk for obj in objs]
+        })
