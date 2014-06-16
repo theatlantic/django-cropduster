@@ -1,8 +1,10 @@
-from django.db import models, DEFAULT_DB_ALIAS
+from operator import attrgetter
+
+from django.db import router, models, DEFAULT_DB_ALIAS
 from django.db.models.fields import Field
 from django.db.models.fields.files import ImageFileDescriptor, ImageFieldFile
-from django.db.models.fields.related import ManyToManyRel, ForeignRelatedObjectsDescriptor, ManyToManyField
-from django.db.models.related import RelatedObject
+from django.db.models.fields.related import ManyToManyRel, ManyToManyField
+from django.utils.functional import cached_property
 
 from generic_plus.fields import GenericForeignFileField
 from generic_plus.forms import (
@@ -10,7 +12,7 @@ from generic_plus.forms import (
     generic_fk_file_widget_factory)
 
 import cropduster.settings
-from .forms import CropDusterInlineFormSet, CropDusterWidget
+from .forms import CropDusterInlineFormSet, CropDusterWidget, CropDusterThumbFormField
 from .utils import json
 
 
@@ -83,14 +85,116 @@ class CropDusterThumbField(ManyToManyField):
     pass
 
 
+class ReverseForeignRelatedObjectsDescriptor(object):
+
+    def __init__(self, field):
+        self.field = field
+
+    def __get__(self, instance, instance_type=None):
+        if instance is None:
+            return self
+
+        return self.related_manager_cls(instance)
+
+    def __set__(self, instance, value):
+        if instance is None:
+            raise AttributeError("Manager must be accessed via instance")
+
+        manager = self.__get__(instance)
+        # If the foreign key can support nulls, then completely clear the related set.
+        # Otherwise, just move the named objects into the set.
+        rel_field = self.field.rel.to._meta.get_field(self.field.field_name)
+        if rel_field.null:
+            manager.clear()
+        manager.add(*value)
+
+    @cached_property
+    def related_manager_cls(self):
+        # Dynamically create a class that subclasses the related model's default
+        # manager.
+        rel_field = self.field.rel.to._meta.get_field(self.field.field_name)
+        rel_model = self.field.rel.to
+        superclass = rel_model._default_manager.__class__
+        attname = rel_field.rel.get_related_field().attname
+
+        class RelatedManager(superclass):
+            def __init__(self, instance):
+                super(RelatedManager, self).__init__()
+                self.instance = instance
+                self.core_filters = {
+                    '%s__%s' % (rel_field.name, attname): getattr(instance, attname)
+                }
+                self.model = rel_model
+
+            def get_query_set(self):
+                try:
+                    return self.instance._prefetched_objects_cache[rel_field.related_query_name()]
+                except (AttributeError, KeyError):
+                    db = self._db or router.db_for_read(self.model, instance=self.instance)
+                    return super(RelatedManager, self).get_query_set().using(db).filter(**self.core_filters)
+
+            def get_prefetch_query_set(self, instances):
+                db = self._db or router.db_for_read(self.model, instance=instances[0])
+                query = {'%s__%s__in' % (rel_field.name, attname):
+                             set(getattr(obj, attname) for obj in instances)}
+                qs = super(RelatedManager, self).get_query_set().using(db).filter(**query)
+                return (qs,
+                        attrgetter(rel_field.get_attname()),
+                        attrgetter(attname),
+                        False,
+                        rel_field.related_query_name())
+
+            def add(self, *objs):
+                for obj in objs:
+                    if not isinstance(obj, self.model):
+                        raise TypeError("'%s' instance expected, got %r" % (self.model._meta.object_name, obj))
+                    setattr(obj, rel_field.name, self.instance)
+                    obj.save()
+            add.alters_data = True
+
+            def create(self, **kwargs):
+                kwargs[rel_field.name] = self.instance
+                db = router.db_for_write(self.model, instance=self.instance)
+                return super(RelatedManager, self.db_manager(db)).create(**kwargs)
+            create.alters_data = True
+
+            def get_or_create(self, **kwargs):
+                # Update kwargs with the related object that this
+                # ReverseForeignRelatedObjectsDescriptor knows about.
+                kwargs[rel_field.name] = self.instance
+                db = router.db_for_write(self.model, instance=self.instance)
+                return super(RelatedManager, self.db_manager(db)).get_or_create(**kwargs)
+            get_or_create.alters_data = True
+
+            # remove() and clear() are only provided if the ForeignKey can have a value of null.
+            if rel_field.null:
+                def remove(self, *objs):
+                    val = getattr(self.instance, attname)
+                    for obj in objs:
+                        # Is obj actually part of this descriptor set?
+                        if getattr(obj, rel_field.attname) == val:
+                            setattr(obj, rel_field.name, None)
+                            obj.save()
+                        else:
+                            raise rel_field.rel.to.DoesNotExist("%r is not related to %r." % (obj, self.instance))
+                remove.alters_data = True
+
+                def clear(self):
+                    self.update(**{rel_field.name: None})
+                clear.alters_data = True
+
+        return RelatedManager
+
+
+
 class ReverseForeignRelation(ManyToManyField):
     """Provides an accessor to reverse foreign key related objects"""
 
     def __init__(self, to, field_name, **kwargs):
         kwargs['verbose_name'] = kwargs.get('verbose_name', None)
         kwargs['rel'] = ManyToManyRel(to,
-                            related_name='+',
-                            symmetrical=False,
+                            related_name=None,
+                            symmetrical=True,
                             limit_choices_to=kwargs.pop('limit_choices_to', None),
                             through=None)
         self.field_name = field_name
@@ -99,6 +203,9 @@ class ReverseForeignRelation(ManyToManyField):
         kwargs['editable'] = True
         kwargs['serialize'] = False
         Field.__init__(self, **kwargs)
+
+    def is_hidden(self):
+        return True
 
     def m2m_db_table(self):
         return self.rel.to._meta.db_table
@@ -119,10 +226,8 @@ class ReverseForeignRelation(ManyToManyField):
         self.model = cls
         super(ManyToManyField, self).contribute_to_class(cls, name)
 
-        # Add the descriptor for the m2m relation
-        field = self.rel.to._meta.get_field(self.field_name)
-        setattr(cls, self.name, ForeignRelatedObjectsDescriptor(
-            RelatedObject(cls, self.rel.to, field)))
+        # Add the descriptor for the reverse fk relation
+        setattr(cls, self.name, ReverseForeignRelatedObjectsDescriptor(self))
 
     def contribute_to_related_class(self, cls, related):
         pass
@@ -131,8 +236,6 @@ class ReverseForeignRelation(ManyToManyField):
         return "ManyToManyField"
 
     def formfield(self, **kwargs):
-        from cropduster.forms import CropDusterThumbFormField
-
         kwargs.update({
             'form_class': CropDusterThumbFormField,
             'queryset': self.rel.to._default_manager.none(),
@@ -147,3 +250,9 @@ class ReverseForeignRelation(ManyToManyField):
         return self.rel.to._base_manager.db_manager(using).filter(**{
             '%s__in' % rel_field_attname: [obj.pk for obj in objs]
         })
+
+    def related_query_name(self):
+        # This method defines the name that can be used to identify this
+        # related object in a table-spanning query. It uses the lower-cased
+        # object_name followed by '+', which prevents its actual use.
+        return '%s+' % self.opts.object_name.lower()
