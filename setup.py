@@ -10,7 +10,7 @@ except ImportError:
 
 setup(
     name='django-cropduster',
-    version='4.5.3',
+    version='4.5.4',
     author='The Atlantic',
     author_email='atmoprogrammers@theatlantic.com',
     url='http://github.com/theatlantic/django-cropduster',
@@ -22,7 +22,7 @@ setup(
         'jsonutil',
         'Django>=1.2',
         'python-xmp-toolkit<2.0.0',
-        'django-generic-plus>=1.0.3',
+        'django-generic-plus>=1.0.9',
     ],
     include_package_data=True,
     classifiers=[
