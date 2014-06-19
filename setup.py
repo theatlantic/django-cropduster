@@ -22,7 +22,7 @@ setup(
     author_email='programmers@theatlantic.com',
     url='https://github.com/theatlantic/django-cropduster',
     description='Django image uploader and cropping tool',
-    packages=find_packages(),
+    packages=['cropduster'],
     zip_safe=False,
     install_requires=[
         'Pillow',
