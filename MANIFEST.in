@@ -1,5 +1,7 @@
 include LICENSE
 include LICENSE.Jcrop.txt
 include README.md
+recursive-include cropduster/standalone/static *
 recursive-include cropduster/static *
 recursive-include cropduster/templates *
+recursive-include cropduster/tests/data *
