@@ -1,10 +1,19 @@
 django-cropduster
 =================
 
-**django-cropduster** is a project that makes available a form field available that
-use the [Jcrop jQuery plugin](https://github.com/tapmodo/Jcrop). It is a drop-in
+**django-cropduster** is a project that makes a form field available that
+uses the [Jcrop jQuery plugin](https://github.com/tapmodo/Jcrop). It is a drop-in
 replacement for django's `ImageField` and allows users to generate multiple crops
-from images using predefined sizes and aspect ratios. **django-cropduster** was created by developers at [The Atlantic](http://www.theatlantic.com/).
+from images, using predefined sizes and aspect ratios. **django-cropduster**
+was created by developers at [The Atlantic](http://www.theatlantic.com/).
+
+**django-cropduster** is a mature library currently in production at
+[The Atlantic](http://www.theatlantic.com/). However, the documentation at present is
+far from adequate. Until there is sufficiently detailed documentation we
+encourage any developers who have an interest in the project but are encountering
+difficulties using it to create issues on the
+[GitHub project page](https://github.com/theatlantic/django-cropduster) requesting
+assistance.
 
 * [Installation](#installation)
 * [Configuration](#configuration)
@@ -13,19 +22,24 @@ from images using predefined sizes and aspect ratios. **django-cropduster** was 
 Installation
 ------------
 
-The recommended way to install with pip from source:
+The recommended way to install django-cropduster is from [PyPI](https://pypi.python.org/pypi/django-cropduster):
+
+        pip install django-cropduster
+
+Alternatively, one can install a development copy of django-cropduster from source:
 
         pip install -e git+git://github.com/theatlantic/django-cropduster.git#egg=django-cropduster
 
-If the source is already checked out, use setuptools:
+If you are working from source, ensure that you have django-cropduster checked out to the `v4` branch. If
+the source is already checked out, use setuptools:
 
         python setup.py develop
 
 Configuration
 -------------
 
-To enable django-cropduster, `"cropduster"` must be added to INSTALLED_APPS in
-settings.py and adding `cropduster.urls` to your django urls.
+To enable django-cropduster, `"cropduster"` must be added to `INSTALLED_APPS` in
+settings.py and you must include `cropduster.urls` in your django urlpatterns.
 
 ```python
 # settings.py

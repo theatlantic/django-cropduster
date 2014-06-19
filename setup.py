@@ -8,13 +8,20 @@ except ImportError:
     from setuptools import setup, find_packages
 
 
+setup_kwargs = {}
+
+try:
+    setup_kwargs['long_description'] = open('README.rst').read()
+except IOError:
+    pass
+
 setup(
     name='django-cropduster',
     version='4.5.4',
     author='The Atlantic',
-    author_email='atmoprogrammers@theatlantic.com',
-    url='http://github.com/theatlantic/django-cropduster',
-    description='Image uploader and cropping tool',
+    author_email='programmers@theatlantic.com',
+    url='https://github.com/theatlantic/django-cropduster',
+    description='Django image uploader and cropping tool',
     packages=find_packages(),
     zip_safe=False,
     install_requires=[
@@ -26,10 +33,11 @@ setup(
     ],
     include_package_data=True,
     classifiers=[
+        'Programming Language :: Python',
         'Framework :: Django',
         'Intended Audience :: Developers',
         'Intended Audience :: System Administrators',
         'Operating System :: OS Independent',
         'Topic :: Software Development'
     ],
-)
+    **setup_kwargs)
