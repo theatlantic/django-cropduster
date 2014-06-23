@@ -17,6 +17,7 @@ assistance.
 
 * [Installation](#installation)
 * [Configuration](#configuration)
+* [Documentation & Examples](#documentation--examples)
 * [License](#license)
 
 Installation
@@ -55,6 +56,41 @@ urlpatterns = patterns('',
     # ...
     url(r'^cropduster/', include('cropduster.urls')),
 )
+```
+
+Documentation & Examples
+------------------------
+
+    class Size(name, [label=None, w=None, h=None, retina=False, auto=None,
+        min_w=None, min_h=None, max_w=None, max_h=None])
+
+Use `Size` to create a crop with specified dimensions.  Use the `auto` parameter to setup other `Size` crops based on the container `Size`.
+
+
+
+The `CropDusterField` is used much like the Django built in `ImageField`, but with the CropDuster `sizes` parameter, which accepts a `Size` object.
+An example models.py:
+
+```python
+#models.py
+
+from cropduster.models import CropDusterField, Size
+
+class ExampleModel(models.Model):
+    MODEL_SIZES = [
+        # array of Size objects for initial crop
+        Size("large", w=210, auto=[
+            # array of Size objects auto cropped based on container Size
+            Size('larger', w=768),
+            Size('medium', w=85, h=113),
+            # more sub Size objects ...
+        ]),
+        # more initial crop Size objects ...
+    ]
+
+    image = CropDusterField(u"Image", max_length=255, upload_to="your/path/goes/here",
+        null=True, default="", sizes=MODEL_SIZES)
+    # other fields ...
 ```
 
 License
