@@ -66,7 +66,7 @@ class Thumb(models.Model):
     def save(self, *args, **kwargs):
         if self.pk:
             try:
-                orig_thumb = Thumb.objects.get(pk=self.pk)
+                orig_thumb = Thumb.objects.select_for_update().get(pk=self.pk)
             except Thumb.DoesNotExist:
                 pass
             else:
