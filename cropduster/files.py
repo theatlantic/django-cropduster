@@ -25,6 +25,7 @@ class VirtualFieldFile(FieldFile):
         self.instance = None
         self.field = FileField(name='file', upload_to=upload_to, storage=storage)
         self.storage = self.field.storage
+        self._committed = True
 
     def get_directory_name(self):
         return self.field.get_directory_name()
@@ -75,6 +76,7 @@ class ImageFile(VirtualFieldFile):
         self.metadata = {}
 
         if not path:
+            self.name = None
             return
 
         if '%' in path:
