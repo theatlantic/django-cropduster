@@ -1,3 +1,11 @@
+body.cropduster-upload-form.grp-popup #grp-content {
+    top: 0;
+}
+
+body.cropduster-upload-form .module, body.cropduster-upload-form .grp-module {
+    float: none;
+}
+
 body.cropduster-upload-form ul.messagelist,
 body.cropduster-upload-form ul.grp-messagelist {
     overflow: hidden;
@@ -182,7 +190,7 @@ body.cropduster-upload-form #nav-right.rounded-button:active {
 }
 
 body.cropduster-upload-form h1#step-header {
-    margin: 24px 0 8px;
+    margin: 0 0 8px;
 }
 
 body.cropduster-upload-form #content-main {

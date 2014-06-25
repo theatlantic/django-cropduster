@@ -1,4 +1,5 @@
-{% load i18n adminmedia %}
+{% load i18n %}
+{% load url from future %}
 
 <input type="hidden" id="{{ final_attrs.id }}-0-id" name="{{ final_attrs.name }}-0-id" value="{{ final_attrs.value }}"/>
 <input type="text"
@@ -9,7 +10,7 @@
        data-sizes="{{ sizes }}"
        data-upload-to="{{ upload_to }}"/>
 
-<a href="#" class="cropduster-customfield cropduster-upload-form" data-cropduster-url="{% url cropduster-index %}?pop=1">
+<a href="#" class="cropduster-customfield cropduster-upload-form" data-cropduster-url="{% url 'cropduster-index' %}?pop=1">
     <div class="rounded-button">Upload Image</div>
     <div style="clear:both; height:3px"></div>
 </a>
