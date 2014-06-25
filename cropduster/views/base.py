@@ -1,7 +1,11 @@
 from functools import update_wrapper
+
+import six
+
 from django import http
 from django.utils.log import getLogger
 from django.utils.decorators import classonlymethod
+
 
 logger = getLogger('django.request')
 
@@ -21,7 +25,7 @@ class View(object):
         """
         # Go through keyword arguments, and either save their values to our
         # instance, or raise an error.
-        for key, value in kwargs.iteritems():
+        for key, value in six.iteritems(kwargs):
             setattr(self, key, value)
 
     @classonlymethod

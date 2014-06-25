@@ -1,5 +1,9 @@
 from __future__ import division
 
+import six
+
+from six.moves import xrange
+
 import os
 import tempfile
 import warnings
@@ -41,7 +45,7 @@ def get_image_extension(img):
     if img.format in IMAGE_EXTENSIONS:
         return IMAGE_EXTENSIONS[img.format]
     else:
-        for ext, format in PIL.Image.EXTENSION.iteritems():
+        for ext, format in six.iteritems(PIL.Image.EXTENSION):
             if format == img.format:
                 return ext
         # Our fallback is the PIL format name in lowercase,
@@ -150,7 +154,7 @@ def process_image(im, save_filename=None, callback=lambda i: i, nq=0, save_param
                 except IndexError:
                     pass
                 else:
-                    dispose = ord(dispose_byte) >> 2
+                    dispose = six.byte2int(dispose_byte) >> 2
 
             images = read_gif(filename, as_numpy=False)
 
@@ -198,7 +202,7 @@ def smart_resize(im, final_w, final_h):
     # (Libjpg-Turbo has optimizations for resizing images by a ratio of eights)
     (goal_w, goal_h) = (final_w * 1.5, final_h * 1.5)
     # Ratios from 1/8, 2/8... 7/8
-    for i in range(1, 8):
+    for i in xrange(1, 8):
         ratio = i / 8
         scaled_w = orig_w * ratio
         scaled_h = orig_h * ratio

@@ -1,5 +1,7 @@
 from __future__ import division
 
+import six
+
 import os
 import hashlib
 
@@ -12,8 +14,12 @@ from django.forms.forms import NON_FIELD_ERRORS
 from django.forms.models import BaseModelFormSet
 from django.forms.util import ErrorDict as _ErrorDict
 from django.utils.html import conditional_escape
-from django.utils.encoding import force_unicode
 from django.utils.safestring import mark_safe
+
+try:
+    from django.utils.encoding import force_unicode
+except ImportError:
+    from django.utils.encoding import force_text as force_unicode
 
 from cropduster.models import Thumb
 from cropduster.utils import (json, get_upload_foldername, get_min_size,
@@ -41,7 +47,7 @@ def clean_upload_data(data):
         pil_image = PIL.Image.open(image)
     except IOError as e:
         if e.errno:
-            error_msg = unicode(e)
+            error_msg = force_unicode(e)
         else:
             error_msg = u"Invalid or unsupported image file"
         raise forms.ValidationError({"image": [error_msg]})
@@ -99,7 +105,7 @@ class FormattedErrorMixin(object):
             self._errors = e.update_error_dict(self._errors)
             # Wrap newly updated self._errors values in self.error_class
             # (defaults to django.forms.util.ErrorList)
-            for k, v in self._errors.iteritems():
+            for k, v in six.iteritems(self._errors):
                 if isinstance(v, list) and not isinstance(v, self.error_class):
                     self._errors[k] = self.error_class(v)
             if not isinstance(self._errors, _ErrorDict):

@@ -1,5 +1,9 @@
 from __future__ import division
 
+import six
+
+from six.moves import xrange
+
 import hashlib
 import random
 import types
@@ -31,7 +35,7 @@ def safe_str_path(file_path):
     Convert unicode paths to bytestrings so that os.path does not throw
     string conversion errors
     """
-    if isinstance(file_path, unicode):
+    if six.PY2 and isinstance(file_path, unicode):
         return file_path.encode('utf-8')
     return file_path
 
@@ -82,8 +86,10 @@ class Thumb(models.Model):
     def to_dict(self):
         """Returns a dict of the thumb's values which are JSON serializable."""
         dct = {}
-        for k, v in vars(self).iteritems():
-            if isinstance(v, (basestring, int, long, float, bool, types.NoneType)):
+        for k, v in six.iteritems(vars(self)):
+            if isinstance(v, (six.string_types, float, bool, types.NoneType)):
+                dct[k] = v
+            if isinstance(v, six.integer_types):
                 dct[k] = v
         return dct
 
@@ -163,7 +169,7 @@ class StrFileSystemStorage(FileSystemStorage):
     """
     def path(self, name):
         path = super(StrFileSystemStorage, self).path(name)
-        if isinstance(path, unicode):
+        if six.PY2 and isinstance(path, unicode):
             path = path.encode('utf-8')
         return path
 
@@ -220,7 +226,7 @@ class Image(models.Model):
 
     @staticmethod
     def get_file_for_size(image, size_name='original', tmp=False):
-        if isinstance(image, basestring):
+        if isinstance(image, six.string_types):
             image = VirtualFieldFile(image)
         if not image:
             return None
@@ -433,8 +439,8 @@ except:
         def __nonzero__(cls): return False
         __bool__ = __nonzero__
 
+    @six.add_metaclass(FalseMeta)
     class StandaloneImage(object):
-        __metaclass__ = FalseMeta
         DoesNotExist = type('DoesNotExist', (ObjectDoesNotExist,), {})
 
 

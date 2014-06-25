@@ -1,9 +1,14 @@
 import warnings
 
+import six
+
 from django import template
 from cropduster.models import Image
 from cropduster.resizing import Size
+
+
 register = template.Library()
+
 
 @register.assignment_tag
 def get_crop(image, crop_name, size=None, attribution=None, exact_size=False):
@@ -45,7 +50,7 @@ def get_crop(image, crop_name, size=None, attribution=None, exact_size=False):
     if not exact_size:
         sizes = Size.flatten(image.sizes)
         try:
-            size = next(size_obj for size_obj in sizes if size_obj.name == crop_name)
+            size = six.next(size_obj for size_obj in sizes if size_obj.name == crop_name)
         except StopIteration:
             pass
         else:

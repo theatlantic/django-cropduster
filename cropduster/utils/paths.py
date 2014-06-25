@@ -1,3 +1,7 @@
+from __future__ import unicode_literals
+
+import six
+
 import os
 import re
 
@@ -19,14 +23,17 @@ def get_upload_foldername(file_name, upload_to='%Y/%m'):
     filename = file_field.generate_filename(None, file_name)
     filename = re.sub(r'[_\-]+', '_', filename)
 
-    if isinstance(filename, unicode):
+    if six.PY2 and isinstance(filename, unicode):
         filename = filename.encode('utf-8')
 
     root_dir = os.path.splitext(filename)[0]
     root_dir = dir_name = os.path.join(settings.MEDIA_ROOT, root_dir)
     i = 1
     while os.path.exists(dir_name):
-        dir_name = '%s-%d' % (root_dir, i)
+        if six.PY2:
+            dir_name = b'%s-%d' % (root_dir, i)
+        else:
+            dir_name = '%s-%d' % (root_dir, i)
         i += 1
     os.makedirs(dir_name)
     return dir_name
