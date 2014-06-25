@@ -26,6 +26,10 @@ back onto fields on the index page's forms / formsets.
 """
 from __future__ import division
 
+import six
+
+from six.moves import filter, map, zip
+
 import os
 import copy
 import shutil
@@ -39,6 +43,11 @@ from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.utils.functional import cached_property
 from django.views.decorators.csrf import csrf_exempt
+
+try:
+    from django.utils.encoding import force_unicode
+except ImportError:
+    from django.utils.encoding import force_text as force_unicode
 
 import PIL.Image
 
@@ -207,13 +216,13 @@ def upload(request):
     if not form.is_valid():
         errors = form['image'].errors or form.errors
         return json_error(request, 'upload', action="uploading file",
-                errors=[unicode(errors)])
+                errors=[force_unicode(errors)])
 
     form_data = form.cleaned_data
     is_standalone = bool(form_data.get('standalone'))
 
     orig_file_path = form_data['image'].name
-    if isinstance(orig_file_path, unicode):
+    if six.PY2 and isinstance(orig_file_path, unicode):
         orig_file_path = orig_file_path.encode('utf-8')
     orig_image = get_relative_media_url(orig_file_path)
     img = PIL.Image.open(orig_file_path)
@@ -369,7 +378,7 @@ def crop(request):
                 new_thumbs = db_image.save_size(size, thumb, tmp=True, standalone=standalone_mode)
             except CropDusterResizeException as e:
                 return json_error(request, 'crop',
-                                  action="saving size", errors=[unicode(e)])
+                                  action="saving size", errors=[force_unicode(e)])
 
             if not new_thumbs:
                 continue
@@ -389,7 +398,7 @@ def crop(request):
                 'url': db_image.get_image_url(thumb.name),
             })
 
-            for name, new_thumb in new_thumbs.iteritems():
+            for name, new_thumb in six.iteritems(new_thumbs):
                 thumb_data = dict([(k, getattr(new_thumb, k)) for k in json_thumb_fields])
                 crop_data['thumbs'].update({name: thumb_data})
                 if new_thumb.reference_thumb_id:

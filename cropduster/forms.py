@@ -1,3 +1,7 @@
+import six
+
+from six.moves import map
+
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -5,7 +9,11 @@ from django.forms.models import ModelChoiceIterator
 from django.forms.util import flatatt
 from django.forms.models import ChoiceField, ModelMultipleChoiceField
 from django.utils.html import escape, conditional_escape
-from django.utils.encoding import force_unicode
+
+try:
+    from django.utils.encoding import force_unicode
+except ImportError:
+    from django.utils.encoding import force_text as force_unicode
 
 from generic_plus.forms import BaseGenericFileInlineFormSet, GenericForeignFileWidget
 
@@ -31,7 +39,7 @@ class CropDusterWidget(GenericForeignFileWidget):
     def get_context_data(self, name, value, attrs=None, bound_field=None):
         ctx = super(CropDusterWidget, self).get_context_data(name, value, attrs, bound_field)
         sizes = self.sizes
-        if callable(sizes):
+        if six.callable(sizes):
             instance = getattr(getattr(bound_field, 'form', None), 'instance', None)
             related_object = ctx['instance']
             sizes_callable = getattr(sizes, 'im_func', sizes)
@@ -105,7 +113,7 @@ class CropDusterThumbFormField(ModelMultipleChoiceField):
         """
         try:
             value = super(CropDusterThumbFormField, self).clean(value)
-        except ValidationError, e:
+        except ValidationError as e:
             if self.error_messages['required'] in e.messages:
                 raise
             elif self.error_messages['list'] in e.messages:

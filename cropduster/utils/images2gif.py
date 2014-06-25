@@ -64,6 +64,10 @@ Useful links
 """
 from __future__ import division
 
+import six
+
+from six.moves import zip, range
+
 import os
 import logging
 
@@ -130,7 +134,7 @@ def check_images(images):
             else:
                 raise ValueError('This array can not represent an image.')
         else:
-            raise ValueError('Invalid image type: ' + str(type(im)))
+            raise ValueError('Invalid image type: ' + six.text_type(type(im)))
 
     # Done
     return images2
@@ -142,7 +146,7 @@ def itob(i):
     i1 = i % 256
     i2 = int(i / 256)
     # make string (little endian)
-    return chr(i1) + chr(i2)
+    return six.int2byte(i1) + six.int2byte(i2)
 
 
 class GifWriter(object):
@@ -226,11 +230,11 @@ class GifWriter(object):
         """
         bb = '\x21\xF9\x04'
         # low bit 1 == transparency,
-        bb += chr(((dispose & 3) << 2) | (transparent_flag & 1))
+        bb += six.int2byte(((dispose & 3) << 2) | (transparent_flag & 1))
         # 2nd bit 1 == user input , next 3 bits, the low two of which are used,
         # are dispose.
         bb += itob(int(duration * 100)) # in 100th of seconds
-        bb += chr(transparency_index)  # transparency index
+        bb += six.int2byte(transparency_index)  # transparency index
         bb += '\x00'  # end
         return bb
 

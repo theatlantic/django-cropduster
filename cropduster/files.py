@@ -2,14 +2,10 @@ from __future__ import division
 
 import os
 import re
-import urllib2
 import hashlib
 
-try:
-    from urlparse import urlparse
-except ImportError:
-    # python 3
-    from urllib import parse as urlparse
+from six.moves.urllib import parse as urlparse
+from six.moves.urllib.request import urlopen
 
 import PIL.Image
 
@@ -108,7 +104,7 @@ class ImageFile(VirtualFieldFile):
         from cropduster.models import StandaloneImage
         from cropduster.views.forms import clean_upload_data
 
-        image_contents = urllib2.urlopen(url).read()
+        image_contents = urlopen(url).read()
         md5_hash = hashlib.md5()
         md5_hash.update(image_contents)
         try:

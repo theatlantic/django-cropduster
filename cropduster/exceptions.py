@@ -1,11 +1,21 @@
+import six
+
+from six.moves import xrange
+
 import os
 import sys
 import logging
 import copy
 import errno
 
+from django.core.urlresolvers import get_urlconf, get_resolver
 from django.http import HttpResponse
 from django.utils.safestring import mark_safe
+
+try:
+    from django.utils.encoding import force_unicode
+except ImportError:
+    from django.utils.encoding import force_text as force_unicode
 
 
 logger = logging.getLogger('cropduster')
@@ -68,7 +78,7 @@ def full_exc_info():
 def format_error(error):
     from generic_plus.utils import get_relative_media_url
 
-    if isinstance(error, basestring):
+    if isinstance(error, six.string_types):
         return error
     elif isinstance(error, IOError):
         if error.errno == errno.ENOENT: # No such file or directory
@@ -111,7 +121,7 @@ def log_error(request, view, action, errors, exc_info=None):
         p = psutil.Process(os.getpid())
         proc_timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(p.create_time))
         try:
-            create_usec = str(p.create_time - math.floor(p.create_time))[1:5]
+            create_usec = six.text_type(p.create_time - math.floor(p.create_time))[1:5]
         except:
             create_usec = ''
         proc_timestamp += create_usec
@@ -119,8 +129,6 @@ def log_error(request, view, action, errors, exc_info=None):
         extra_data['thread_id'] = thread.get_ident()
 
     if isinstance(errors[0], CropDusterUrlException):
-        from django.core.urlresolvers import get_urlconf,get_resolver
-        from django.utils.encoding import force_unicode
         urlconf = get_urlconf()
         resolver = get_resolver(urlconf)
         extra_data['resolver_data'] = {
@@ -191,7 +199,7 @@ def json_error(request, view, action, errors=None, forms=None, formsets=None, lo
                 v = form_errors.pop(k)
                 k = mark_safe('<span class="error-field error-%(k)s">%(k)s</span>' % {'k': k})
                 form_errors[k] = v
-            error_str += unicode(form_errors)
+            error_str += force_unicode(form_errors)
     errors = errors or [error_str]
 
     if log:

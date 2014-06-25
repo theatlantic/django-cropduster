@@ -1,9 +1,19 @@
 from __future__ import division
+
+import six
+
+from six.moves import filter
+
 import os
 import re
 import math
 import hashlib
 import tempfile
+
+if hasattr(six.moves.builtins, 'file'):
+    BUILTIN_FILE_TYPE = file
+else:
+    from io import IOBase as BUILTIN_FILE_TYPE
 
 
 __all__ = ('Size', 'Box', 'Crop')
@@ -17,8 +27,8 @@ class Size(object):
             max_w=None, max_h=None):
         from django.core.exceptions import ImproperlyConfigured
 
-        self.min_w = max(w, min_w) or 1
-        self.min_h = max(h, min_h) or 1
+        self.min_w = max(w or 1, min_w or 1) or 1
+        self.min_h = max(h or 1, min_h or 1) or 1
         self.max_w = max_w
         self.max_h = max_h
 
@@ -189,7 +199,7 @@ class Crop(object):
 
         temp_file = tempfile.NamedTemporaryFile(suffix=get_image_extension(self.image), delete=False)
         temp_filename = temp_file.name
-        with open(self.image.filename) as f:
+        with open(self.image.filename, mode='rb') as f:
             temp_file.write(f.read())
         temp_file.seek(0)
         image = PIL.Image.open(temp_filename)
@@ -291,7 +301,7 @@ class Crop(object):
 
         if isinstance(cropped_image, ImageFile):
             image_path = cropped_image.filename
-        elif isinstance(cropped_image, file):
+        elif isinstance(cropped_image, BUILTIN_FILE_TYPE):
             image_path = cropped_image.name
         elif isinstance(cropped_image, FieldFile):
             image_path = cropped_image.path
@@ -300,7 +310,7 @@ class Crop(object):
             if not cropped_image:
                 return False
             image_path = image.get_image_path(cropped_image.name)
-        elif isinstance(cropped_image, basestring):
+        elif isinstance(cropped_image, six.string_types):
             image_path = cropped_image
 
         xmp_file = libxmp.XMPFiles(file_path=image_path, open_forupdate=True)
@@ -327,7 +337,7 @@ class Crop(object):
         NS_CROP = "http://ns.thealtantic.com/cropduster/1.0/"
 
         md5 = hashlib.md5()
-        with open(self.image.filename) as f:
+        with open(self.image.filename, mode='rb') as f:
             md5.update(f.read())
         digest = md5.hexdigest()
 
@@ -342,8 +352,8 @@ class Crop(object):
         md.set_property(NS_CROP, 'crop:size/crop:json', json.dumps(size))
         md.set_property(NS_XMPMM, 'xmpMM:DerivedFrom', u'xmp.did:%s' % digest.upper())
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions', '', prop_value_is_struct=True)
-        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:w', unicode(self.image.size[0]))
-        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:h', unicode(self.image.size[1]))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:w', six.text_type(self.image.size[0]))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:h', six.text_type(self.image.size[1]))
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList', '', prop_value_is_array=True)
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Name', 'Crop')
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area', '', prop_value_is_struct=True)

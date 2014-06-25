@@ -1,3 +1,5 @@
+import six
+
 from operator import attrgetter
 
 from django.db import router, models, DEFAULT_DB_ALIAS
@@ -20,7 +22,7 @@ class CropDusterImageFieldFile(ImageFieldFile):
 
     @property
     def sizes(self):
-        if callable(self.field.db_field.sizes):
+        if six.callable(self.field.db_field.sizes):
             return self.field.db_field.sizes(self.instance, related=self.related_object)
         else:
             return self.field.db_field.sizes

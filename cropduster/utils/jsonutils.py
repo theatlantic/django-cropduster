@@ -1,9 +1,13 @@
+import six
+
+from six.moves import filter
+
 from jsonutil import jsonutil
 from cropduster.resizing import Size
 
 
 def json_default(obj):
-    if callable(getattr(obj, '__serialize__', None)):
+    if six.callable(getattr(obj, '__serialize__', None)):
         dct = obj.__serialize__()
         module = obj.__module__
         if module == '__builtin__':

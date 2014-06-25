@@ -1,3 +1,5 @@
+import six
+
 import os
 import re
 import ctypes
@@ -48,8 +50,8 @@ class EnumerationMeta(type):
     def __new__(cls, name, bases, attrs):
         if '_lookup' not in attrs:
             lookup = {}
-            for k, v in attrs.iteritems():
-                if isinstance(v, (int, long)):
+            for k, v in six.iteritems(attrs):
+                if isinstance(v, six.integer_types):
                     lookup.setdefault(v, k)
             attrs['_lookup'] = lookup
 
@@ -59,8 +61,8 @@ class EnumerationMeta(type):
         return value in self._lookup
 
 
+@six.add_metaclass(EnumerationMeta)
 class Enumeration(object):
-    __metaclass__ = EnumerationMeta
     @classmethod
     def value_name(cls, value):
         return cls._lookup.get(value)
@@ -166,7 +168,7 @@ class MetadataDict(dict):
     def __init__(self, file_path):
         self.file_path = file_path
         ns_dict = libxmp.file_to_dict(file_path)
-        for ns, values in ns_dict.iteritems():
+        for ns, values in six.iteritems(ns_dict):
             for k, v, opts in values:
                 current = self
                 bits = k.split('/')
@@ -203,7 +205,7 @@ class MetadataDict(dict):
                         v = float(v)
                     except (TypeError, ValueError):
                         v = None
-                elif k == 'DerivedFrom' and isinstance(v, basestring):
+                elif k == 'DerivedFrom' and isinstance(v, six.string_types):
                     v = re.sub(r'^xmp\.did:', '', v).lower()
                 elif ns_prefix == 'crop' and k == 'json':
                     v = json.loads(v)
@@ -213,7 +215,7 @@ class MetadataDict(dict):
                     current = current.setdefault(m.group(1), [{}])
                     k = int(m.group(2)) - 1
 
-                if isinstance(current, list) and isinstance(k, int):
+                if isinstance(current, list) and isinstance(k, six.integer_types):
                     if len(current) <= k:
                         current.append(*([{}] * (1 + k - len(current))))
 
