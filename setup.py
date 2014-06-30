@@ -26,9 +26,8 @@ setup(
     zip_safe=False,
     install_requires=[
         'Pillow',
-        'jsonutil',
         'Django>=1.2',
-        'python-xmp-toolkit<2.0.0',
+        'python-xmp-toolkit',
         'django-generic-plus>=1.0.9',
         'six>=1.7.0',
     ],

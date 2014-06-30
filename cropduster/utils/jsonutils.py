@@ -1,8 +1,7 @@
 import six
-
 from six.moves import filter
+import json
 
-from jsonutil import jsonutil
 from cropduster.resizing import Size
 
 
@@ -41,9 +40,9 @@ def object_hook(dct):
 
 def dumps(obj, *args, **kwargs):
     kwargs.setdefault('default', json_default)
-    return jsonutil.dumps(obj, *args, **kwargs)
+    return json.dumps(obj, *args, **kwargs)
 
 
 def loads(s, *args, **kwargs):
     kwargs.setdefault('object_hook', object_hook)
-    return jsonutil.loads(s, *args, **kwargs)
+    return json.loads(s, *args, **kwargs)
