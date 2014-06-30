@@ -10,7 +10,6 @@ from django.core.exceptions import ImproperlyConfigured
 from cropduster.files import ImageFile
 from cropduster.utils import json
 
-
 try:
     import libxmp
 except ImportError:
@@ -31,8 +30,12 @@ except:
 if not libxmp:
     check_file_format = get_format_info = None
 else:
-    check_file_format = libxmp._exempi.xmp_files_check_file_format
-    get_format_info = libxmp._exempi.xmp_files_get_format_info
+    try:
+        exempi = libxmp._exempi
+    except AttributeError:
+        exempi = libxmp.exempi.EXEMPI
+    check_file_format = exempi.xmp_files_check_file_format
+    get_format_info = exempi.xmp_files_get_format_info
 
     if not check_file_format.argtypes:
         check_file_format.argtypes = [ctypes.c_char_p]
