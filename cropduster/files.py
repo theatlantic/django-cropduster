@@ -116,7 +116,7 @@ class ImageFile(VirtualFieldFile):
         else:
             return get_relative_media_url(standalone_image.image.name)
 
-        parse_result = urlparse(url)
+        parse_result = urlparse.urlparse(url)
 
         fake_upload = SimpleUploadedFile(os.path.basename(parse_result.path), image_contents)
         file_data = clean_upload_data({
