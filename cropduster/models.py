@@ -21,7 +21,7 @@ import PIL.Image
 from generic_plus.utils import get_relative_media_url
 
 from .exceptions import CropDusterResizeException
-from .fields import CropDusterField, ReverseForeignRelation
+from .fields import CropDusterField, ReverseForeignRelation, CropDusterImageField
 from .files import VirtualFieldFile
 from .resizing import Size, Box, Crop
 from . import settings as cropduster_settings
@@ -338,6 +338,30 @@ class Image(models.Model):
                 return (0, 0)
             else:
                 return img.size
+
+    def delete(self, *args, **kwargs):
+        obj = self.content_object
+        image_name = self.image.name if (self.image) else None
+
+        super(Image, self).delete(*args, **kwargs)
+
+        if not obj or not image_name:
+            return
+
+        def field_matches(f):
+            if not isinstance(f, CropDusterImageField):
+                return False
+            obj_image_name = getattr(getattr(obj, f.name, None), 'name', None)
+            return (obj_image_name == image_name)
+
+        try:
+            cropduster_field = [f for f in obj._meta.fields if field_matches(f)][0]
+        except IndexError:
+            pass
+        else:
+            # Clear the file field on the generic-related instance
+            setattr(obj, cropduster_field.name, None)
+            obj.save()
 
     def save_size(self, size, thumb=None, image=None, tmp=False, standalone=False, permissive=False):
         thumbs = {}
