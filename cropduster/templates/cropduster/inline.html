@@ -1,7 +1,5 @@
 {% load i18n %}
 
-<div class="module cropduster-form" id="{{ inline_admin_formset.formset.prefix }}-group" data-media-url="{{ media_url }}">
-
 {{ inline_admin_formset.formset.management_form }}
 {{ inline_admin_formset.formset.non_form_errors }}
 
@@ -15,4 +13,3 @@
         {{ inline_admin_form.fk_field.field }}
     </div>
 {% endfor %}
-</div>

@@ -1,6 +1,8 @@
 {% load i18n %}
 {% load url from future %}
 
+<div class="module cropduster-form nested-inline-form" id="{{ inline_admin_formset.formset.prefix }}-group" data-media-url="{{ media_url }}">
+
 <input type="hidden" id="{{ final_attrs.id }}-0-id" name="{{ final_attrs.name }}-0-id" value="{{ final_attrs.value }}"/>
 <input type="text"
        id="{{ final_attrs.id }}"
@@ -24,3 +26,4 @@
 <div style="clear:both"></div>
 
 
+</div>

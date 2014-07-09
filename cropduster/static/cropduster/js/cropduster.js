@@ -159,7 +159,7 @@ window.CropDuster = {};
                 CropDuster.show(fieldName, cropdusterUrl);
             });
 
-            var $inlineForm = $input.parent().find('.cropduster-form').first();
+            var $inlineForm = $input.closest('.cropduster-form');
 
             CropDuster.mediaUrl = $inlineForm.data('mediaUrl');
 
@@ -169,7 +169,7 @@ window.CropDuster = {};
                 name = matches[1];
             }
 
-            var $inputRow = $input.parents('.grp-row.' + name + ',.row.' + name);
+            var $inputRow = $input.closest('.grp-row.' + name + ',.row.' + name);
             if ($inputRow.length) {
                 var inputLabel = $inputRow.find('label').html();
                 if (inputLabel) {
@@ -182,11 +182,11 @@ window.CropDuster = {};
             }
 
             $inlineForm.find('span.delete input').change(function() {
-                form = $(this).parents('.cropduster-form');
+                $row = $(this).closest('.cropduster-form');
                 if (this.checked) {
-                    form.addClass('pre-delete');
+                    $row.addClass('predelete grp-predelete');
                 } else {
-                    form.removeClass('pre-delete');
+                    $row.removeClass('predelete grp-predelete');
                 }
             });
             // Re-initialize thumbnail images. This is necessary in the event that
@@ -246,7 +246,7 @@ window.CropDuster = {};
                     'height': data.height
                 };
             });
-            var $thumb = $input.closest('.row,.grp-row').find('.cropduster-images');
+            var $thumb = $input.closest('.cropduster-form').find('.cropduster-images');
             $thumb.find('a').remove();
 
             $.each(data.sizes, function(i, size) {

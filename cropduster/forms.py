@@ -28,10 +28,10 @@ class CropDusterWidget(GenericForeignFileWidget):
     template = "cropduster/custom_field.html"
 
     class Media:
-        css = {'all': (u'%scropduster/css/cropduster.css?v=5' % settings.STATIC_URL,)}
+        css = {'all': (u'%scropduster/css/cropduster.css?v=6' % settings.STATIC_URL,)}
         js = (
             u'%scropduster/js/jsrender.js' % settings.STATIC_URL,
-            u'%scropduster/js/cropduster.js?v=6' % settings.STATIC_URL,
+            u'%scropduster/js/cropduster.js?v=7' % settings.STATIC_URL,
         )
 
     def get_context_data(self, name, value, attrs=None, bound_field=None):

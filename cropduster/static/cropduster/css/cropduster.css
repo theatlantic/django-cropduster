@@ -1,13 +1,23 @@
-.cropduster-form .image,
-.cropduster-form .thumbs,
+.cropduster-form .grp-module {
+    background: transparent;
+}
+
+.cropduster-form .grp-module .image,
+.cropduster-form .grp-module .thumbs,
 .cropduster-form .DELETE,
 .cropduster-form .inline-related .grp-collapse-handler {
     display: none;
 }
+.cropduster-form .inline-related,
 .cropduster-form .inline-related .grp-module,
 .cropduster-form .inline-related .grp-row {
-    border: none;
+    border: 0 !important;
 }
+
+.cropduster-form .inline-related .grp-module {
+    clear: both;
+}
+
 .cropduster-form .inline-related .grp-row input {
     width: 588px;
 }
@@ -22,7 +32,19 @@ body.cropduster-debug .cropduster-form .inline-related .grp-collapse-handler {
     display: block !important;
 }
 
-.cropduster-customfield img{
+.cropduster-customfield {
+    display: block;
+    float: left;
+}
+
+.cropduster-form .delete {
+    display: block;
+    float: left;
+    margin-left: 20px;
+    margin-top: 5px;
+}
+
+.cropduster-customfield img {
     border: 0;
 }
 
