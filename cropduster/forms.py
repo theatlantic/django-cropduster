@@ -1,7 +1,5 @@
 import six
 
-from six.moves import map
-
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -155,7 +153,7 @@ class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
             # These can differ from the values in the database if a
             # ValidationError elsewhere prevented saving.
             try:
-                thumb_pks = map(int, form['thumbs'].value())
+                thumb_pks = [int(v) for v in form['thumbs'].value()]
             except (TypeError, ValueError):
                 pass
             else:
