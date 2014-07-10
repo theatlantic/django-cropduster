@@ -37,10 +37,10 @@
             {% endfor %}
             {% if standalone %}
                 <div id="upload-footer"{% if not image_id %} style="display: none"{% endif %}>
-                    <input id="upload-button" class="rounded-button disabled{% if standalone %} small{% endif %}" type="submit" name="_save" value='Upload'  onclick="return uploadSubmit();"/>
+                    <input id="upload-button" class="rounded-button disabled{% if standalone %} small{% endif %}" type="submit" name="_save" value='Upload'  onclick="return uploadSubmit(this);"/>
                 </div>
                 <div id="crop-footer"{% if image_id %} style="display: none"{% endif %}>
-                    <input id="reupload-button" class="rounded-button disabled{% if standalone %} small{% endif %}" type="submit" name="_save" value='Re-Upload' onclick="return uploadSubmit();" />
+                    <input id="reupload-button" class="rounded-button disabled{% if standalone %} small{% endif %}" type="submit" name="_save" value='Re-Upload' onclick="return uploadSubmit(this);" />
                 </div>
             {% endif %}
         </form>
@@ -102,7 +102,7 @@
             {% if not standalone %}
             <ul class="submit-row grp-submit-row" id="upload-footer"{% if not image_id %} style="display: none"{% endif %}>
                 <li class="submit-button-container grp-submit-button-container">
-                    <input id="upload-button" class="rounded-button disabled{% if standalone %} small{% endif %}" type="submit" name="_save" value='Upload'  onclick="return uploadSubmit();"/>
+                    <input id="upload-button" class="rounded-button disabled{% if standalone %} small{% endif %}" type="submit" name="_save" value='Upload'  onclick="return uploadSubmit(this);"/>
                 </li>
             </ul>
             {% endif %}
@@ -112,7 +112,7 @@
                 </li>
                 {% if not standalone %}
                 <li class="submit-button-container grp-submit-button-container">
-                    <input id="reupload-button" class="rounded-button disabled{% if standalone %} small{% endif %}" type="submit" name="_save" value='Re-Upload' onclick="return uploadSubmit();" />
+                    <input id="reupload-button" class="rounded-button disabled{% if standalone %} small{% endif %}" type="submit" name="_save" value='Re-Upload' onclick="return uploadSubmit(this);" />
                 </li>
                 {% endif %}
             </ul>

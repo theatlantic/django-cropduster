@@ -647,7 +647,10 @@
             }
         });
 
-        window.uploadSubmit = function() {
+        window.uploadSubmit = function(element) {
+            if (element && $(element).hasClass('disabled')) {
+                return false;
+            }
             $('#upload').ajaxSubmit({
                 dataType: 'json',
                 url: $('#upload').attr('action'),
