@@ -213,7 +213,7 @@ class ReverseForeignRelation(ManyToManyField):
         return self.rel.to._meta.db_table
 
     def m2m_column_name(self):
-        return self.field_name
+        return self.rel.to._meta.get_field(self.field_name).attname
 
     def m2m_reverse_name(self):
         return self.rel.to._meta.pk.column
