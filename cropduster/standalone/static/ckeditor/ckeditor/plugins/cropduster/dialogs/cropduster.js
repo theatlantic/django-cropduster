@@ -505,6 +505,19 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
                 toggleLockDimensions('check');
             });
         },
+        onOk: function(evt) {
+            var retval = CKEDITOR.dialog.validate.notEmpty(lang.urlMissing).call(this._.contents.info.src),
+                invalid = typeof(retval) == 'string' || retval === false;
+            if (invalid) {
+                evt.data.hide = false;
+                evt.stop();
+                if (this.fire('cancel', {hide: true}).hide !== false) {
+                    this.hide();
+                }
+                return false;
+            }
+            return true;
+        },
         contents: [{
             id: 'tab-basic',
             label: 'Basic',
@@ -529,7 +542,9 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
                 commit: function (widget) {
                     widget.setData('src', this.getValue());
                 },
-                validate: CKEDITOR.dialog.validate.notEmpty(lang.urlMissing)
+                validate: function() {
+                    return true;
+                }
             }, {
                 id: 'alt',
                 type: 'text',
