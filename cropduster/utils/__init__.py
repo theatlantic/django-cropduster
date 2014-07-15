@@ -4,4 +4,5 @@ from .image import (
     smart_resize)
 from .paths import get_upload_foldername
 from .sizes import get_min_size
+from .thumbs import set_as_auto_crop, unset_as_auto_crop
 from . import jsonutils as json

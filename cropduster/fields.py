@@ -28,6 +28,14 @@ class CropDusterImageFieldFile(ImageFieldFile):
         else:
             return self.field.db_field.sizes
 
+    def regenerate_crops(self):
+        for size in self.sizes:
+            crops = self.related_object.save_size(size)
+
+            for slug, crop in crops.iteritems():
+                crop.image = self.related_object
+                crop.save()
+
 
 class CropDusterImageField(models.ImageField):
 

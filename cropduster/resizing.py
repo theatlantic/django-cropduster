@@ -168,6 +168,12 @@ class Box(object):
     def as_tuple(self):
         return (self.x1, self.y1, self.x2, self.y2)
 
+    def __eq__(self, other):
+        return (isinstance(other, self.__class__) and self.as_tuple() == other.as_tuple())
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 
 class Crop(object):
 
@@ -363,3 +369,4 @@ class Crop(object):
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:x',    "%.5f" % (self.box.x1 / self.bounds.w))
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:y',    "%.5f" % (self.box.y1 / self.bounds.h))
         return md
+
