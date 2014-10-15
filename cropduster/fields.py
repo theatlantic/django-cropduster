@@ -2,6 +2,7 @@ import six
 
 from operator import attrgetter
 
+from django import forms
 from django.db import router, models, DEFAULT_DB_ALIAS
 from django.db.models.fields import Field
 from django.db.models.fields.files import ImageFileDescriptor, ImageFieldFile
@@ -72,7 +73,9 @@ class CropDusterField(GenericForeignFileField):
                 formset=CropDusterInlineFormSet,
                 field=self.field,
                 formset_attrs=formset_attrs,
-                prefix=self.default_prefix)
+                prefix=self.default_prefix,
+                form_attrs={"caption": forms.CharField(max_length=255, required=False)},
+                )
 
         return super(CropDusterField, self).get_inline_admin_formset(
             formset_cls=CropDusterInlineFormSet,
