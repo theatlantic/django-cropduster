@@ -74,7 +74,7 @@ class CropDusterField(GenericForeignFileField):
                 field=self.field,
                 formset_attrs=formset_attrs,
                 prefix=self.default_prefix,
-                form_attrs={"caption": forms.CharField(max_length=255, required=False)},
+                form_attrs={"caption": forms.CharField(required=False)},
                 )
 
         return super(CropDusterField, self).get_inline_admin_formset(
