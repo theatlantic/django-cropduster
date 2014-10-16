@@ -17,7 +17,7 @@ except IOError:
 
 setup(
     name='django-cropduster',
-    version='4.7.0',
+    version='4.7.1',
     author='The Atlantic',
     author_email='programmers@theatlantic.com',
     url='https://github.com/theatlantic/django-cropduster',
