@@ -45,6 +45,9 @@ def get_crop(image, crop_name, size=None, attribution=None, exact_size=False):
         warnings.warn("The size kwarg is deprecated.", DeprecationWarning)
 
     data = {}
+    if not image.related_object:
+        return data
+
     data['url'] = getattr(Image.get_file_for_size(image, crop_name), 'url', None)
 
     if not exact_size:
