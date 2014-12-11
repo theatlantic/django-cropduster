@@ -67,6 +67,18 @@ class Thumb(models.Model):
     def __unicode__(self):
         return self.name
 
+    @property
+    def image_file(self):
+        return Image.get_file_for_size(image=self.image, size_name=self.name)
+
+    @property
+    def url(self):
+        return self.image_file.url if self.image_file else ''
+
+    @property
+    def path(self):
+        return self.image_file.path if self.image_file else ''
+
     def save(self, *args, **kwargs):
         if self.pk:
             try:
@@ -216,6 +228,10 @@ class Image(models.Model):
     @property
     def path(self):
         return self.image.name if self.image else None
+
+    @property
+    def url(self):
+        return self.image.url if self.image else None
 
     @property
     def extension(self):
