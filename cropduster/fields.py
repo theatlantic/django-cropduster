@@ -121,6 +121,7 @@ class ReverseForeignRelatedObjectsDescriptor(object):
         rel_model = self.field.rel.to
         superclass = rel_model._default_manager.__class__
         attname = rel_field.rel.get_related_field().attname
+        limit_choices_to = self.field.rel.limit_choices_to
 
         class RelatedManager(superclass):
             def __init__(self, instance):
@@ -136,13 +137,13 @@ class ReverseForeignRelatedObjectsDescriptor(object):
                     return self.instance._prefetched_objects_cache[rel_field.related_query_name()]
                 except (AttributeError, KeyError):
                     db = self._db or router.db_for_read(self.model, instance=self.instance)
-                    return super(RelatedManager, self).get_query_set().using(db).filter(**self.core_filters)
+                    return super(RelatedManager, self).get_query_set().using(db).complex_filter(limit_choices_to).filter(**self.core_filters)
 
             def get_prefetch_query_set(self, instances):
                 db = self._db or router.db_for_read(self.model, instance=instances[0])
                 query = {'%s__%s__in' % (rel_field.name, attname):
                              set(getattr(obj, attname) for obj in instances)}
-                qs = super(RelatedManager, self).get_query_set().using(db).filter(**query)
+                qs = super(RelatedManager, self).get_query_set().using(db).complex_filter(limit_choices_to).filter(**query)
                 return (qs,
                         attrgetter(rel_field.get_attname()),
                         attrgetter(attname),
@@ -252,7 +253,7 @@ class ReverseForeignRelation(ManyToManyField):
         Return all objects related to ``objs`` via this ``ReverseForeignRelation``.
         """
         rel_field_attname = self.rel.to._meta.get_field(self.field_name).attname
-        return self.rel.to._base_manager.db_manager(using).filter(**{
+        return self.rel.to._base_manager.db_manager(using).complex_filter(self.rel.limit_choices_to).filter(**{
             '%s__in' % rel_field_attname: [obj.pk for obj in objs]
         })
 
