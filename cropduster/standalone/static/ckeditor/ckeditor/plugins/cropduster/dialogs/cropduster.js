@@ -362,7 +362,7 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
     var tabElements = [{
         id: 'iframe',
         type: 'html',
-        html: '<div style="width:100%;text-align:center;">' + '<iframe style="border:0;width:650px;height:500px;font-size:20px" scrolling="no" frameborder="0" allowTransparency="true"></iframe>' + '</div>',
+        html: '<div style="width:100%;text-align:center;">' + '<iframe style="border:0;width:650px;height:400px;font-size:20px" scrolling="no" frameborder="0" allowTransparency="true"></iframe>' + '</div>',
         onLoad: function (widget) {},
         setup: function (widget) {
 
