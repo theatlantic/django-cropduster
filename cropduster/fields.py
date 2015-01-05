@@ -1,5 +1,4 @@
 import six
-
 from operator import attrgetter
 
 from django import forms
@@ -8,6 +7,7 @@ from django.db.models.fields import Field
 from django.db.models.fields.files import ImageFileDescriptor, ImageFieldFile
 from django.db.models.fields.related import ManyToManyRel, ManyToManyField
 from django.utils.functional import cached_property
+from django.contrib.contenttypes.models import ContentType
 
 from generic_plus.fields import GenericForeignFileField
 from generic_plus.forms import (
@@ -17,6 +17,7 @@ from generic_plus.forms import (
 import cropduster.settings
 from .forms import CropDusterInlineFormSet, CropDusterWidget, CropDusterThumbFormField
 from .utils import json
+from .resizing import Box, Crop
 
 
 class CropDusterImageFieldFile(ImageFieldFile):
@@ -28,13 +29,62 @@ class CropDusterImageFieldFile(ImageFieldFile):
         else:
             return self.field.db_field.sizes
 
-    def regenerate_crops(self):
-        for size in self.sizes:
-            crops = self.related_object.save_size(size)
+    def _get_new_crop_thumb(self, size):
+        # "Imports"
+        Image = self.field.db_field.rel.to
+        Thumb = Image._meta.get_field("thumbs").rel.to
 
-            for slug, crop in crops.iteritems():
-                crop.image = self.related_object
-                crop.save()
+        box = Box(0, 0, self.width, self.height)
+        crop_box = Crop(box, self.path)
+
+        best_fit = size.fit_to_crop(crop_box, original_image=self.path)
+        fit_box = best_fit.box
+        crop_thumb = Thumb(**{
+            "name": size.name,
+            "width": fit_box.w,
+            "height": fit_box.h,
+            "crop_x": fit_box.x1,
+            "crop_y": fit_box.y1,
+            "crop_w": fit_box.w,
+            "crop_h": fit_box.h,
+        })
+        return crop_thumb
+
+    def generate_thumbs(self, permissive=False):
+        # "Imports"
+        Image = self.field.db_field.rel.to
+        Thumb = Image._meta.get_field("thumbs").rel.to
+
+        has_existing_image = self.related_object is not None
+
+        # If the image has changed, create new thumbnails from scratch
+        if getattr(self, "name", None) != getattr(self.related_object, "path", None):
+            self.related_object.delete()
+            image_changed = True
+
+        if not has_existing_image or image_changed:
+            obj_ct = ContentType.objects.get_for_model(self.instance, for_concrete_model=False)
+            image = Image(**{
+                'content_type': obj_ct,
+                'object_id': self.instance.pk,
+                'width': self.width,
+                'height': self.height,
+                'image': self.name,
+            })
+            image.save()
+            self.related_object = image
+
+        for size in self.sizes:
+            try:
+                crop_thumb = self.related_object.thumbs.get(name=size.name)
+            except Thumb.DoesNotExist:
+                crop_thumb = self._get_new_crop_thumb(size)
+
+            thumbs = self.related_object.save_size(size, thumb=crop_thumb, permissive=permissive)
+
+            for slug, thumb in thumbs.iteritems():
+                thumb.image = self.related_object
+                thumb.save()
 
 
 class CropDusterImageField(models.ImageField):

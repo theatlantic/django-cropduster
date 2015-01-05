@@ -1,7 +1,6 @@
 from __future__ import division
 
 import six
-
 from six.moves import filter
 
 import os
@@ -9,6 +8,12 @@ import re
 import math
 import hashlib
 import tempfile
+
+import PIL.Image
+from PIL.ImageFile import ImageFile
+from django.db.models.fields.files import FieldFile
+from django.core.exceptions import ImproperlyConfigured
+
 
 if hasattr(six.moves.builtins, 'file'):
     BUILTIN_FILE_TYPE = file
@@ -25,7 +30,6 @@ class Size(object):
 
     def __init__(self, name, label=None, w=None, h=None, retina=False, auto=None, min_w=None, min_h=None,
             max_w=None, max_h=None):
-        from django.core.exceptions import ImproperlyConfigured
 
         self.min_w = max(w or 1, min_w or 1) or 1
         self.min_h = max(h or 1, min_h or 1) or 1
@@ -178,12 +182,14 @@ class Box(object):
 class Crop(object):
 
     def __init__(self, box, image):
+        if isinstance(image, six.string_types):
+            image = PIL.Image.open(image)
+
         self.box = box
         self.image = image
         self.bounds = Box(0, 0, *image.size)
 
     def create_image(self, output_filename, width=None, height=None, max_w=None, max_h=None):
-        import PIL.Image
         from cropduster.exceptions import CropDusterResizeException
         from cropduster.utils import process_image, get_image_extension
 
@@ -301,8 +307,6 @@ class Crop(object):
         if not libxmp:
             return
 
-        from PIL.ImageFile import ImageFile
-        from django.db.models.fields.files import FieldFile
         from cropduster.models import Thumb
 
         if isinstance(cropped_image, ImageFile):
