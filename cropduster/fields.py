@@ -57,12 +57,7 @@ class CropDusterImageFieldFile(ImageFieldFile):
 
         has_existing_image = self.related_object is not None
 
-        # If the image has changed, create new thumbnails from scratch
-        if getattr(self, "name", None) != getattr(self.related_object, "path", None):
-            self.related_object.delete()
-            image_changed = True
-
-        if not has_existing_image or image_changed:
+        if not has_existing_image:
             obj_ct = ContentType.objects.get_for_model(self.instance, for_concrete_model=False)
             image = Image(**{
                 'content_type': obj_ct,
