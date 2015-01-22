@@ -71,3 +71,16 @@ class TestImage(CropdusterTestCase):
         alt_sizes = list(Size.flatten(TestArticle.ALT_IMAGE_SIZES))
         alt_thumbs = list(article.alt_image.related_object.thumbs.all())
         self.assertEqual(len(alt_thumbs), len(alt_sizes))
+
+    def test_save(self):
+        img_path = os.path.join(self.TEST_IMG_DIR, 'img.png')
+        article = TestArticle.objects.create(title="Tom Sawyer Abroad", author=self.author)
+        Image.objects.create(content_type=self.article_ct,
+                             object_id=article.pk,
+                             image=img_path)
+        self.assertFalse(article.lead_image)
+
+        # Refresh the article from the database
+        article = TestArticle.objects.get(pk=article.pk)
+        self.assertTrue(article.lead_image)
+        self.assertEqual(article.lead_image.path, img_path)
