@@ -194,6 +194,7 @@ class Image(models.Model):
     content_type = models.ForeignKey(ContentType)
     object_id = models.PositiveIntegerField(null=True, blank=True)
     content_object = generic.GenericForeignKey('content_type', 'object_id')
+    field_identifier = models.SlugField(null=True, blank=True)
 
     prev_object_id = models.PositiveIntegerField(null=True, blank=True)
     prev_content_object = generic.GenericForeignKey('content_type', 'prev_object_id')
@@ -220,7 +221,7 @@ class Image(models.Model):
     class Meta:
         app_label = cropduster_settings.CROPDUSTER_APP_LABEL
         db_table = '%s_image' % cropduster_settings.CROPDUSTER_DB_PREFIX
-        unique_together = ("content_type", "object_id", "prev_object_id")
+        unique_together = ("content_type", "object_id", "prev_object_id", "field_identifier")
 
     def __unicode__(self):
         return self.get_image_url()
@@ -314,8 +315,10 @@ class Image(models.Model):
         self.date_modified = datetime.now()
         if not self.pk and self.content_type and self.object_id:
             try:
-                original = Image.objects.get(content_type=self.content_type, object_id=self.object_id,
-                        prev_object_id__isnull=True)
+                original = Image.objects.get(content_type=self.content_type,
+                                             object_id=self.object_id,
+                                             field_identifier=self.field_identifier,
+                                             prev_object_id__isnull=True)
             except Image.DoesNotExist:
                 pass
             else:

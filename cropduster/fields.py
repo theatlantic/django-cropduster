@@ -62,6 +62,7 @@ class CropDusterImageFieldFile(ImageFieldFile):
             image = Image(**{
                 'content_type': obj_ct,
                 'object_id': self.instance.pk,
+                'field_identifier': self.field.generic_field.field_identifier,
                 'width': self.width,
                 'height': self.height,
                 'image': self.name,
@@ -92,6 +93,7 @@ class CropDusterField(GenericForeignFileField):
     file_field_cls = CropDusterImageField
     file_descriptor_cls = ImageFileDescriptor
     rel_file_field_name = 'image'
+    field_identifier_field_name = 'field_identifier'
 
     def __init__(self, verbose_name=None, **kwargs):
         sizes = kwargs.pop('sizes', None)
