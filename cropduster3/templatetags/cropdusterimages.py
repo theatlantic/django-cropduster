@@ -1,4 +1,5 @@
 from coffin import template
+import coffin.template.loader
 
 register = template.Library()
 
