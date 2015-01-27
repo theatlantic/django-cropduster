@@ -315,3 +315,10 @@ class ReverseForeignRelation(ManyToManyField):
         # related object in a table-spanning query. It uses the lower-cased
         # object_name followed by '+', which prevents its actual use.
         return '%s+' % self.opts.object_name.lower()
+
+    def _check_relationship_model(self, from_model=None, **kwargs):
+        # Override error in Django 1.7 (fields.E331: "Field specifies a
+        # many-to-many relation through model 'None', which has not been
+        # installed"), which is spurious for a reverse foreign key field.
+        errors = super(ReverseForeignRelation, self)._check_relationship_model(from_model, **kwargs)
+        return [e for e in errors if e.id != 'fields.E331']

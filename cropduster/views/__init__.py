@@ -269,7 +269,7 @@ def upload(request):
         'height': h,
     })
     if not is_standalone:
-        return HttpResponse(json.dumps(data), mimetype='application/json')
+        return HttpResponse(json.dumps(data), content_type='application/json')
 
     size = Size('crop', w=img.size[0], h=img.size[1])
 
@@ -321,7 +321,7 @@ def upload(request):
         'image_id': cropduster_image.pk,
         'sizes': json.dumps([size]),
     })
-    return HttpResponse(json.dumps(data), mimetype='application/json')
+    return HttpResponse(json.dumps(data), content_type='application/json')
 
 
 @csrf_exempt
@@ -434,4 +434,4 @@ def crop(request):
         'crop': crop_data,
         'thumbs': thumbs_data,
         'initial': True,
-    }), mimetype='application/json')
+    }), content_type='application/json')
