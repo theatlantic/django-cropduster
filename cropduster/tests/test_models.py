@@ -2,6 +2,8 @@ from __future__ import absolute_import, division
 
 import os
 import PIL
+import uuid
+import shutil
 
 from django.contrib.contenttypes.models import ContentType
 
@@ -71,6 +73,66 @@ class TestImage(CropdusterTestCase):
         alt_sizes = list(Size.flatten(TestArticle.ALT_IMAGE_SIZES))
         alt_thumbs = list(article.alt_image.related_object.thumbs.all())
         self.assertEqual(len(alt_thumbs), len(alt_sizes))
+
+    def test_prefetch_related_with_images(self):
+        for x in range(3):
+            imgpath = os.path.join(self.TEST_IMG_DIR, '%s.jpg' % uuid.uuid4().hex)
+            shutil.copyfile(os.path.join(self.TEST_IMG_DIR, 'img.jpg'), imgpath)
+            article = TestArticle.objects.create(title="", author=self.author, lead_image=imgpath)
+            article.lead_image.generate_thumbs()
+
+        with self.assertNumQueries(2):
+            articles = TestArticle.objects.all().prefetch_related('lead_image')
+            for article in articles:
+                article.lead_image.related_object
+
+        with self.assertNumQueries(3):
+            articles = TestArticle.objects.all().prefetch_related('lead_image', 'lead_image__related_object__thumbs')
+            for article in articles:
+                list(article.lead_image.related_object.thumbs.all())
+
+    def test_prefetch_related_with_alt_images(self):
+        img_map = {}
+        for x in range(3):
+            img_name = uuid.uuid4().hex
+            img_name_alt = uuid.uuid4().hex
+            img_path = os.path.join(self.TEST_IMG_DIR, img_name, 'original.jpg')
+            img_path_alt = os.path.join(self.TEST_IMG_DIR, img_name_alt, 'original.jpg')
+            os.mkdir(os.path.dirname(img_path))
+            os.mkdir(os.path.dirname(img_path_alt))
+            shutil.copyfile(os.path.join(self.TEST_IMG_DIR, 'img.jpg'), img_path)
+            shutil.copyfile(os.path.join(self.TEST_IMG_DIR, 'img.jpg'), img_path_alt)
+            article = TestArticle.objects.create(title="", author=self.author,
+                lead_image=img_path, alt_image=img_path_alt)
+            article.lead_image.generate_thumbs()
+            article.alt_image.generate_thumbs()
+            img_map[article.pk] = (img_name, img_name_alt)
+
+        with self.assertNumQueries(5):
+            articles = TestArticle.objects.filter(id__in=img_map.keys()).prefetch_related(
+               'lead_image',
+               'alt_image',
+               'lead_image__related_object__thumbs',
+               'alt_image__related_object__thumbs',
+            )
+            for article in articles:
+                lead_name, alt_name = img_map[article.pk]
+                self.assertTrue(lead_name in article.lead_image.related_object.path)
+                self.assertTrue(alt_name in article.alt_image.related_object.path)
+
+                lead_sizes = [s.name for s in Size.flatten(TestArticle.LEAD_IMAGE_SIZES)]
+                lead_thumbs = list(article.lead_image.related_object.thumbs.all())
+                self.assertEqual(len(lead_thumbs), len(lead_sizes))
+                for thumb in lead_thumbs:
+                    self.assertEqual(thumb.image_id, article.lead_image.related_object.pk)
+                    self.assertTrue(thumb.name in lead_sizes)
+
+                alt_sizes = [s.name for s in Size.flatten(TestArticle.ALT_IMAGE_SIZES)]
+                alt_thumbs = list(article.alt_image.related_object.thumbs.all())
+                self.assertEqual(len(alt_thumbs), len(alt_sizes))
+                for thumb in alt_thumbs:
+                    self.assertEqual(thumb.image_id, article.alt_image.related_object.pk)
+                    self.assertTrue(thumb.name in alt_sizes)
 
     def test_save(self):
         img_path = os.path.join(self.TEST_IMG_DIR, 'img.png')
