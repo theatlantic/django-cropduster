@@ -10,7 +10,6 @@ from generic_plus.utils import get_media_path
 
 from . import CropdusterTestCase
 from .. import views
-from .. import utils
 
 
 class CropdusterViewTestRunner(CropdusterTestCase):
