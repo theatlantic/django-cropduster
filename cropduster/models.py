@@ -313,6 +313,8 @@ class Image(models.Model):
 
     def save(self, **kwargs):
         self.date_modified = datetime.now()
+        if self.field_identifier == "":
+            self.field_identifier = None
         if not self.pk and self.content_type and self.object_id:
             try:
                 original = Image.objects.get(content_type=self.content_type,

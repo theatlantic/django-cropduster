@@ -1,4 +1,6 @@
 from django.db import models
+from django.contrib import admin
+
 from cropduster.models import CropDusterField, Size
 
 
@@ -38,3 +40,7 @@ class TestArticle(models.Model):
 
     class Meta:
         app_label = 'cropduster'
+
+
+admin.site.register(TestAuthor)
+admin.site.register(TestArticle)

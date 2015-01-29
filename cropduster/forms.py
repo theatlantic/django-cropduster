@@ -128,7 +128,7 @@ class CropDusterThumbFormField(ModelMultipleChoiceField):
 
 class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
 
-    fields = ('image', 'thumbs', 'attribution', 'attribution_link', 'caption')
+    fields = ('image', 'thumbs', 'attribution', 'attribution_link', 'caption', 'field_identifier')
 
     def _construct_form(self, i, **kwargs):
         """
@@ -138,6 +138,10 @@ class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
         from cropduster.models import Thumb
 
         form = super(CropDusterInlineFormSet, self)._construct_form(i, **kwargs)
+
+        field_identifier_field = form.fields['field_identifier']
+        field_identifier_field.widget.is_hidden = True
+        field_identifier_field.initial = self.field_identifier
 
         thumbs_field = form.fields['thumbs']
 
