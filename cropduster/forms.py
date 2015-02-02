@@ -1,5 +1,6 @@
 import six
 
+import django
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -147,7 +148,10 @@ class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
 
         if form.instance and form.instance.pk:
             # Set the queryset to the current list of thumbs on the image
-            thumbs_field.queryset = form.instance.thumbs.get_query_set()
+            if django.VERSION < (1, 7):
+                thumbs_field.queryset = form.instance.thumbs.get_query_set()
+            else:
+                thumbs_field.queryset = form.instance.thumbs.get_queryset()
         else:
             # Start with an empty queryset
             thumbs_field.queryset = Thumb.objects.none()

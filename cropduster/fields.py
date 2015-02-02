@@ -2,6 +2,7 @@ import six
 from operator import attrgetter
 import inspect
 
+import django
 from django import forms
 from django.db import router, models, DEFAULT_DB_ALIAS
 from django.db.models.fields import Field
@@ -192,23 +193,39 @@ class ReverseForeignRelatedObjectsDescriptor(object):
                 }
                 self.model = rel_model
 
-            def get_query_set(self):
+            def get_queryset(self):
                 try:
                     return self.instance._prefetched_objects_cache[rel_field.related_query_name()]
                 except (AttributeError, KeyError):
                     db = self._db or router.db_for_read(self.model, instance=self.instance)
-                    return super(RelatedManager, self).get_query_set().using(db).complex_filter(limit_choices_to).filter(**self.core_filters)
+                    if django.VERSION < (1, 7):
+                        qset = super(RelatedManager, self).get_query_set()
+                    else:
+                        qset = super(RelatedManager, self).get_queryset()
+                    return (qset.using(db).complex_filter(limit_choices_to)
+                                .filter(**self.core_filters))
 
-            def get_prefetch_query_set(self, instances):
+            if django.VERSION < (1, 7):
+                get_query_set = get_queryset
+
+            def get_prefetch_queryset(self, instances, queryset=None):
                 db = self._db or router.db_for_read(self.model, instance=instances[0])
                 query = {'%s__%s__in' % (rel_field.name, attname):
                              set(getattr(obj, attname) for obj in instances)}
-                qs = super(RelatedManager, self).get_query_set().using(db).complex_filter(limit_choices_to).filter(**query)
-                return (qs,
+
+                if django.VERSION < (1, 7):
+                    qs = super(RelatedManager, self).get_query_set()
+                else:
+                    qs = super(RelatedManager, self).get_queryset()
+
+                return (qs.using(db).complex_filter(limit_choices_to).filter(**query),
                         attrgetter(rel_field.get_attname()),
                         attrgetter(attname),
                         False,
                         rel_field.related_query_name())
+
+            if django.VERSION < (1, 7):
+                get_prefetch_query_set = get_prefetch_queryset
 
             def add(self, *objs):
                 for obj in objs:
