@@ -1,5 +1,6 @@
 import six
 from operator import attrgetter
+import inspect
 
 from django import forms
 from django.db import router, models, DEFAULT_DB_ALIAS
@@ -58,7 +59,10 @@ class CropDusterImageFieldFile(ImageFieldFile):
         has_existing_image = self.related_object is not None
 
         if not has_existing_image:
-            obj_ct = ContentType.objects.get_for_model(self.instance, for_concrete_model=False)
+            ct_kwargs = {}
+            if 'for_concrete_model' in inspect.getargspec(ContentType.objects.get_for_model).args:
+                ct_kwargs['for_concrete_model'] = False
+            obj_ct = ContentType.objects.get_for_model(self.instance, **ct_kwargs)
             image = Image(**{
                 'content_type': obj_ct,
                 'object_id': self.instance.pk,
