@@ -2,10 +2,15 @@ import os
 import shutil
 import uuid
 
-from django import test
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
+
+try:
+    from django.contrib.staticfiles.testing import (
+        StaticLiveServerTestCase as LiveServerTestCase)
+except ImportError:
+    from django.test import LiveServerTestCase
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -17,7 +22,7 @@ from .models import TestArticle, TestAuthor
 from ..models import Size
 
 
-class TestAdmin(test.LiveServerTestCase):
+class TestAdmin(LiveServerTestCase):
 
     def setUp(self):
         self.admin_url = self.live_server_url + reverse('admin:index')
