@@ -1,17 +1,13 @@
-def get_admin_base_template():
-    try:
-        import django_admin_mod
-    except ImportError:
-        pass
-    else:
-        return 'admin_mod/base.html'
+from django.conf import settings
 
-    try:
-        import custom_admin
-    except ImportError:
-        return 'admin/base.html'
-    else:
+
+def get_admin_base_template():
+    if 'django_admin_mod' in settings.INSTALLED_APPS:
+        return 'admin_mod/base.html'
+    elif 'custom_admin' in settings.INSTALLED_APPS:
         return 'custom_admin/base.html'
+    else:
+        return 'admin/base.html'
 
 
 class FakeQuerySet(object):
