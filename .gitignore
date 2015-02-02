@@ -2,3 +2,6 @@
 .DS_Store
 build
 *.egg-info
+.tox
+ghostdriver.log
+test/media
