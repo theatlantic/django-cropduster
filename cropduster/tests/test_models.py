@@ -82,13 +82,25 @@ class TestImage(CropdusterTestCase):
             article.lead_image.generate_thumbs()
 
         with self.assertNumQueries(2):
-            articles = TestArticle.objects.all().prefetch_related('lead_image')
-            for article in articles:
+            articles = TestArticle.objects.filter(pk__in=[article.pk])
+            for article in articles.prefetch_related('lead_image'):
                 article.lead_image.related_object
 
         with self.assertNumQueries(3):
-            articles = TestArticle.objects.all().prefetch_related('lead_image', 'lead_image__related_object__thumbs')
-            for article in articles:
+            articles = TestArticle.objects.filter(pk__in=[article.pk])
+            for article in articles.prefetch_related('lead_image__thumbs'):
+                list(article.lead_image.related_object.thumbs.all())
+
+    def test_redundant_prefetch_related_args_with_images(self):
+        for x in range(3):
+            imgpath = os.path.join(self.TEST_IMG_DIR, '%s.jpg' % uuid.uuid4().hex)
+            shutil.copyfile(os.path.join(self.TEST_IMG_DIR, 'img.jpg'), imgpath)
+            article = TestArticle.objects.create(title="", author=self.author, lead_image=imgpath)
+            article.lead_image.generate_thumbs()
+
+        with self.assertNumQueries(3):
+            articles = TestArticle.objects.filter(pk__in=[article.pk])
+            for article in articles.prefetch_related('lead_image', 'lead_image__thumbs'):
                 list(article.lead_image.related_object.thumbs.all())
 
     def test_prefetch_related_with_alt_images(self):
@@ -110,11 +122,7 @@ class TestImage(CropdusterTestCase):
 
         with self.assertNumQueries(5):
             articles = TestArticle.objects.filter(id__in=img_map.keys()).prefetch_related(
-               'lead_image',
-               'alt_image',
-               'lead_image__related_object__thumbs',
-               'alt_image__related_object__thumbs',
-            )
+               'lead_image__thumbs', 'alt_image__thumbs')
             for article in articles:
                 lead_name, alt_name = img_map[article.pk]
                 self.assertTrue(lead_name in article.lead_image.related_object.path)

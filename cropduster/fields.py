@@ -22,6 +22,39 @@ from .utils import json
 from .resizing import Box, Crop
 
 
+class BaseCropDusterImageFieldFile(type):
+    """
+    A metaclass to fix a pre-Django 1.6 bug. If the following queryset is
+    attempted::
+
+        qset.prefetch_related('image_field', 'image_field__thumbs')
+
+    This will raise the error:
+
+        AttributeError: Cannot find 'thumbs' on CropDusterImageFieldFile object,
+        'field_name__thumbs' is an invalid parameter to prefetch_related()
+
+    In order to have this work in Django 1.4 and 1.5, we need
+    CropDusterImageFieldFile.thumbs to return a descriptor, which we proxy
+    from cropduster.models.Image.thumbs.
+    """
+
+    if django.VERSION < (1, 6):
+        def __getattr__(self, attr):
+            if not hasattr(self, '_image_m2m_cache'):
+                from cropduster.models import Image
+                self._image_m2m_cache = {}
+                for f in Image._meta.many_to_many:
+                    self._image_m2m_cache[f.name] = getattr(Image, f.name)
+
+            if attr in self._image_m2m_cache:
+                return self._image_m2m_cache[attr]
+
+            raise AttributeError("'%s' object has no attribute '%s'" % (
+                type(self).__name__, attr))
+
+
+@six.add_metaclass(BaseCropDusterImageFieldFile)
 class CropDusterImageFieldFile(ImageFieldFile):
 
     @property
@@ -86,6 +119,26 @@ class CropDusterImageFieldFile(ImageFieldFile):
             for slug, thumb in thumbs.iteritems():
                 thumb.image = self.related_object
                 thumb.save()
+
+    if django.VERSION < (1, 6):
+        # Fixes a pre-Django 1.6 bug (see the docstring of
+        # BaseCropDusterImageFieldFile). We proxy attributes of the
+        # related_object through the CropDusterImageFieldFile instance in
+        # order to fix prefetch_related('field_name', 'field_name__thumbs')
+        def __getattr__(self, attr):
+            if 'related_object' in self.__dict__:
+                try:
+                    return getattr(self.__dict__['related_object'], attr)
+                except AttributeError:
+                    pass
+            raise AttributeError("'%s' object has no attribute '%s'" % (
+                type(self).__name__, attr))
+
+        def __setattr__(self, attr, val):
+            if attr == '_prefetched_objects_cache' and getattr(self, 'related_object', None):
+                setattr(self.related_object, attr, val)
+            else:
+                super(CropDusterImageFieldFile, self).__setattr__(attr, val)
 
 
 class CropDusterImageField(models.ImageField):
