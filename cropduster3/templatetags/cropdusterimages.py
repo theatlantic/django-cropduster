@@ -1,5 +1,8 @@
-from coffin import template
-import coffin.template.loader
+try:
+    from coffin import template
+    import coffin.template.loader
+except ImportError:
+    from django import template
 
 register = template.Library()
 
