@@ -1,8 +1,5 @@
 import os
-import shutil
-import uuid
 
-from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 
@@ -17,22 +14,18 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from . import ORIG_IMG_PATH
+from .helpers import CropdusterTestCaseMediaMixin
 from .models import TestArticle, TestAuthor
 from ..models import Size
 
 
-class TestAdmin(LiveServerTestCase):
+class TestAdmin(CropdusterTestCaseMediaMixin, LiveServerTestCase):
 
     def setUp(self):
+        super(TestAdmin, self).setUp()
+
         self.admin_url = self.live_server_url + reverse('admin:index')
         self.add_form_url = self.live_server_url + reverse('admin:cropduster_testarticle_add')
-
-        self.TEST_IMG_ROOT = os.path.join(settings.MEDIA_ROOT, uuid.uuid4().hex)
-        self.TEST_IMG_DIR = os.path.join(self.TEST_IMG_ROOT, 'data')
-
-        # Create directory for test images
-        shutil.copytree(ORIG_IMG_PATH, self.TEST_IMG_DIR)
 
         User.objects.create_superuser('mtwain', 'me@example.com', 'p@ssw0rd')
         browser = webdriver.PhantomJS()
@@ -126,5 +119,5 @@ class TestAdmin(LiveServerTestCase):
         self.assertEqual(len(article.alt_image.related_object.thumbs.all()), len(alt_sizes))
 
     def tearDown(self):
+        super(TestAdmin, self).setUp()
         self.browser.quit()
-        shutil.rmtree(self.TEST_IMG_ROOT, ignore_errors=True)

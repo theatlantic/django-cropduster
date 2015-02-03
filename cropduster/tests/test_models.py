@@ -5,15 +5,16 @@ import PIL
 import uuid
 import shutil
 
+from django import test
 from django.contrib.contenttypes.models import ContentType
 
-from . import CropdusterTestCase
+from .helpers import CropdusterTestCaseMediaMixin
 from .models import TestArticle, TestAuthor
 from ..models import Size, Image
 from ..exceptions import CropDusterResizeException
 
 
-class TestImage(CropdusterTestCase):
+class TestImage(CropdusterTestCaseMediaMixin, test.TestCase):
 
     def setUp(self):
         super(TestImage, self).setUp()

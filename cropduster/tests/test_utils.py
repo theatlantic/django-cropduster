@@ -2,12 +2,13 @@ import os
 import shutil
 from PIL import Image
 
+from django import test
 from django.conf import settings
 
-from . import CropdusterTestCase
+from .helpers import CropdusterTestCaseMediaMixin
 
 
-class TestUtilsImage(CropdusterTestCase):
+class TestUtilsImage(CropdusterTestCaseMediaMixin, test.TestCase):
 
     def _get_img(self, filename):
         return Image.open(os.path.join(self.TEST_IMG_DIR, filename))
@@ -59,7 +60,7 @@ class TestUtilsImage(CropdusterTestCase):
         self.assertFalse(is_animated_gif(no))
 
 
-class TestUtilsPaths(CropdusterTestCase):
+class TestUtilsPaths(CropdusterTestCaseMediaMixin, test.TestCase):
 
     def test_get_upload_foldername(self):
         import uuid

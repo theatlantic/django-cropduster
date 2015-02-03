@@ -1,21 +1,21 @@
 import os
 import json
 
-from django.test import RequestFactory
+from django import test
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User
 from django.http import HttpRequest
 
 from generic_plus.utils import get_media_path
 
-from . import CropdusterTestCase
+from .helpers import CropdusterTestCaseMediaMixin
 from .. import views
 
 
-class CropdusterViewTestRunner(CropdusterTestCase):
+class CropdusterViewTestRunner(CropdusterTestCaseMediaMixin, test.TestCase):
     def setUp(self):
         super(CropdusterViewTestRunner, self).setUp()
-        self.factory = RequestFactory()
+        self.factory = test.RequestFactory()
         self.user = User.objects.create_superuser('test',
             'test@test.com', 'password')
 
