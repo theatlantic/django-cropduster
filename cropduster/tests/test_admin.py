@@ -118,6 +118,41 @@ class TestAdmin(CropdusterTestCaseMediaMixin, LiveServerTestCase):
         self.assertTrue(article.alt_image.path.endswith('.png'))
         self.assertEqual(len(article.alt_image.related_object.thumbs.all()), len(alt_sizes))
 
+    def test_changeform_single_image(self):
+        author = TestAuthor.objects.create(name="Samuel Langhorne Clemens",
+            headshot=os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.jpg'))
+        author.headshot.generate_thumbs()
+
+        url = reverse('admin:cropduster_testauthor_change', args=(author.pk, ))
+        browser = self.browser
+        browser.get(self.live_server_url + url)
+        elem = browser.find_element_by_id('id_name')
+        elem.clear()
+        elem.send_keys("Mark Twain")
+        old_page_id = browser.find_element_by_tag_name('html').id
+        browser.find_element_by_xpath('//input[@value="Save and continue editing"]').click()
+        WebDriverWait(browser, 10).until(lambda b: b.find_element_by_tag_name('html').id != old_page_id)
+        self.assertEqual(TestAuthor.objects.get(pk=author.pk).name, 'Mark Twain')
+
+    def test_changeform_multiple_images(self):
+        author = TestAuthor.objects.create(name="Samuel Langhorne Clemens")
+        article = TestArticle.objects.create(title="title", author=author,
+            lead_image=os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.jpg'),
+            alt_image=os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.png'))
+        article.lead_image.generate_thumbs()
+        article.alt_image.generate_thumbs()
+
+        url = reverse('admin:cropduster_testarticle_change', args=(article.pk, ))
+        browser = self.browser
+        browser.get(self.live_server_url + url)
+        elem = browser.find_element_by_id('id_title')
+        elem.clear()
+        elem.send_keys("Updated Title")
+        old_page_id = browser.find_element_by_tag_name('html').id
+        browser.find_element_by_xpath('//input[@value="Save and continue editing"]').click()
+        WebDriverWait(browser, 10).until(lambda b: b.find_element_by_tag_name('html').id != old_page_id)
+        self.assertEqual(TestArticle.objects.get(pk=article.pk).title, 'Updated Title')
+
     def tearDown(self):
         super(TestAdmin, self).setUp()
         self.browser.quit()
