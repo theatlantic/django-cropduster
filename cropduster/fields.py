@@ -126,7 +126,7 @@ class CropDusterImageFieldFile(ImageFieldFile):
         # related_object through the CropDusterImageFieldFile instance in
         # order to fix prefetch_related('field_name', 'field_name__thumbs')
         def __getattr__(self, attr):
-            if 'related_object' in self.__dict__:
+            if 'related_object' in self.__dict__ and attr != 'prepare_database_save':
                 try:
                     return getattr(self.__dict__['related_object'], attr)
                 except AttributeError:
