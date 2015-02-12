@@ -20,7 +20,7 @@ class TestImage(CropdusterTestCaseMediaMixin, test.TestCase):
         super(TestImage, self).setUp()
         author = TestAuthor.objects.create(name="Samuel Langhorne Clemens")
         article = TestArticle.objects.create(title="Pudd'nhead Wilson",
-            author=author, lead_image=os.path.join(self.TEST_IMG_DIR, 'img.jpg'))
+            author=author, lead_image=os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.jpg'))
         article.lead_image.generate_thumbs()
 
         self.article_ct = ContentType.objects.get(app_label='cropduster', model='testarticle')
@@ -59,21 +59,6 @@ class TestImage(CropdusterTestCaseMediaMixin, test.TestCase):
         image.save(new_filepath)
         article = TestArticle.objects.create(title="Img Too Small", author=self.author, lead_image=new_filepath)
         self.assertRaises(CropDusterResizeException, article.lead_image.generate_thumbs)
-
-    def test_multiple_images(self):
-        self.article.alt_image = os.path.join(self.TEST_IMG_DIR, 'img.png')
-        self.article.save()
-        self.article.alt_image.generate_thumbs()
-
-        article = TestArticle.objects.get(pk=self.article.pk)
-
-        lead_sizes = list(Size.flatten(TestArticle.LEAD_IMAGE_SIZES))
-        lead_thumbs = list(article.lead_image.related_object.thumbs.all())
-        self.assertEqual(len(lead_thumbs), len(lead_sizes))
-
-        alt_sizes = list(Size.flatten(TestArticle.ALT_IMAGE_SIZES))
-        alt_thumbs = list(article.alt_image.related_object.thumbs.all())
-        self.assertEqual(len(alt_thumbs), len(alt_sizes))
 
     def test_prefetch_related_with_images(self):
         for x in range(3):
@@ -143,10 +128,40 @@ class TestImage(CropdusterTestCaseMediaMixin, test.TestCase):
                     self.assertEqual(thumb.image_id, article.alt_image.related_object.pk)
                     self.assertTrue(thumb.name in alt_sizes)
 
-    def test_save(self):
+    def test_prefetch_related_through_table(self):
+        author = TestAuthor.objects.create(name="Author")
+        for x in range(10):
+            imgpath = os.path.join(self.TEST_IMG_DIR, '%s.jpg' % uuid.uuid4().hex)
+            shutil.copyfile(os.path.join(self.TEST_IMG_DIR, 'img.jpg'), imgpath)
+            alt_imgpath = os.path.join(self.TEST_IMG_DIR, '%s.png' % uuid.uuid4().hex)
+            shutil.copyfile(os.path.join(self.TEST_IMG_DIR, 'img.png'), alt_imgpath)
+            article = TestArticle.objects.create(title="prefetch", author=author, lead_image=imgpath, alt_image=alt_imgpath)
+            article.lead_image.generate_thumbs()
+            article.alt_image.generate_thumbs()
+
+        lead_sizes = [s.name for s in Size.flatten(TestArticle.LEAD_IMAGE_SIZES)]
+        alt_sizes = [s.name for s in Size.flatten(TestArticle.ALT_IMAGE_SIZES)]
+
+        with self.assertNumQueries(6):
+            authors = TestAuthor.objects.filter(pk=author.pk).prefetch_related(
+                'testarticle_set__lead_image__thumbs',
+                'testarticle_set__alt_image__thumbs')
+            for author in authors:
+                for article in author.testarticle_set.all():
+                    self.assertTrue(article.lead_image.path.endswith('jpg'))
+                    self.assertTrue(article.alt_image.path.endswith('png'))
+                    for thumb in article.lead_image.related_object.thumbs.all():
+                        self.assertTrue(thumb.name in lead_sizes)
+                    for thumb in article.alt_image.related_object.thumbs.all():
+                        self.assertTrue(thumb.name in alt_sizes)
+
+
+class TestModelSaving(CropdusterTestCaseMediaMixin, test.TestCase):
+
+    def test_save_image_updates_model(self):
         img_path = os.path.join(self.TEST_IMG_DIR, 'img.png')
-        article = TestArticle.objects.create(title="Tom Sawyer Abroad", author=self.author)
-        Image.objects.create(content_type=self.article_ct,
+        article = TestArticle.objects.create(title="test", author=TestAuthor.objects.create(name='test'))
+        Image.objects.create(content_type=ContentType.objects.get(app_label='cropduster', model='testarticle'),
                              object_id=article.pk,
                              image=img_path)
         self.assertFalse(article.lead_image)
@@ -155,3 +170,93 @@ class TestImage(CropdusterTestCaseMediaMixin, test.TestCase):
         article = TestArticle.objects.get(pk=article.pk)
         self.assertTrue(article.lead_image)
         self.assertEqual(article.lead_image.path, img_path)
+
+    def test_resave_single_image_model(self):
+        author = TestAuthor(name='test')
+        author.headshot = os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.jpg')
+        author.save()
+
+        author = TestAuthor.objects.get(pk=author.pk)
+        author.save()
+
+        author = TestAuthor.objects.get(pk=author.pk)
+        self.assertTrue(author.headshot.path.endswith('img.jpg'))
+
+    def test_resave_single_image_model_with_thumbs(self):
+        author = TestAuthor(name='test')
+        author.headshot = os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.jpg')
+        author.save()
+
+        author.headshot.generate_thumbs()
+
+        author = TestAuthor.objects.get(pk=author.pk)
+        author.save()
+
+        author = TestAuthor.objects.get(pk=author.pk)
+        self.assertTrue(author.headshot.path.endswith('img.jpg'))
+
+    def test_resave_multi_image_model_with_one_image(self):
+        article = TestArticle(title="title", author=TestAuthor.objects.create(name='test'))
+        article.lead_image = os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.jpg')
+        article.save()
+
+        article = TestArticle.objects.get(pk=article.pk)
+        article.save()
+
+        article = TestArticle.objects.get(pk=article.pk)
+        self.assertTrue(article.lead_image.path.endswith('img.jpg'))
+
+    def test_resave_multi_image_model_with_one_image_and_thumbs(self):
+        article = TestArticle(title="title", author=TestAuthor.objects.create(name='test'))
+        article.lead_image = os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.jpg')
+        article.save()
+
+        article.lead_image.generate_thumbs()
+
+        article = TestArticle.objects.get(pk=article.pk)
+        article.save()
+
+        article = TestArticle.objects.get(pk=article.pk)
+        self.assertTrue(article.lead_image.path.endswith('img.jpg'))
+
+    def test_resave_multi_image_model_with_two_images(self):
+        article = TestArticle(title="title", author=TestAuthor.objects.create(name='test'))
+        article.lead_image = os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.jpg')
+        article.alt_image = os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.png')
+        article.save()
+
+        article = TestArticle.objects.get(pk=article.pk)
+        article.save()
+
+        article = TestArticle.objects.get(pk=article.pk)
+        self.assertTrue(article.lead_image.path.endswith('img.jpg'))
+        self.assertTrue(article.alt_image.path.endswith('img.png'))
+
+    def test_resave_multi_image_model_with_two_images_and_thumbs(self):
+        article = TestArticle(title="title", author=TestAuthor.objects.create(name='test'))
+        article.lead_image = os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.jpg')
+        article.alt_image = os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.png')
+        article.save()
+
+        article.lead_image.generate_thumbs()
+        article.alt_image.generate_thumbs()
+
+        article = TestArticle.objects.get(pk=article.pk)
+        article.save()
+
+        article = TestArticle.objects.get(pk=article.pk)
+        self.assertTrue(article.lead_image.path.endswith('img.jpg'))
+        self.assertTrue(article.alt_image.path.endswith('img.png'))
+
+    def test_change_image_on_model_with_two_images(self):
+        article = TestArticle(title="title", author=TestAuthor.objects.create(name='test'))
+        article.lead_image = os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.jpg')
+        article.save()
+
+        article = TestArticle.objects.get(pk=article.pk)
+        article.alt_image = os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.png')
+        article.save()
+
+        article = TestArticle.objects.get(pk=article.pk)
+        self.assertTrue(article.lead_image.path.endswith('img.jpg'))
+        self.assertTrue(article.alt_image.path.endswith('img.png'))
