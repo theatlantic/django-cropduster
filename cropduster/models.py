@@ -221,7 +221,7 @@ class Image(models.Model):
     class Meta:
         app_label = cropduster_settings.CROPDUSTER_APP_LABEL
         db_table = '%s_image' % cropduster_settings.CROPDUSTER_DB_PREFIX
-        unique_together = ("content_type", "object_id", "prev_object_id", "field_identifier")
+        unique_together = ("content_type", "object_id", "field_identifier")
 
     def __unicode__(self):
         return self.get_image_url()
