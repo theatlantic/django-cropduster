@@ -141,7 +141,7 @@ class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
         form = super(CropDusterInlineFormSet, self)._construct_form(i, **kwargs)
 
         field_identifier_field = form.fields['field_identifier']
-        field_identifier_field.widget.is_hidden = True
+        field_identifier_field.widget = forms.HiddenInput()
         field_identifier_field.initial = self.field_identifier
 
         thumbs_field = form.fields['thumbs']

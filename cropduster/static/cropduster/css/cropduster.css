@@ -5,7 +5,8 @@
 .cropduster-form .grp-module .image,
 .cropduster-form .grp-module .thumbs,
 .cropduster-form .DELETE,
-.cropduster-form .inline-related .grp-collapse-handler {
+.cropduster-form .inline-related .grp-collapse-handler, 
+.cropduster-form .grp-module .field_identifier {
     display: none;
 }
 .cropduster-form .inline-related,
