@@ -61,6 +61,7 @@ if not settings.configured:
         'MEDIA_URL': '/media/',
         'STATIC_URL': '/static/',
         'DEBUG_PROPAGATE_EXCEPTIONS': True,
+        'TEST_RUNNER': 'django_nose.NoseTestSuiteRunner',
     })
 
 
