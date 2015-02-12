@@ -171,6 +171,9 @@ class MetadataDict(dict):
     def __init__(self, file_path):
         self.file_path = file_path
         ns_dict = libxmp.file_to_dict(file_path)
+        self.clean(ns_dict)
+
+    def clean(self, ns_dict):
         for ns, values in six.iteritems(ns_dict):
             for k, v, opts in values:
                 current = self
