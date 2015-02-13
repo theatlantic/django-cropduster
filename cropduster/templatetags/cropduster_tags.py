@@ -41,6 +41,10 @@ def get_crop(image, crop_name, size=None, attribution=None, exact_size=False):
     the crop size that was passed in. Crop sizes do not always require both
     values so `exact_size` gives you access to the actual size of an image.
     """
+
+    if not image:
+        return
+
     if size:
         warnings.warn("The size kwarg is deprecated.", DeprecationWarning)
 
