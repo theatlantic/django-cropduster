@@ -1,3 +1,4 @@
+import math
 from django.conf import settings
 
 
@@ -15,3 +16,15 @@ except AttributeError:
 
 CROPDUSTER_PREVIEW_WIDTH = getattr(settings, 'CROPDUSTER_PREVIEW_WIDTH', 800)
 CROPDUSTER_PREVIEW_HEIGHT = getattr(settings, 'CROPDUSTER_PREVIEW_HEIGHT', 500)
+
+
+def get_jpeg_quality(width, height):
+    p = math.sqrt(width * height)
+    if p >= 1750:
+        return 80
+    elif p >= 1000:
+        return 85
+    else:
+        return 90
+
+get_jpeg_quality = getattr(settings, 'get_jpeg_quality', get_jpeg_quality)

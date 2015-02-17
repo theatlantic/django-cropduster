@@ -276,7 +276,7 @@ class Image(models.Model):
         preview_file = cls.get_file_for_size(image_file, '_preview')
         img_save_params = {}
         if preview_img.format == 'JPEG':
-            img_save_params['quality'] = 95
+            img_save_params['quality'] = cropduster_settings.get_jpeg_quality(w, h)
         preview_img.save(safe_str_path(preview_file.path), **img_save_params)
         return preview_file
 
@@ -425,7 +425,7 @@ class Image(models.Model):
     def _save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False, standalone=False):
         img_save_params = {}
         if image.format == 'JPEG':
-            img_save_params['quality'] = 95
+            img_save_params['quality'] = cropduster_settings.get_jpeg_quality(self.width, self.height)
 
         if not thumb:
             if standalone:
