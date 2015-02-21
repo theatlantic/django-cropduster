@@ -4,7 +4,7 @@ from django.contrib import admin
 from cropduster.models import CropDusterField, Size
 
 
-class TestAuthor(models.Model):
+class Author(models.Model):
     name = models.CharField(max_length=255)
     HEADSHOT_SIZES = [
         Size('main', w=220, h=180, auto=[
@@ -17,9 +17,9 @@ class TestAuthor(models.Model):
         app_label = 'cropduster'
 
 
-class TestArticle(models.Model):
+class Article(models.Model):
     title = models.CharField(max_length=255)
-    author = models.ForeignKey(to=TestAuthor)
+    author = models.ForeignKey(to=Author)
     LEAD_IMAGE_SIZES = [
         Size(u'main', w=600, h=480, auto=[
             Size(u'thumb', w=110, h=90),
@@ -42,5 +42,5 @@ class TestArticle(models.Model):
         app_label = 'cropduster'
 
 
-admin.site.register(TestAuthor)
-admin.site.register(TestArticle)
+admin.site.register(Author)
+admin.site.register(Article)

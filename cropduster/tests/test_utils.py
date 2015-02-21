@@ -72,6 +72,7 @@ class TestUtilsPaths(CropdusterTestCaseMediaMixin, test.TestCase):
                          os.path.join(path, 'my_img'))
         self.assertEqual(get_upload_foldername('my img.jpg', upload_to=random),
                          os.path.join(path, 'my_img-1'))
+        shutil.rmtree(path)
 
     def test_get_min_size(self):
         from ..utils import get_min_size

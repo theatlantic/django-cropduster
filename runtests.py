@@ -11,8 +11,6 @@ current_dir = os.path.abspath(os.path.dirname(__file__))
 test_dir = os.path.join(current_dir, 'test')
 
 
-sys.path.insert(0, test_dir)
-
 # Give feedback on used versions
 sys.stderr.write('Using Python version %s from %s\n' % (sys.version[:5], sys.executable))
 sys.stderr.write('Using Django version %s from %s\n' % (
@@ -30,12 +28,12 @@ if not settings.configured:
             }
         },
         'TEMPLATE_LOADERS': (
+            'django.template.loaders.filesystem.Loader',
             'django.template.loaders.app_directories.Loader',
         ),
         'TEMPLATE_CONTEXT_PROCESSORS': default_settings.TEMPLATE_CONTEXT_PROCESSORS + (
             'django.core.context_processors.request',
         ),
-        'TEST_RUNNER': 'django.test.runner.DiscoverRunner' if django.VERSION >= (1, 6) else 'discover_runner.runner.DiscoverRunner',
         'INSTALLED_APPS': (
             'grappelli',
             'django.contrib.auth',
@@ -47,8 +45,6 @@ if not settings.configured:
             'django.contrib.admin',
             'generic_plus',
             'cropduster',
-            'cropduster.tests',
-            'testapp',
         ),
         'MIDDLEWARE_CLASSES': (
             'django.contrib.sessions.middleware.SessionMiddleware',
@@ -56,12 +52,15 @@ if not settings.configured:
             'django.contrib.messages.middleware.MessageMiddleware',
         ),
         'SITE_ID': 1,
-        'ROOT_URLCONF': 'testapp.urls',
+        'ROOT_URLCONF': 'cropduster.tests.testproj.urls',
         'MEDIA_ROOT': os.path.join(test_dir, 'media'),
         'MEDIA_URL': '/media/',
         'STATIC_URL': '/static/',
         'DEBUG_PROPAGATE_EXCEPTIONS': True,
         'TEST_RUNNER': 'django_nose.NoseTestSuiteRunner',
+        'TEMPLATE_DIRS': (
+            os.path.join(current_dir, 'cropduster', 'tests', 'testproj', 'templates'),
+        )
     })
 
 
