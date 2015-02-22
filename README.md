@@ -1,6 +1,8 @@
 django-cropduster
 =================
 
+[![Build Status](https://travis-ci.org/theatlantic/django-cropduster.svg?branch=v4)](https://travis-ci.org/theatlantic/django-cropduster)
+
 **django-cropduster** is a project that makes a form field available that
 uses the [Jcrop jQuery plugin](https://github.com/tapmodo/Jcrop). It is a drop-in
 replacement for django's `ImageField` and allows users to generate multiple crops
