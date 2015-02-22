@@ -5,6 +5,9 @@ import json
 from cropduster.resizing import Size
 
 
+__all__ = ('dumps', 'loads')
+
+
 def json_default(obj):
     if six.callable(getattr(obj, '__serialize__', None)):
         dct = obj.__serialize__()
@@ -44,5 +47,7 @@ def dumps(obj, *args, **kwargs):
 
 
 def loads(s, *args, **kwargs):
+    if isinstance(s, six.binary_type):
+        s = s.decode('utf-8')
     kwargs.setdefault('object_hook', object_hook)
     return json.loads(s, *args, **kwargs)

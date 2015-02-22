@@ -116,7 +116,7 @@ class CropDusterImageFieldFile(ImageFieldFile):
 
             thumbs = self.related_object.save_size(size, thumb=crop_thumb, permissive=permissive)
 
-            for slug, thumb in thumbs.iteritems():
+            for slug, thumb in six.iteritems(thumbs):
                 thumb.image = self.related_object
                 thumb.save()
 

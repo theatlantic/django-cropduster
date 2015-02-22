@@ -1,5 +1,4 @@
 import os
-import json
 
 from django import test
 from django.core.urlresolvers import reverse
@@ -8,8 +7,10 @@ from django.http import HttpRequest
 
 from generic_plus.utils import get_media_path
 
+from cropduster import views
+from cropduster.utils import json
+
 from .helpers import CropdusterTestCaseMediaMixin
-from .. import views
 
 
 class CropdusterViewTestRunner(CropdusterTestCaseMediaMixin, test.TestCase):
