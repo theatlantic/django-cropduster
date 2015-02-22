@@ -40,7 +40,3 @@ class Article(models.Model):
 
     class Meta:
         app_label = 'cropduster'
-
-
-admin.site.register(Author)
-admin.site.register(Article)

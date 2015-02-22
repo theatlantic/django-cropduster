@@ -52,14 +52,14 @@ if not settings.configured:
             'django.contrib.messages.middleware.MessageMiddleware',
         ),
         'SITE_ID': 1,
-        'ROOT_URLCONF': 'cropduster.tests.testproj.urls',
+        'ROOT_URLCONF': 'cropduster.tests.urls',
         'MEDIA_ROOT': os.path.join(test_dir, 'media'),
         'MEDIA_URL': '/media/',
         'STATIC_URL': '/static/',
         'DEBUG_PROPAGATE_EXCEPTIONS': True,
-        'TEST_RUNNER': 'django_nose.NoseTestSuiteRunner',
+        'TEST_RUNNER': 'django.test.runner.DiscoverRunner' if django.VERSION >= (1, 6) else 'discover_runner.runner.DiscoverRunner',
         'TEMPLATE_DIRS': (
-            os.path.join(current_dir, 'cropduster', 'tests', 'testproj', 'templates'),
+            os.path.join(current_dir, 'cropduster', 'tests', 'templates'),
         )
     })
 

@@ -2,6 +2,9 @@ from django.conf import settings
 from django.conf.urls import patterns, include, url, static
 from django.contrib import admin
 
+# Explicitly import to register the admins for the test models
+import cropduster.tests.admin
+
 
 urlpatterns = patterns('',
     url(r"^cropduster/", include("cropduster.urls")),

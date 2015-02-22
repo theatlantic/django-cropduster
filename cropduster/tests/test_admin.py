@@ -17,6 +17,8 @@ from ..models import Size
 
 class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
 
+    urls = 'cropduster.tests.urls'
+
     available_apps = [
         'grappelli',
         'django.contrib.auth',
