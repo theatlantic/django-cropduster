@@ -17,12 +17,12 @@ except IOError:
 
 setup(
     name='django-cropduster',
-    version='4.8.4',
+    version='4.8.5',
     author='The Atlantic',
     author_email='programmers@theatlantic.com',
     url='https://github.com/theatlantic/django-cropduster',
     description='Django image uploader and cropping tool',
-    packages=['cropduster'],
+    packages=find_packages(exclude=['cropduster3', 'cropduster3.*']),
     zip_safe=False,
     install_requires=[
         'Pillow',
