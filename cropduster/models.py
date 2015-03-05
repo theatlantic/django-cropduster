@@ -272,6 +272,7 @@ class Image(models.Model):
             h = int(round(orig_h * resize_ratio))
             preview_img = pil_img.resize((w, h), PIL.Image.ANTIALIAS)
         else:
+            w, h = orig_w, orig_h
             preview_img = pil_img
         preview_file = cls.get_file_for_size(image_file, '_preview')
         img_save_params = {}
