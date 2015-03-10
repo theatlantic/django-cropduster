@@ -194,7 +194,7 @@ class Image(models.Model):
     content_type = models.ForeignKey(ContentType)
     object_id = models.PositiveIntegerField(null=True, blank=True)
     content_object = generic.GenericForeignKey('content_type', 'object_id')
-    field_identifier = models.SlugField(null=True, blank=True)
+    field_identifier = models.SlugField(null=False, blank=True, default="")
 
     prev_object_id = models.PositiveIntegerField(null=True, blank=True)
     prev_content_object = generic.GenericForeignKey('content_type', 'prev_object_id')
@@ -221,7 +221,10 @@ class Image(models.Model):
     class Meta:
         app_label = cropduster_settings.CROPDUSTER_APP_LABEL
         db_table = '%s_image' % cropduster_settings.CROPDUSTER_DB_PREFIX
-        unique_together = ("content_type", "object_id", "field_identifier")
+        unique_together = (
+            ("content_type", "object_id", "field_identifier"),
+            ("content_type", "object_id", "field_identifier", "prev_object_id"),
+        )
 
     def __unicode__(self):
         return self.get_image_url()
@@ -313,9 +316,6 @@ class Image(models.Model):
             return converted.path
 
     def save(self, **kwargs):
-        self.date_modified = datetime.now()
-        if self.field_identifier == "":
-            self.field_identifier = None
         if not self.pk and self.content_type and self.object_id:
             try:
                 original = Image.objects.get(content_type=self.content_type,
