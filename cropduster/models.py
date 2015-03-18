@@ -194,7 +194,7 @@ class Image(models.Model):
     content_type = models.ForeignKey(ContentType)
     object_id = models.PositiveIntegerField(null=True, blank=True)
     content_object = generic.GenericForeignKey('content_type', 'object_id')
-    field_identifier = models.SlugField(null=True, blank=True)
+    field_identifier = models.SlugField(null=False, blank=True, default="")
 
     prev_object_id = models.PositiveIntegerField(null=True, blank=True)
     prev_content_object = generic.GenericForeignKey('content_type', 'prev_object_id')
@@ -314,8 +314,8 @@ class Image(models.Model):
 
     def save(self, **kwargs):
         self.date_modified = datetime.now()
-        if self.field_identifier == "":
-            self.field_identifier = None
+        if self.field_identifier is None:
+            self.field_identifier = ""
         if not self.pk and self.content_type and self.object_id:
             try:
                 original = Image.objects.get(content_type=self.content_type,
