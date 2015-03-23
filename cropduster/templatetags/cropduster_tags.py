@@ -3,7 +3,7 @@ import warnings
 import six
 
 from django import template
-from cropduster.models import Image
+from cropduster.models import Image, Thumb
 from cropduster.resizing import Size
 
 
@@ -42,29 +42,27 @@ def get_crop(image, crop_name, size=None, attribution=None, exact_size=False):
     values so `exact_size` gives you access to the actual size of an image.
     """
 
-    if not image:
+    if not image or not image.related_object:
         return
 
     if size:
         warnings.warn("The size kwarg is deprecated.", DeprecationWarning)
 
+    if exact_size:
+        warnings.warn("The exact_size kwarg is deprecated.", DeprecationWarning)
+
     data = {}
-    data['url'] = getattr(Image.get_file_for_size(image, crop_name), 'url', None)
-
-    if not exact_size:
-        sizes = Size.flatten(image.sizes)
-        try:
-            size = six.next(size_obj for size_obj in sizes if size_obj.name == crop_name)
-        except StopIteration:
-            pass
+    try:
+        thumb = image.related_object.thumbs.get(name=crop_name)
+    except Thumb.DoesNotExist:
+        if crop_name == "original":
+            thumb = image.related_object
         else:
-            if size.width:
-                data['width'] = size.width
+            return data
 
-            if size.height:
-                data['height'] = size.height
-    elif image.related_object:
-        data['width'], data['height'] = image.related_object.get_image_size(size_name=crop_name)
+    data["url"] = thumb.url
+    data["width"] = thumb.width
+    data["height"] = thumb.height
 
     if attribution and image.related_object:
         data.update({
