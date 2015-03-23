@@ -34,7 +34,7 @@ def get_crop(image, crop_name, **kwargs):
     """
 
     if not image or not image.related_object:
-        return
+        return None
 
     if len(kwargs) > 0:
         warnings.warn("All get_crop kwargs have been deprecated", DeprecationWarning)
@@ -46,7 +46,7 @@ def get_crop(image, crop_name, **kwargs):
         if crop_name == "original":
             thumb = image.related_object
         else:
-            return data
+            return None
 
     data.update({
         "url": thumb.url,
