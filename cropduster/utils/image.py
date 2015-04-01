@@ -8,6 +8,7 @@ import os
 import tempfile
 import warnings
 import math
+from distutils.version import LooseVersion
 
 import PIL.Image
 
@@ -200,6 +201,12 @@ def smart_resize(im, final_w, final_h):
     if orig_w <= final_w and orig_h <= final_h:
         # If the image is already the right size, don't change it
         return im
+
+    # Pillow 2.7.0 greatly improved the bicubic resize algorithm, which makes
+    # our multiple-step resizing unnecessary
+    pillow_version = getattr(PIL, 'PILLOW_VERSION', None)
+    if pillow_version and LooseVersion(pillow_version) >= LooseVersion('2.7.0'):
+        return im.resize((final_w, final_h), PIL.Image.BICUBIC)
 
     # Attempt to resize the image 1/8, 2/8, such that it is at least 1.5x bigger
     # than the final size
