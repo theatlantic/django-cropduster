@@ -1,4 +1,6 @@
 import math
+import PIL
+from distutils.version import LooseVersion
 from django.conf import settings
 
 
@@ -28,3 +30,6 @@ def get_jpeg_quality(width, height):
         return 90
 
 get_jpeg_quality = getattr(settings, 'get_jpeg_quality', get_jpeg_quality)
+
+JPEG_SAVE_ICC_SUPPORTED = (LooseVersion(getattr(PIL, 'PILLOW_VERSION', '0'))
+    >= LooseVersion('2.2.1'))

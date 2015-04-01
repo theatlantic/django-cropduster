@@ -278,6 +278,8 @@ class Image(models.Model):
         img_save_params = {}
         if preview_img.format == 'JPEG':
             img_save_params['quality'] = cropduster_settings.get_jpeg_quality(w, h)
+        if preview_img.format in ('JPEG', 'PNG') and cropduster_settings.JPEG_SAVE_ICC_SUPPORTED:
+            img_save_params['icc_profile'] = pil_img.info.get('icc_profile')
         preview_img.save(safe_str_path(preview_file.path), **img_save_params)
         return preview_file
 
@@ -427,6 +429,8 @@ class Image(models.Model):
         img_save_params = {}
         if image.format == 'JPEG':
             img_save_params['quality'] = cropduster_settings.get_jpeg_quality(self.width, self.height)
+        if image.format in ('JPEG', 'PNG') and cropduster_settings.JPEG_SAVE_ICC_SUPPORTED:
+            img_save_params['icc_profile'] = image.info.get('icc_profile')
 
         if not thumb:
             if standalone:

@@ -21,7 +21,7 @@ try:
 except ImportError:
     scipy = None
 
-from cropduster.settings import get_jpeg_quality
+from cropduster.settings import get_jpeg_quality, JPEG_SAVE_ICC_SUPPORTED
 
 from .images2gif import read_gif, write_gif
 
@@ -178,6 +178,8 @@ def process_image(im, save_filename=None, callback=lambda i: i, nq=0, save_param
             save_params = save_params or {}
             if im.format == 'JPEG':
                 save_params.setdefault('quality', get_jpeg_quality(new_images[0].size[0], new_images[0].size[1]))
+            if im.format in ('JPEG', 'PNG') and JPEG_SAVE_ICC_SUPPORTED:
+                save_params.setdefault('icc_profile', im.info.get('icc_profile'))
             new_images[0].save(save_filename, **save_params)
 
         return PIL.Image.open(save_filename)
