@@ -130,6 +130,7 @@ window.CropDuster = {};
             }
             CropDuster.setThumbnails(prefix, data.crop.thumbs);
             CropDuster.createThumbnails(prefix);
+            $(document).trigger('cropduster:update', [prefix, data]);
         },
 
         /**
