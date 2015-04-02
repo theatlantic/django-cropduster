@@ -182,7 +182,7 @@ window.CropDuster = {};
             }
 
             $inlineForm.find('span.delete input').change(function() {
-                $row = $(this).closest('.cropduster-form');
+                var $row = $(this).closest('.cropduster-form');
                 if (this.checked) {
                     $row.addClass('predelete grp-predelete');
                 } else {
@@ -198,7 +198,7 @@ window.CropDuster = {};
         },
 
         createThumbnails: function(prefix) {
-            $input = $("#id_" + prefix);
+            var $input = $("#id_" + prefix);
             var data = $input.data();
             if (!$input.length) {
                 return;
@@ -298,7 +298,7 @@ window.CropDuster = {};
                 return;
             }
 
-            sizeToRestore = removedSizesData[sizeName];
+            var sizeToRestore = removedSizesData[sizeName];
             sizes.splice(sizeToRestore.index, 0, sizeToRestore.size);
             delete removedSizesData[sizeName];
         }
