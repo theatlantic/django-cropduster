@@ -3,7 +3,7 @@ import warnings
 import six
 
 from django import template
-from cropduster.models import Image, Thumb
+from cropduster.models import Image
 from cropduster.resizing import Size
 
 
@@ -40,16 +40,17 @@ def get_crop(image, crop_name, **kwargs):
         warnings.warn("All get_crop kwargs have been deprecated", DeprecationWarning)
 
     data = {}
+    thumbs = {thumb.name: thumb for thumb in image.related_object.thumbs.all()}
     try:
-        thumb = image.related_object.thumbs.get(name=crop_name)
-    except Thumb.DoesNotExist:
+        thumb = thumbs[crop_name]
+    except KeyError:
         if crop_name == "original":
             thumb = image.related_object
         else:
             return None
 
     data.update({
-        "url": thumb.url,
+        "url": Image.get_file_for_size(image=image, size_name=crop_name),
         "width": thumb.width,
         "height": thumb.height,
         "attribution": image.related_object.attribution,
