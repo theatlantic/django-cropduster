@@ -50,7 +50,7 @@ def get_crop(image, crop_name, **kwargs):
             return None
 
     data.update({
-        "url": Image.get_file_for_size(image=image, size_name=crop_name),
+        "url": Image.get_file_for_size(image=image, size_name=crop_name).url,
         "width": thumb.width,
         "height": thumb.height,
         "attribution": image.related_object.attribution,
