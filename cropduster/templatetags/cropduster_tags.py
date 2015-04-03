@@ -73,3 +73,19 @@ def get_crop(image, crop_name, size=None, attribution=None, exact_size=False):
             "caption": image.related_object.caption,
         })
     return data
+
+
+@register.assignment_tag
+def get_thumbs(image):
+    def _serialize_thumb(thumb):
+        return {
+            "url": Image.get_file_for_size(image, thumb.name).url,
+            "width": thumb.width,
+            "height": thumb.height,
+            "attribution": image.related_object.attribution,
+            "attribution_link": image.related_object.attribution_link,
+            "caption": image.related_object.caption,
+            }
+
+    thumbs = image.related_object.thumbs.all()
+    return {thumb.name: _serialize_thumb(thumb) for thumb in thumbs}
