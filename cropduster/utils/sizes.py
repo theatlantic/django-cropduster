@@ -20,6 +20,7 @@ def get_min_size(sizes):
         return (0, 0)
     # The min width and height for the image = the largest w / h of the sizes
     for size in Size.flatten(sizes):
-        min_w = max(size.min_w, min_w)
-        min_h = max(size.min_h, min_h)
+        if size.required:
+            min_w = max(size.min_w, min_w)
+            min_h = max(size.min_h, min_h)
     return (min_w, min_h)

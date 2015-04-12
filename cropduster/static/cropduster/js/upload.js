@@ -233,6 +233,9 @@
             var aspectRatio = (size.w && size.h) ? (size.w / size.h) : 0;
             var minSize = [size.min_w || size.w || 0, size.min_h || size.h || 0];
             $.each(size.auto || [], function(i, autoSize) {
+                if (!autoSize.required) {
+                    return;
+                }
                 var min_w = autoSize.min_w || autoSize.w || 0;
                 var min_h = autoSize.min_h || autoSize.h || 0;
                 minSize[0] = Math.max(minSize[0], min_w);

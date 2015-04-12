@@ -29,7 +29,7 @@ class Size(object):
     parent = None
 
     def __init__(self, name, label=None, w=None, h=None, retina=False, auto=None, min_w=None, min_h=None,
-            max_w=None, max_h=None):
+            max_w=None, max_h=None, required=True):
 
         self.min_w = max(w or 1, min_w or 1) or 1
         self.min_h = max(h or 1, min_h or 1) or 1
@@ -53,6 +53,7 @@ class Size(object):
         self.width = w
         self.height = h
         self.label = label or u' '.join(filter(None, re.split(r'[_\-]', name))).title()
+        self.required = required
 
     def __unicode__(self):
         name = u'Size %s (%s):' % (self.label, self.name)
@@ -128,6 +129,7 @@ class Size(object):
             'max_h': self.max_h,
             'retina': 1 if self.retina else 0,
             'label': self.label,
+            'required': self.required,
             '__type__': 'Size',
         }
         if self.auto:

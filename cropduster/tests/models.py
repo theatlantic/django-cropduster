@@ -40,3 +40,17 @@ class Article(models.Model):
 
     class Meta:
         app_label = 'cropduster'
+
+
+class TestForOptionalSizes(models.Model):
+
+    TEST_SIZES = [
+        Size('main', w=600, h=480, auto=[
+            Size('optional', w=1200, h=960, required=False),
+        ])]
+
+    slug = models.SlugField()
+    image = CropDusterField(upload_to="test", sizes=TEST_SIZES)
+
+    class Meta:
+        app_label = 'cropduster'

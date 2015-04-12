@@ -9,7 +9,7 @@ from django import test
 from django.contrib.contenttypes.models import ContentType
 
 from .helpers import CropdusterTestCaseMediaMixin
-from .models import Article, Author
+from .models import Article, Author, TestForOptionalSizes
 from ..models import Size, Image
 from ..exceptions import CropDusterResizeException
 
@@ -260,3 +260,24 @@ class TestModelSaving(CropdusterTestCaseMediaMixin, test.TestCase):
         article = Article.objects.get(pk=article.pk)
         self.assertTrue(article.lead_image.path.endswith('img.jpg'))
         self.assertTrue(article.alt_image.path.endswith('img.png'))
+
+    def test_optional_sizes(self):
+        test_a = TestForOptionalSizes.objects.create(slug='a')
+        test_a.image = os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.jpg')
+        test_a.save()
+        test_a.image.generate_thumbs()
+
+        image = Image.objects.get(content_type=ContentType.objects.get_for_model(test_a),
+            object_id=test_a.pk)
+        num_thumbs = len(image.thumbs.all())
+        self.assertEqual(num_thumbs, 1, "Expected one thumb; instead got %d" % num_thumbs)
+
+        test_b = TestForOptionalSizes.objects.create(slug='b')
+        test_b.image = os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img2.jpg')
+        test_b.save()
+        test_b.image.generate_thumbs()
+
+        image = Image.objects.get(content_type=ContentType.objects.get_for_model(test_b),
+            object_id=test_b.pk)
+        num_thumbs = len(image.thumbs.all())
+        self.assertEqual(num_thumbs, 2, "Expected one thumb; instead got %d" % num_thumbs)

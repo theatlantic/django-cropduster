@@ -11,7 +11,7 @@ from selenium.webdriver.support.expected_conditions import (
     visibility_of_element_located, element_to_be_clickable)
 
 from .helpers import CropdusterTestCaseMediaMixin
-from .models import Article, Author
+from .models import Article, Author, TestForOptionalSizes
 from ..models import Size
 
 
@@ -187,3 +187,63 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
         browser.find_element_by_xpath('//input[@value="Save and continue editing"]').click()
         self.wait_until(lambda b: b.find_element_by_tag_name('html').id != old_page_id)
         self.assertEqual(Article.objects.get(pk=article.pk).title, 'Updated Title')
+
+    def test_changeform_with_optional_sizes_small_image(self):
+        test_a = TestForOptionalSizes.objects.create(slug='a')
+
+        self.selenium.get("%s%s" % (self.live_server_url,
+            reverse('admin:cropduster_testforoptionalsizes_change', args=[test_a.pk])))
+        self.wait_page_loaded()
+
+        # Upload and crop image
+        with self.clickable_selector('#image-group .rounded-button') as el:
+            # With the Chrome driver, using Grappelli, this button can be covered
+            # by the fixed footer. So we scroll the button into view.
+            self.selenium.execute_script('window.scrollTo(0, %d)' % el.location['y'])
+            el.click()
+
+        with self.switch_to_popup_window():
+            with self.visible_selector('#id_image') as el:
+                el.send_keys(os.path.join(self.TEST_IMG_DIR, 'img.jpg'))
+            with self.clickable_selector('#upload-button') as el:
+                el.click()
+            with self.clickable_selector('#crop-button') as el:
+                el.click()
+
+        self.selenium.find_element_by_xpath('//input[@name="_continue"]').click()
+        self.wait_page_loaded()
+
+        test_a = TestForOptionalSizes.objects.get(slug='a')
+        image = test_a.image.related_object
+        num_thumbs = len(image.thumbs.all())
+        self.assertEqual(num_thumbs, 1, "Expected one thumb; instead got %d" % num_thumbs)
+
+    def test_changeform_with_optional_sizes_large_image(self):
+        test_a = TestForOptionalSizes.objects.create(slug='a')
+
+        self.selenium.get("%s%s" % (self.live_server_url,
+            reverse('admin:cropduster_testforoptionalsizes_change', args=[test_a.pk])))
+        self.wait_page_loaded()
+
+        # Upload and crop image
+        with self.clickable_selector('#image-group .rounded-button') as el:
+            # With the Chrome driver, using Grappelli, this button can be covered
+            # by the fixed footer. So we scroll the button into view.
+            self.selenium.execute_script('window.scrollTo(0, %d)' % el.location['y'])
+            el.click()
+
+        with self.switch_to_popup_window():
+            with self.visible_selector('#id_image') as el:
+                el.send_keys(os.path.join(self.TEST_IMG_DIR, 'img2.jpg'))
+            with self.clickable_selector('#upload-button') as el:
+                el.click()
+            with self.clickable_selector('#crop-button') as el:
+                el.click()
+
+        self.selenium.find_element_by_xpath('//input[@name="_continue"]').click()
+        self.wait_page_loaded()
+
+        test_a = TestForOptionalSizes.objects.get(slug='a')
+        image = test_a.image.related_object
+        num_thumbs = len(image.thumbs.all())
+        self.assertEqual(num_thumbs, 2, "Expected one thumb; instead got %d" % num_thumbs)
