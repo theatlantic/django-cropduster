@@ -11,7 +11,7 @@ register = template.Library()
 
 
 @register.assignment_tag
-def get_crop(image, crop_name, size=None, attribution=None, exact_size=False):
+def get_crop(image, crop_name, exact_size=False, **kwargs):
     """
     Get the crop of an image. Usage:
 
@@ -45,7 +45,7 @@ def get_crop(image, crop_name, size=None, attribution=None, exact_size=False):
     if not image:
         return
 
-    if size:
+    if "size" in kwargs:
         warnings.warn("The size kwarg is deprecated.", DeprecationWarning)
 
     data = {}
@@ -64,12 +64,22 @@ def get_crop(image, crop_name, size=None, attribution=None, exact_size=False):
             if size.height:
                 data['height'] = size.height
     elif image.related_object:
-        data['width'], data['height'] = image.related_object.get_image_size(size_name=crop_name)
+        thumbs = {thumb.name: thumb for thumb in image.related_object.thumbs.all()}
 
-    if attribution and image.related_object:
+        try:
+            thumb = thumbs[crop_name]
+        except KeyError:
+            if crop_name == "original":
+                thumb = image.related_object
+            else:
+                return None
+
         data.update({
+            "width": thumb.width,
+            "height": thumb.height,
             "attribution": image.related_object.attribution,
             "attribution_link": image.related_object.attribution_link,
             "caption": image.related_object.caption,
         })
+
     return data
