@@ -21,7 +21,9 @@ import PIL.Image
 from generic_plus.utils import get_relative_media_url
 
 from .exceptions import CropDusterResizeException
-from .fields import CropDusterField, ReverseForeignRelation, CropDusterImageField
+from .fields import (
+    CropDusterField, ReverseForeignRelation, CropDusterImageField,
+    CropDusterSimpleImageField)
 from .files import VirtualFieldFile
 from .resizing import Size, Box, Crop
 from . import settings as cropduster_settings
@@ -206,7 +208,8 @@ class Image(models.Model):
     width = models.PositiveIntegerField(blank=True, null=True)
     height = models.PositiveIntegerField(blank=True, null=True)
 
-    image = models.ImageField(db_index=True, upload_to=generate_filename, db_column='path',
+    image = CropDusterSimpleImageField(db_index=True,
+        upload_to=generate_filename, db_column='path',
         storage=image_storage, width_field='width', height_field='height')
 
     thumbs = ReverseForeignRelation(Thumb, field_name='image')
@@ -339,7 +342,7 @@ class Image(models.Model):
         for field, _ in model_class._meta.get_fields_with_model():
             if (isinstance(field, CropDusterImageField) and
                     field.generic_field.field_identifier == self.field_identifier):
-                model_class.objects.filter(pk=self.object_id).update(**{field.attname: self.path})
+                model_class.objects.filter(pk=self.object_id).update(**{field.attname: self.path or ''})
                 break
 
     def get_image_url(self, size_name='original', tmp=False):
@@ -539,3 +542,5 @@ else:
             },
         ),
     ], patterns=["^cropduster\.fields\.CropDusterField"])
+
+    add_introspection_rules([], ["^cropduster\.fields\.CropDusterSimpleImageField"])

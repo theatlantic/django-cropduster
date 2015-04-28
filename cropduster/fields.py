@@ -146,10 +146,33 @@ class CropDusterImageField(models.ImageField):
     attr_class = CropDusterImageFieldFile
 
 
+class CropDusterImageFileDescriptor(ImageFileDescriptor):
+    """
+    The same as ImageFileDescriptor, except only updates image dimensions if
+    the file has changed
+    """
+    def __set__(self, instance, value):
+        previous_file = instance.__dict__.get(self.field.name)
+        super(ImageFileDescriptor, self).__set__(instance, value)
+
+        if previous_file is not None:
+            if previous_file != value:
+                self.field.update_dimension_fields(instance, force=True)
+
+
+class CropDusterSimpleImageField(models.ImageField):
+    """
+    Used for the field 'image' on cropduster.models.Image. Just overrides the
+    descriptor_class to prevent unnecessary IO lookups on form submissions.
+    """
+
+    descriptor_class = CropDusterImageFileDescriptor
+
+
 class CropDusterField(GenericForeignFileField):
 
     file_field_cls = CropDusterImageField
-    file_descriptor_cls = ImageFileDescriptor
+    file_descriptor_cls = CropDusterImageFileDescriptor
     rel_file_field_name = 'image'
     field_identifier_field_name = 'field_identifier'
 
