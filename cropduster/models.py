@@ -343,7 +343,6 @@ class Image(models.Model):
             if (isinstance(field, CropDusterImageField) and
                     field.generic_field.field_identifier == self.field_identifier):
                 model_class.objects.filter(pk=self.object_id).update(**{field.attname: self.path or ''})
-                break
 
     def get_image_url(self, size_name='original', tmp=False):
         converted = Image.get_file_for_size(self.image, size_name, tmp=tmp)

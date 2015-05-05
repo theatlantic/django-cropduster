@@ -144,8 +144,13 @@ class CropDusterIndex(View):
 
     def get(self, *args, **kwargs):
         orig_image = self.orig_image
-        orig_w = getattr(orig_image, 'width', None) or 0
-        orig_h = getattr(orig_image, 'height', None) or 0
+        if orig_image:
+            orig_w = getattr(orig_image, 'width', None) or 0
+            orig_h = getattr(orig_image, 'height', None) or 0
+            orig_image_name = getattr(orig_image, 'name', None)
+        else:
+            orig_w, orig_h = 0, 0
+            orig_image_name = None
 
         initial = {
             'standalone': self.is_standalone,
@@ -153,8 +158,8 @@ class CropDusterIndex(View):
             'thumbs': json.dumps(dict([
                 (t['name'], t)
                 for t in self.thumbs.queryset.values('id', 'name', 'width', 'height')])),
-            'image_id': getattr(self.db_image, 'pk', None),
-            'orig_image': getattr(orig_image, 'name', None),
+            'image_id': getattr(self.db_image, 'pk', None) if orig_image else None,
+            'orig_image': orig_image_name,
             'orig_w': orig_w,
             'orig_h': orig_h,
         }
