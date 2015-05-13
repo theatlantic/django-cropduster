@@ -79,6 +79,12 @@ class ImageFile(VirtualFieldFile):
             self.name = None
             return
 
+        # Force path to be a UTF-8 byte string because our Linux
+        # filesystem fails if you pass it a unicode object with
+        # non-ASCII characters in it.
+        if isinstance(path, unicode):
+            path = path.decode('utf-8')
+
         if '%' in path:
             path = urlunquote_plus(path)
 
