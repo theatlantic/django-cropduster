@@ -13,8 +13,12 @@ from datetime import datetime
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.core.files.storage import FileSystemStorage
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.contenttypes import generic
 from django.db import models
+
+try:
+    from django.contrib.contenttypes.fields import GenericForeignKey
+except ImportError:
+    from django.contrib.contenttypes.generic import GenericForeignKey
 
 import PIL.Image
 
@@ -195,11 +199,11 @@ class Image(models.Model):
 
     content_type = models.ForeignKey(ContentType)
     object_id = models.PositiveIntegerField(null=True, blank=True)
-    content_object = generic.GenericForeignKey('content_type', 'object_id')
+    content_object = GenericForeignKey('content_type', 'object_id')
     field_identifier = models.SlugField(null=False, blank=True, default="")
 
     prev_object_id = models.PositiveIntegerField(null=True, blank=True)
-    prev_content_object = generic.GenericForeignKey('content_type', 'prev_object_id')
+    prev_content_object = GenericForeignKey('content_type', 'prev_object_id')
 
     @staticmethod
     def generate_filename(instance, filename):

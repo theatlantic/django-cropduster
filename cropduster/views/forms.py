@@ -12,9 +12,14 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 from django.forms.forms import NON_FIELD_ERRORS
 from django.forms.models import BaseModelFormSet
-from django.forms.util import ErrorDict as _ErrorDict
 from django.utils.html import conditional_escape
 from django.utils.safestring import mark_safe
+
+try:
+    # Django 1.8+
+    from django.forms.utils import ErrorDict as _ErrorDict
+except ImportError:
+    from django.forms.util import ErrorDict as _ErrorDict
 
 try:
     from django.utils.encoding import force_unicode

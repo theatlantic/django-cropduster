@@ -5,9 +5,14 @@ from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.forms.models import ModelChoiceIterator
-from django.forms.util import flatatt
 from django.forms.models import ChoiceField, ModelMultipleChoiceField
 from django.utils.html import escape, conditional_escape
+
+try:
+    # Django 1.8+
+    from django.forms.utils import flatatt
+except ImportError:
+    from django.forms.util import flatatt
 
 try:
     from django.utils.encoding import force_unicode

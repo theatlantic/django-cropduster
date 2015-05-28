@@ -348,13 +348,27 @@ class ReverseForeignRelatedObjectsDescriptor(object):
 class ReverseForeignRelation(ManyToManyField):
     """Provides an accessor to reverse foreign key related objects"""
 
+    # Field flags
+    auto_created = False
+
+    many_to_many = False
+    many_to_one = False
+    one_to_many = True
+    one_to_one = False
+
     def __init__(self, to, field_name, **kwargs):
         kwargs['verbose_name'] = kwargs.get('verbose_name', None)
-        kwargs['rel'] = ManyToManyRel(to,
-                            related_name=None,
-                            symmetrical=True,
-                            limit_choices_to=kwargs.pop('limit_choices_to', None),
-                            through=None)
+        m2m_rel_kwargs = {
+            'related_name': None,
+            'symmetrical': True,
+            'limit_choices_to': kwargs.pop('limit_choices_to', None),
+            'through': None,
+        }
+        if django.VERSION < (1, 8):
+            kwargs['rel'] = ManyToManyRel(to, **m2m_rel_kwargs)
+        else:
+            kwargs['rel'] = ManyToManyRel(self, to, **m2m_rel_kwargs)
+
         self.field_name = field_name
 
         kwargs['blank'] = True
@@ -380,9 +394,11 @@ class ReverseForeignRelation(ManyToManyField):
     def m2m_reverse_target_field_name(self):
         return self.rel.to._meta.pk.name
 
-    def contribute_to_class(self, cls, name):
+    def contribute_to_class(self, cls, name, **kwargs):
+        if django.VERSION >= (1, 8):
+            kwargs['virtual_only'] = True
         self.model = cls
-        super(ManyToManyField, self).contribute_to_class(cls, name)
+        super(ManyToManyField, self).contribute_to_class(cls, name, **kwargs)
 
         # Add the descriptor for the reverse fk relation
         setattr(cls, self.name, ReverseForeignRelatedObjectsDescriptor(self))
