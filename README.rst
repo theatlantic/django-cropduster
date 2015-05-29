@@ -7,7 +7,8 @@ plugin <https://github.com/tapmodo/Jcrop>`_. It is a drop-in
 replacement for django's ``ImageField`` and allows users to generate
 multiple crops from images, using predefined sizes and aspect ratios.
 **django-cropduster** was created by developers at `The
-Atlantic <http://www.theatlantic.com/>`_.
+Atlantic <http://www.theatlantic.com/>`_. It is compatible with python
+2.7 and 3.4, and Django versions 1.4 - 1.8.
 
 **django-cropduster** is a mature library currently in production at
 `The Atlantic <http://www.theatlantic.com/>`_. However, the
