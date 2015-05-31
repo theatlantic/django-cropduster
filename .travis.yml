@@ -4,7 +4,6 @@ python:
     - 2.7
 
 env:
-    - TOXENV=py27-django14
     - TOXENV=py27-django14-grp
     - TOXENV=py27-django15
     - TOXENV=py27-django15-grp
@@ -15,13 +14,9 @@ env:
     - TOXENV=py27-django18
     - TOXENV=py27-django18-grp
     - TOXENV=py34-django15
-    - TOXENV=py34-django15-grp
     - TOXENV=py34-django16
-    - TOXENV=py34-django16-grp
     - TOXENV=py34-django17
-    - TOXENV=py34-django17-grp
     - TOXENV=py34-django18
-    - TOXENV=py34-django18-grp
 
 before_install:
     - sudo apt-get update -qq
