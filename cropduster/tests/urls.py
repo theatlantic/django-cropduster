@@ -8,10 +8,16 @@ import cropduster.tests.admin
 
 urlpatterns = patterns('',
     url(r"^cropduster/", include("cropduster.urls")),
-    url(r"^grappelli/", include("grappelli.urls")),
     url(r'^admin/', include(admin.site.urls)),
 )     + static.static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
+try:
+    import grappelli
+except ImportError:
+    pass
+else:
+    urlpatterns += patterns('',
+        url(r"^grappelli/", include("grappelli.urls")))
 
 if settings.DEBUG:
     urlpatterns += patterns('',

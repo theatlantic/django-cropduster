@@ -2,20 +2,25 @@
     background: transparent;
 }
 
-.cropduster-form .grp-module .image,
-.cropduster-form .grp-module .thumbs,
+.cropduster-form .image,
+.cropduster-form .thumbs,
 .cropduster-form .DELETE,
-.cropduster-form .inline-related .grp-collapse-handler, 
-.cropduster-form .grp-module .field_identifier {
+.cropduster-form .field_identifier,
+.cropduster-form .field-image,
+.cropduster-form .field-thumbs,
+.cropduster-form .field-field_identifier,
+.cropduster-form .inline-related .grp-collapse-handler {
     display: none;
 }
 .cropduster-form .inline-related,
 .cropduster-form .inline-related .grp-module,
-.cropduster-form .inline-related .grp-row {
+.cropduster-form .inline-related .grp-row,
+.cropduster-form .inline-related .form-row {
     border: 0 !important;
 }
 
-.cropduster-form .inline-related .grp-module {
+.cropduster-form .inline-related .grp-module,
+.cropduster-form .inline-related .module {
     clear: both;
 }
 
@@ -28,6 +33,8 @@
 
 body.cropduster-debug .cropduster-form .image,
 body.cropduster-debug .cropduster-form .thumbs,
+body.cropduster-debug .cropduster-form .field-image,
+body.cropduster-debug .cropduster-form .field-thumbs,
 body.cropduster-debug .cropduster-form .DELETE,
 body.cropduster-debug .cropduster-form .inline-related .grp-collapse-handler {
     display: block !important;

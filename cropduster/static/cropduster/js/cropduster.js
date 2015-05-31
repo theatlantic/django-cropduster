@@ -3,6 +3,106 @@ window.CropDuster = {};
 
 (function($) {
 
+    // Backport jQuery.fn.data and jQuery.fn.on/off for jQuery 1.4.2,
+    // which ships with Django 1.4
+    if ($.prototype.jquery == '1.4.2') {
+        var rbrace = /^(?:\{[\w\W]*\}|\[[\w\W]*\])$/,
+            rdashAlpha = /-([\da-z])/gi,
+            rmultiDash = /([A-Z])/g,
+            // Used by jQuery.camelCase as callback to replace()
+            fcamelCase = function( all, letter ) {
+                 return letter.toUpperCase();
+             };
+        $.camelCase = function(string) {
+            return string.replace(rdashAlpha, fcamelCase);
+        };
+        $.prototype.data = (function (originalDataMethod) {
+            // the parse value function is copied from the jQuery source
+             function parseValue(data) {
+                 if (typeof data === "string") {
+                     try {
+                         data = data === "true" ? true :
+                             data === "false" ? false :
+                             data === "null" ? null :
+                             // Only convert to a number if it doesn't change the string
+                             +data + "" === data ? +data :
+                             rbrace.test(data) ? $.parseJSON(data) : data;
+                     } catch (e) {}
+                 } else {
+                     data = undefined;
+                 }
+                 return data;
+             }
+
+             return function(key, val) {
+                 var data;
+                 if (typeof key === "undefined") {
+                     if (this.length) {
+                         data = $.data(this[0]);
+                         if (this[0].nodeType === 1) {
+                             var attr = this[0].attributes, name;
+                             for (var i = 0, l = attr.length; i < l; i++) {
+                                 name = attr[i].name;
+                                 if (name.indexOf("data-") === 0) {
+                                     name = $.camelCase(name.substring(5));
+                                     var value = parseValue(attr[i].value);
+                                     $(this[0]).data(name, value);
+                                     data[name] = value;
+                                 }
+                             }
+                         }
+                     }
+                     return data;
+                 }
+
+                 var result = originalDataMethod.apply(this, arguments);
+
+                 // only when it's an getter and the result from the original data method is null
+                 if ((result === null || result === undefined) && val === undefined) {
+                     var attrValue = this.attr("data-" + key.replace(rmultiDash, "-$1").toLowerCase());
+                     return parseValue(attrValue);
+                 }
+                 return result;
+             };
+        })($.prototype.data);
+
+        /**
+         * add support for on and off methods
+         * @type {Function|*|on}
+         */
+        $.prototype.on = $.prototype.on || function(/* events [,selector] [,data], handler */) {
+            var args = arguments;
+
+            // delegation bind has minimal 3 arguments
+            if(args.length >= 3) {
+                var events = args[0],
+                    selector = args[1],
+                    data = (args[3]) ? args[2] : null,
+                    handler = (args[3]) ? args[3] : args[2];
+
+                this.bind(events, data, function(ev) {
+                    var $target = $(ev.target).closest(selector);
+                    if($target.length) {
+                        handler.call($target[0], ev);
+                    }
+                });
+            } else {
+                this.bind.apply(this, args);
+            }
+
+            return this;
+        };
+
+        $.prototype.off = $.prototype.off || function(/* events [,selector] [,handler] */) {
+            if(arguments.length == 3) {
+                throw new Error("Delegated .off is not implemented.");
+            } else {
+                this.unbind.apply(this, arguments);
+            }
+            return this;
+        };
+    }
+
     var randomDigits = function(length) {
         length = parseInt(length, 10);
         if (!length) {
@@ -146,7 +246,7 @@ window.CropDuster = {};
                 var $target = $(e.target).closest('.cropduster-customfield');
                 e.preventDefault();
                 e.stopPropagation();
-                var $targetInput = $target.closest('.row,.grp-row').find('.cropduster-data-field').eq(0);
+                var $targetInput = $target.closest('.form-row,.row,.grp-row').find('.cropduster-data-field').eq(0);
                 if (!$targetInput.length) {
                     return;
                 }
@@ -170,7 +270,7 @@ window.CropDuster = {};
                 name = matches[1];
             }
 
-            var $inputRow = $input.closest('.grp-row.' + name + ',.row.' + name);
+            var $inputRow = $input.closest('.grp-row.' + name + ',.row.' + name + ',.form-row.' + name);
             if ($inputRow.length) {
                 var inputLabel = $inputRow.find('label').html();
                 if (inputLabel) {

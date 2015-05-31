@@ -10,6 +10,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.expected_conditions import (
     visibility_of_element_located, element_to_be_clickable)
 
+try:
+    import grappelli
+except ImportError:
+    grappelli = None
+
 from .helpers import CropdusterTestCaseMediaMixin
 from .models import Article, Author, TestForOptionalSizes
 from ..models import Size
@@ -20,7 +25,6 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
     urls = 'cropduster.tests.urls'
 
     available_apps = [
-        'grappelli',
         'django.contrib.auth',
         'django.contrib.contenttypes',
         'django.contrib.messages',
@@ -31,6 +35,9 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
         'generic_plus',
         'cropduster',
     ]
+
+    if grappelli:
+        available_apps.insert(0, 'grappelli')
 
     webdriver_class = 'selenium.webdriver.phantomjs.webdriver.WebDriver'
 

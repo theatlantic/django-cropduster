@@ -363,9 +363,9 @@
                 var $input = $('#id_thumbs-' + i + '-' + field);
                 if ($input.attr('type') == 'checkbox') {
                     if (value && value != 'off' && value != 'false' && value != '0') {
-                        $input.prop('checked', true);
+                        $input[0].checked = true;
                     } else {
-                        $input.removeProp('checked');
+                        delete $input[0].checked;
                     }
                 } else {
                     $input.val(value);
@@ -400,7 +400,7 @@
             }
             var value = field.value;
             if ($input.attr('type') == 'checkbox') {
-                value = $input.prop('checked');
+                value = $input[0].checked;
             }
             if (fieldName == 'size' || fieldName == 'sizes' || fieldName == 'thumbs') {
                 try {

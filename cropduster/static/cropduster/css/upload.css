@@ -252,3 +252,53 @@ body.cropduster-upload-form.cropduster-standalone form#upload #reupload-button {
 body.cropduster-upload-form.cropduster-standalone #grp-content #content-inner {
     bottom: 0;
 }
+
+/* Django styles without grappelli */
+body.cropduster-upload-form #container {
+    position: absolute;
+    height: 100%;
+}
+body.cropduster-upload-form #content.colM {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 0 15px 10px 15px;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+}
+body.cropduster-upload-form #content.colM footer {
+    border: 0;
+    border-top: 1px solid #111;
+    position: absolute;
+    width: auto;
+    height: 34px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 2px 5px;
+    line-height: 17px;
+    color: #fff;
+    background: #333;
+    background: -moz-linear-gradient(top, #444, #333);
+    background: -webkit-gradient(linear, left top, left bottom, from(#444), to(#333));
+    background: -o-linear-gradient(top, #444, #333);
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+}
+body.cropduster-upload-form #content.colM footer ul,
+body.cropduster-upload-form #content.colM footer ul li {
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+}
+body.cropduster-upload-form #content.colM footer ul li {
+    float: right;
+    margin-left: 10px;
+}
