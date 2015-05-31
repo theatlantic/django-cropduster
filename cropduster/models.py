@@ -105,7 +105,7 @@ class Thumb(models.Model):
         """Returns a dict of the thumb's values which are JSON serializable."""
         dct = {}
         for k, v in six.iteritems(vars(self)):
-            if isinstance(v, (six.string_types, float, bool, types.NoneType)):
+            if isinstance(v, (six.string_types, float, bool, type(None))):
                 dct[k] = v
             if isinstance(v, six.integer_types):
                 dct[k] = v
