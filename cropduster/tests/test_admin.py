@@ -97,7 +97,36 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
         author = Author.objects.all()[0]
         sizes = list(Size.flatten(Author.HEADSHOT_SIZES))
         self.assertTrue(bool(author.headshot.path))
-        self.assertEqual(len(author.headshot.related_object.thumbs.all()), len(sizes))
+
+        image = author.headshot.related_object
+        thumbs = image.thumbs.all()
+        self.assertEqual(len(thumbs), len(sizes))
+        main_thumb = image.thumbs.get(name='main')
+        self.assertEqual(main_thumb.to_dict(), {
+            'reference_thumb_id': None,
+            'name': 'main',
+            'width': 220,
+            'height': 180,
+            'crop_w': 674,
+            'crop_h': 551,
+            'crop_x': 0,
+            'crop_y': 125,
+            'image_id': image.pk,
+            'id': main_thumb.pk,
+        })
+        auto_thumb = image.thumbs.get(name='thumb')
+        self.assertEqual(auto_thumb.to_dict(), {
+            'reference_thumb_id': main_thumb.pk,
+            'name': 'thumb',
+            'width': 110,
+            'height': 90,
+            'crop_w': None,
+            'crop_h': None,
+            'crop_x': None,
+            'crop_y': None,
+            'image_id': image.pk,
+            'id': auto_thumb.pk,
+        })
 
     def test_addform_multiple_image(self):
         author = Author.objects.create(name="Mark Twain")
