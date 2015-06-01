@@ -1,3 +1,4 @@
+import contextlib
 import six
 from operator import attrgetter
 import inspect
@@ -344,6 +345,33 @@ class ReverseForeignRelatedObjectsDescriptor(object):
         return RelatedManager
 
 
+class FalseThrough(object):
+    """
+    Django 1.7+ expects rel.through._meta.auto_created to not throw an
+    AttributeError on fields that extend ManyToManyField. So we create a
+    falsey object that has rel.through._meta.auto_created = False
+    """
+
+    def __nonzero__(cls):
+        return False
+
+    __bool__ = __nonzero__
+
+    _meta = type('Options', (object,), {
+        'auto_created': False,
+    })
+
+
+@contextlib.contextmanager
+def rel_through_none(instance):
+    """
+    Temporarily set instance.rel.through to None, instead of our FalseThrough
+    object.
+    """
+    through, instance.rel.through = instance.rel.through, None
+    yield
+    instance.rel.through = through
+
 
 class ReverseForeignRelation(ManyToManyField):
     """Provides an accessor to reverse foreign key related objects"""
@@ -356,6 +384,9 @@ class ReverseForeignRelation(ManyToManyField):
     one_to_many = True
     one_to_one = False
 
+    db_table = None
+    swappable = False
+
     def __init__(self, to, field_name, **kwargs):
         kwargs['verbose_name'] = kwargs.get('verbose_name', None)
         m2m_rel_kwargs = {
@@ -364,6 +395,10 @@ class ReverseForeignRelation(ManyToManyField):
             'limit_choices_to': kwargs.pop('limit_choices_to', None),
             'through': None,
         }
+
+        if django.VERSION[:2] >= (1, 7):
+            m2m_rel_kwargs['through'] = FalseThrough()
+
         if django.VERSION < (1, 8):
             kwargs['rel'] = ManyToManyRel(to, **m2m_rel_kwargs)
         else:
@@ -435,5 +470,12 @@ class ReverseForeignRelation(ManyToManyField):
         # Override error in Django 1.7 (fields.E331: "Field specifies a
         # many-to-many relation through model 'None', which has not been
         # installed"), which is spurious for a reverse foreign key field.
-        errors = super(ReverseForeignRelation, self)._check_relationship_model(from_model, **kwargs)
+        with rel_through_none(self):
+            errors = super(ReverseForeignRelation, self)._check_relationship_model(from_model, **kwargs)
         return [e for e in errors if e.id != 'fields.E331']
+
+    def deconstruct(self):
+        with rel_through_none(self):
+            name, path, args, kwargs = super(ReverseForeignRelation, self).deconstruct()
+        kwargs['field_name'] = self.field_name
+        return name, path, args, kwargs

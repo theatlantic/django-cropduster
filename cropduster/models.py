@@ -194,6 +194,9 @@ class StrFileSystemStorage(FileSystemStorage):
 
 image_storage = StrFileSystemStorage()
 
+def generate_filename(instance, filename):
+    return filename
+
 
 class Image(models.Model):
 
@@ -204,10 +207,6 @@ class Image(models.Model):
 
     prev_object_id = models.PositiveIntegerField(null=True, blank=True)
     prev_content_object = GenericForeignKey('content_type', 'prev_object_id')
-
-    @staticmethod
-    def generate_filename(instance, filename):
-        return filename
 
     width = models.PositiveIntegerField(blank=True, null=True)
     height = models.PositiveIntegerField(blank=True, null=True)

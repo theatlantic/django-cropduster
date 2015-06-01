@@ -1,7 +1,18 @@
+import sys
+
 from django.db import models
+from django.conf import settings
 from django.contrib import admin
 
 from cropduster.models import CropDusterField, Size
+
+
+if 'test' in sys.argv or 'runtests.py' in sys.argv:
+    class DisableMigrations(object):
+        def __contains__(self, item): return True
+        def __getitem__(self, item): return "notmigrations"
+
+    settings.MIGRATION_MODULES = DisableMigrations()
 
 
 class Author(models.Model):
