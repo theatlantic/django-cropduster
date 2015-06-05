@@ -348,3 +348,11 @@ table.striped tfoot .rounded-button:active {
 .cropduster-images .cropduster-image:first-child {
     display: block;
 }
+
+#content.colM .cropduster-form .module.aligned {
+    margin-left: 8em;
+    padding-left: 10px;
+}
+#content.colM .cropduster-form.nested-inline-form .module.aligned {
+    margin-left: 0;
+}

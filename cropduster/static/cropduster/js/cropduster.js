@@ -270,7 +270,7 @@ window.CropDuster = {};
                 name = matches[1];
             }
 
-            var $inputRow = $input.closest('.grp-row.' + name + ',.row.' + name + ',.form-row.' + name);
+            var $inputRow = $input.closest('.grp-row.' + name + ',.row.' + name + ',.form-row.field-' + name);
             if ($inputRow.length) {
                 var inputLabel = $inputRow.find('label').html();
                 if (inputLabel) {
