@@ -1,7 +1,7 @@
 django-cropduster
 =================
 
-[![Build Status](https://travis-ci.org/theatlantic/django-cropduster.svg?branch=v4)](https://travis-ci.org/theatlantic/django-cropduster)
+[![Build Status](https://travis-ci.org/theatlantic/django-cropduster.svg?branch=master)](https://travis-ci.org/theatlantic/django-cropduster)
 
 <img alt="Cropduster logo" align="right" width="384" height="288" src="https://theatlantic.github.io/django-cropduster/cropduster-logo-monochrome.svg"/>
 
@@ -11,14 +11,6 @@ replacement for django's `ImageField` and allows users to generate multiple crop
 from images, using predefined sizes and aspect ratios. **django-cropduster**
 was created by developers at [The Atlantic](http://www.theatlantic.com/). It
 is compatible with python 2.7 and 3.4, and Django versions 1.4 - 1.8.
-
-**django-cropduster** is a mature library currently in production at
-[The Atlantic](http://www.theatlantic.com/). However, the documentation at present is
-far from adequate. Until there is sufficiently detailed documentation we
-encourage any developers who have an interest in the project but are encountering
-difficulties using it to create issues on the
-[GitHub project page](https://github.com/theatlantic/django-cropduster) requesting
-assistance.
 
 * [Installation](#installation)
 * [Configuration](#configuration)
@@ -32,20 +24,21 @@ The recommended way to install django-cropduster is from [PyPI](https://pypi.pyt
 
         pip install django-cropduster
 
-Alternatively, one can install a development copy of django-cropduster from source:
+Alternatively, one can install a development copy of django-cropduster from
+source:
 
         pip install -e git+git://github.com/theatlantic/django-cropduster.git#egg=django-cropduster
 
-If you are working from source, ensure that you have django-cropduster checked out to the `v4` branch. If
-the source is already checked out, use setuptools:
+If the source is already checked out, use setuptools:
 
         python setup.py develop
 
 Configuration
 -------------
 
-To enable django-cropduster, `"cropduster"` must be added to `INSTALLED_APPS` in
-settings.py and you must include `cropduster.urls` in your django urlpatterns.
+To enable django-cropduster, `"cropduster"` must be added to `INSTALLED_APPS`
+in settings.py and you must include `cropduster.urls` in your django
+urlpatterns.
 
 ```python
 # settings.py
@@ -66,19 +59,20 @@ urlpatterns = patterns('',
 Documentation & Examples
 ------------------------
 
-    class Size(name, [label=None, w=None, h=None, retina=False, auto=None,
-        min_w=None, min_h=None, max_w=None, max_h=None])
+    class Size(name, [label=None, w=None, h=None, auto=None,
+        min_w=None, min_h=None, max_w=None, max_h=None, required=True])
 
-Use `Size` to create a crop with specified dimensions.  Use the `auto` parameter to setup other `Size` crops based on the container `Size`.
+Use `Size` to define your crops. The `auto` parameter can be set to a list of
+other `Size` objects that will be automatically generated based on the
+user-selected crop of the parent `Size`.
 
+`CropDusterField` accepts the same arguments as Django's built-in `ImageField`
+but with an additional `sizes` keyword argument, which accepts a list of
+`Size` objects.
 
-
-The `CropDusterField` is used much like the Django built in `ImageField`, but with the CropDuster `sizes` parameter, which accepts a `Size` object.
 An example models.py:
 
 ```python
-#models.py
-
 from cropduster.models import CropDusterField, Size
 
 class ExampleModel(models.Model):
@@ -93,9 +87,28 @@ class ExampleModel(models.Model):
         # more initial crop Size objects ...
     ]
 
-    image = CropDusterField(u"Image", max_length=255, upload_to="your/path/goes/here",
-        null=True, default="", sizes=MODEL_SIZES)
-    # other fields ...
+    image = CropDusterField(upload_to="your/path/goes/here", sizes=MODEL_SIZES)
+```
+
+To get a dictionary containing information about an image within a template,
+use the `get_crop` templatetag:
+
+```django
+{% load cropduster_tags %}
+
+{% get_crop obj.image 'large' exact_size=1 as img %}
+
+{% if img %}
+<figure>
+    <img src="{{ img.url }}" width="{{ img.width }}" height="{{ img.height }}"
+         alt="{{ img.caption }}" />
+    {% if img.attribution %}
+    <figcaption>
+        {{ img.caption }} (credit: {{ img.attribution }})
+    </figcaption>
+    {% endif %}
+</figure>
+{% endif %}
 ```
 
 License

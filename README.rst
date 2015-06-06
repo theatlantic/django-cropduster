@@ -10,15 +10,6 @@ multiple crops from images, using predefined sizes and aspect ratios.
 Atlantic <http://www.theatlantic.com/>`_. It is compatible with python
 2.7 and 3.4, and Django versions 1.4 - 1.8.
 
-**django-cropduster** is a mature library currently in production at
-`The Atlantic <http://www.theatlantic.com/>`_. However, the
-documentation at present is far from adequate. Until there is
-sufficiently detailed documentation we encourage any developers who have
-an interest in the project but are encountering difficulties using it to
-create issues on the `GitHub project
-page <https://github.com/theatlantic/django-cropduster>`_ requesting
-assistance.
-
 Installation
 ============
 
@@ -32,9 +23,7 @@ from source::
 
         pip install -e git+git://github.com/theatlantic/django-cropduster.git#egg=django-cropduster
 
-If you are working from source, ensure that you have django-cropduster
-checked out to the ``v4`` branch. If the source is already checked out,
-use setuptools::
+If the source is already checked out, use setuptools::
 
         python setup.py develop
 
