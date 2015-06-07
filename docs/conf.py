@@ -34,6 +34,8 @@ on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.mathjax',
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.viewcode",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -97,7 +99,7 @@ exclude_patterns = ['_build']
 #show_authors = False
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = 'trac'
 
 # A list of ignored prefixes for module index sorting.
 #modindex_common_prefix = []

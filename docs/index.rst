@@ -14,12 +14,13 @@ Compatibility
 django-cropduster is compatible with python 2.7 and 3.4, and Django versions 1.4 - 1.8.
 
 Contents
----------------
+--------
 
 .. toctree::
    :maxdepth: 2
 
    quickstart
+   how_it_works
    changelog
 
 License
