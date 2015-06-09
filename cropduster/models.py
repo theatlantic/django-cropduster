@@ -6,7 +6,6 @@ from six.moves import xrange
 
 import hashlib
 import random
-import types
 import os
 from datetime import datetime
 
@@ -30,6 +29,7 @@ from .fields import (
     CropDusterSimpleImageField)
 from .files import VirtualFieldFile
 from .resizing import Size, Box, Crop
+from .utils import process_image
 from . import settings as cropduster_settings
 
 
@@ -273,20 +273,19 @@ class Image(models.Model):
         preview_h = preview_h or cropduster_settings.CROPDUSTER_PREVIEW_HEIGHT
 
         resize_ratio = min(preview_w / orig_w, preview_h / orig_h)
-        if resize_ratio < 1:
-            w = int(round(orig_w * resize_ratio))
-            h = int(round(orig_h * resize_ratio))
-            preview_img = pil_img.resize((w, h), PIL.Image.ANTIALIAS)
-        else:
-            w, h = orig_w, orig_h
-            preview_img = pil_img
+
+        def fit_preview(im):
+            if resize_ratio < 1:
+                w = int(round(orig_w * resize_ratio))
+                h = int(round(orig_h * resize_ratio))
+                preview_img = im.resize((w, h), PIL.Image.ANTIALIAS)
+            else:
+                w, h = orig_w, orig_h
+                preview_img = im
+            return preview_img
+
         preview_file = cls.get_file_for_size(image_file, '_preview')
-        img_save_params = {}
-        if preview_img.format == 'JPEG':
-            img_save_params['quality'] = cropduster_settings.get_jpeg_quality(w, h)
-        if preview_img.format in ('JPEG', 'PNG') and cropduster_settings.JPEG_SAVE_ICC_SUPPORTED:
-            img_save_params['icc_profile'] = pil_img.info.get('icc_profile')
-        preview_img.save(safe_str_path(preview_file.path), **img_save_params)
+        process_image(pil_img, safe_str_path(preview_file.path), fit_preview)
         return preview_file
 
     def save_preview(self, preview_w=None, preview_h=None):

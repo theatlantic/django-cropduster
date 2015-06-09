@@ -22,9 +22,11 @@ try:
 except ImportError:
     scipy = None
 
-from cropduster.settings import get_jpeg_quality, JPEG_SAVE_ICC_SUPPORTED
+from cropduster.settings import (
+    get_jpeg_quality, JPEG_SAVE_ICC_SUPPORTED, CROPDUSTER_GIFSICLE_PATH)
 
 from .images2gif import read_gif, write_gif
+from .gifsicle import GifsicleImage
 
 
 __all__ = (
@@ -122,7 +124,7 @@ def is_animated_gif(im):
 
 
 def has_animated_gif_support():
-    return bool(numpy and scipy)
+    return bool(CROPDUSTER_GIFSICLE_PATH or (numpy and scipy))
 
 
 def process_image(im, save_filename=None, callback=lambda i: i, nq=0, save_params=None):
@@ -136,7 +138,12 @@ def process_image(im, save_filename=None, callback=lambda i: i, nq=0, save_param
             warnings.warn(
                 u"This server does not have animated gif support; your uploaded image "
                 u"has been made static.")
+        elif CROPDUSTER_GIFSICLE_PATH:
+            images = [GifsicleImage(im)]
         else:
+            warnings.warn("Using numpy algorithm to resize animated gif; "
+                "better results would be achieved with gifsicle")
+
             filename = getattr(im, 'filename', None)
             if not filename or not os.path.exists(filename):
                 temp_file = tempfile.NamedTemporaryFile(suffix='.gif')
@@ -147,23 +154,11 @@ def process_image(im, save_filename=None, callback=lambda i: i, nq=0, save_param
             with open(filename, mode='rb') as f:
                 contents += f.read()
 
-            try:
-                graphics_control_ext_offset = contents.index('\x21\xF9\x04')
-            except ValueError:
-                pass
-            else:
-                try:
-                    dispose_byte = contents[graphics_control_ext_offset + 3]
-                except IndexError:
-                    pass
-                else:
-                    dispose = six.byte2int(dispose_byte) >> 2
-
             images = read_gif(filename, as_numpy=False)
 
     new_images = [callback(i) for i in images]
 
-    if len(images) > 1 and not save_filename:
+    if is_animated and not save_filename:
         raise Exception("Animated gifs must be saved on each processing.")
 
     if save_filename:

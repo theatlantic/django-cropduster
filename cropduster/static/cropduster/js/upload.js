@@ -247,7 +247,8 @@
                 boxHeight: $('#cropbox').height(),
                 minSize: minSize,
                 trueSize: [this.orig_w, this.orig_h],
-                setSelect: this.getCropSelect(aspectRatio)
+                setSelect: this.getCropSelect(aspectRatio),
+                bgColor: '#ffffff'
             };
             if (this.jcrop) {
                 this.jcrop.setOptions(options);

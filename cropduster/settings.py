@@ -1,6 +1,7 @@
 import six
 import math
 import PIL
+import distutils
 from distutils.version import LooseVersion
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -45,3 +46,9 @@ def get_jpeg_quality(width, height):
 
 JPEG_SAVE_ICC_SUPPORTED = (LooseVersion(getattr(PIL, 'PILLOW_VERSION', '0'))
     >= LooseVersion('2.2.1'))
+
+CROPDUSTER_GIFSICLE_PATH = getattr(settings, 'CROPDUSTER_GIFSICLE_PATH', None)
+
+if CROPDUSTER_GIFSICLE_PATH is None:
+    # Try to find executable in the PATH
+    CROPDUSTER_GIFSICLE_PATH = distutils.spawn.find_executable("gifsicle")
