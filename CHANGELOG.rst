@@ -1,6 +1,12 @@
 Changelog
 =========
 
+**4.8.19 (Jun 9, 2015)**
+
+* Improved: Animated GIFs are now processed by gifsicle if available
+* New: Added actual documentation
+* New: Add setting CROPDUSTER_JPEG_QUALITY; can be numeric or a callable
+
 **4.8.18 (Jun 5, 2015)**
 
 * Fixed: Non-South migrations in Django 1.7 and 1.8 were broken.
