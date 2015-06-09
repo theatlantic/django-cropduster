@@ -20,6 +20,7 @@ Contents
    :maxdepth: 2
 
    quickstart
+   customization
    how_it_works
    changelog
 
