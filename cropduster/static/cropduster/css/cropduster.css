@@ -342,6 +342,9 @@ table.striped tfoot .rounded-button:active {
             box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.8);
 }
 
+.cropduster-form .cropduster-images.thumbs {
+    display: block;
+}
 .cropduster-images .cropduster-image {
     display: none;
 }
