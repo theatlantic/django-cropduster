@@ -1,7 +1,7 @@
 import six
 import math
 import PIL
-import distutils
+import distutils.spawn
 from distutils.version import LooseVersion
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
