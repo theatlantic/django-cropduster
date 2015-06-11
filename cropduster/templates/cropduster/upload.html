@@ -35,6 +35,9 @@
                 <div class="grp-row row {{ field.name }}{% if field.name != 'image' %} hidden{% endif %}">
                     {% if field.name != "image" %}{{ field.label_tag|safe }}{% endif %}
                     {{ field }}
+                    {% if field.name == "image" %}
+                        <div id="upload-min-size-help"></div>
+                    {% endif %}
                 </div>
             {% endfor %}
             {% if standalone %}

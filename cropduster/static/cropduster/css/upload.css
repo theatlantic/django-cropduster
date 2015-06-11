@@ -302,3 +302,8 @@ body.cropduster-upload-form #content.colM footer ul li {
     float: right;
     margin-left: 10px;
 }
+
+/* Help Text: Minimum image size*/
+body.cropduster-upload-form #upload-min-size-help {
+    float:right;
+}
