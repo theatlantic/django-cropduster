@@ -149,7 +149,7 @@ class CropForm(forms.Form):
         css = {'all': (
             u"%scropduster/css/cropduster.css?v=5" % settings.STATIC_URL,
             u"%scropduster/css/jquery.jcrop.css?v=4" % settings.STATIC_URL,
-            u"%scropduster/css/upload.css?v=5" % settings.STATIC_URL,
+            u"%scropduster/css/upload.css?v=6" % settings.STATIC_URL,
         )}
         js = (
             u"%scropduster/js/json2.js" % settings.STATIC_URL,
@@ -157,7 +157,7 @@ class CropForm(forms.Form):
             u"%scropduster/js/jquery.form.js?v=1" % settings.STATIC_URL,
             u"%scropduster/js/jquery.jcrop.js?v=4" % settings.STATIC_URL,
             u"%scropduster/js/cropduster.js?v=8" % settings.STATIC_URL,
-            u"%scropduster/js/upload.js?v=13" % settings.STATIC_URL,
+            u"%scropduster/js/upload.js?v=14" % settings.STATIC_URL,
         )
 
     image_id = forms.IntegerField(required=False)
