@@ -1,6 +1,10 @@
 Changelog
 =========
 
+**4.8.22 (June 12, 2015)**
+
+* Improved: Show help text about minimum image on upload dialog, when applicable.
+
 **4.8.19 (Jun 9, 2015)**
 
 * Improved: Animated GIFs are now processed by gifsicle if available
