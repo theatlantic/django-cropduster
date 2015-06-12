@@ -143,7 +143,11 @@
     };
     // Fill in 'Min Size' help text
     $(document).ready(function(){
+        var isStandalone = $('body').is('.cropduster-standalone');
         var sizes = JSON.parse($('#id_crop-sizes').val());
+        if (isStandalone || !sizes) {
+            return;
+        }
         var minSizes = sizes.map(calcMinSize);
         var largest = [
             Math.max.apply(null, minSizes.map(function(s) { return s[0]; })) || 1,
