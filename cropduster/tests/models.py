@@ -22,7 +22,8 @@ class Author(models.Model):
             Size('thumb', w=110, h=90),
         ]),
     ]
-    headshot = CropDusterField(upload_to="author/headshots/%Y/%m", sizes=HEADSHOT_SIZES)
+    headshot = CropDusterField(upload_to="author/headshots/%Y/%m", sizes=HEADSHOT_SIZES,
+        related_name="author_headshotset")
 
     class Meta:
         app_label = 'cropduster'
