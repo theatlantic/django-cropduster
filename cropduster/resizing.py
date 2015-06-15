@@ -301,6 +301,18 @@ class Crop(object):
         x2 = min(int(round(x2)), self.bounds.x2, x1 + w)
         y2 = min(int(round(y2)), self.bounds.y2, y1 + h)
 
+        # Fix off-by-one rounding errors
+        if (x2 - x1 == w - 1):
+            if x2 < self.bounds.x2:
+                x2 += 1
+            elif x1 > self.bounds.x1:
+                x1 -= 1
+        if (y2 - y1 == h - 1):
+            if y2 < self.bounds.y2:
+                y2 += 1
+            elif y1 > self.bounds.y1:
+                y1 -= 1
+
         return Crop(Box(x1, y1, x2, y2), self.image)
 
     def add_xmp_to_crop(self, cropped_image, size):
