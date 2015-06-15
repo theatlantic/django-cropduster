@@ -1,6 +1,10 @@
 Changelog
 =========
 
+**4.8.23 (June 15, 2015)**
+
+* Fixed: Off-by-one rounding bug in Size.fit_to_crop()
+
 **4.8.22 (June 12, 2015)**
 
 * Improved: Show help text about minimum image on upload dialog, when applicable.
