@@ -1,6 +1,10 @@
 Changelog
 =========
 
+**4.8.25 (July 11, 2015)**
+
+* Fixed: Orphaned thumbs were being created when cropping images with multiple sizes (issue #41)
+
 **4.8.23 (June 15, 2015)**
 
 * Fixed: Off-by-one rounding bug in Size.fit_to_crop()
