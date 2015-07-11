@@ -66,3 +66,20 @@ class TestForOptionalSizes(models.Model):
 
     class Meta:
         app_label = 'cropduster'
+
+
+class TestForOrphanedThumbs(models.Model):
+
+    TEST_SIZES = [
+        Size('main', w=600, h=480, auto=[
+            Size('main@2x', w=1200, h=960),
+        ]),
+        Size('secondary', w=600, h=480, auto=[
+            Size('secondary@2x', w=1200, h=960),
+        ])]
+
+    slug = models.SlugField()
+    image = CropDusterField(upload_to="test", sizes=TEST_SIZES)
+
+    class Meta:
+        app_label = 'cropduster'
