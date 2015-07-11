@@ -374,9 +374,15 @@
         if (Object.prototype.toString.call(data.thumbs) != '[object Array]') {
             return;
         }
+
+        var initialFormCount = 0;
+
         for (var i = 0; i < data.thumbs.length; i++) {
             for (field in data.thumbs[i]) {
                 var value = data.thumbs[i][field];
+                if (field == 'id' && value) {
+                    initialFormCount++;
+                }
                 if (Object.prototype.toString.call(value).match(/\[object (Object|Array)\]/)) {
                     value = JSON.stringify(value);
                 }
@@ -392,6 +398,7 @@
                 }
             }
         }
+        $('#id_thumbs-INITIAL_FORMS').val(initialFormCount);
     };
 
     window.getFormData = function() {
