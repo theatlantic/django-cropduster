@@ -153,9 +153,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
                 el.click()
             with self.clickable_selector('#crop-button') as el:
                 el.click()
-            with self.clickable_selector('#crop-button') as el:
-                el.click()
-            with self.clickable_selector('#crop-button') as el:
+            with self.clickable_selector('#crop-button:not(.disabled)') as el:
                 el.click()
 
         # Upload and crop second Image
@@ -169,8 +167,6 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
             with self.visible_selector('#id_image') as el:
                 el.send_keys(os.path.join(self.TEST_IMG_DIR, 'img.png'))
             with self.clickable_selector('#upload-button') as el:
-                el.click()
-            with self.clickable_selector('#crop-button') as el:
                 el.click()
             with self.clickable_selector('#crop-button') as el:
                 el.click()
