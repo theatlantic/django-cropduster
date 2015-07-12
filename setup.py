@@ -28,7 +28,7 @@ setup(
         'Pillow',
         'Django>=1.2',
         'python-xmp-toolkit',
-        'django-generic-plus>=1.1.0',
+        'django-generic-plus>=1.2.14',
         'six>=1.7.0',
     ],
     include_package_data=True,

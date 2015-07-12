@@ -83,3 +83,21 @@ class TestForOrphanedThumbs(models.Model):
 
     class Meta:
         app_label = 'cropduster'
+
+
+class TestMultipleFieldsInheritanceParent(models.Model):
+
+    slug = models.SlugField()
+    image = CropDusterField(upload_to="test", sizes=[Size(u'main', w=600, h=480)])
+
+    class Meta:
+        app_label = 'cropduster'
+
+
+class TestMultipleFieldsInheritanceChild(TestMultipleFieldsInheritanceParent):
+
+    image2 = CropDusterField(upload_to="test", sizes=[Size(u'main', w=600, h=480)],
+        field_identifier="2")
+
+    class Meta:
+        app_label = 'cropduster'

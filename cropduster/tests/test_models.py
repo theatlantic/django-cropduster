@@ -9,7 +9,7 @@ from django import test
 from django.contrib.contenttypes.models import ContentType
 
 from .helpers import CropdusterTestCaseMediaMixin
-from .models import Article, Author, TestForOptionalSizes
+from .models import Article, Author, TestForOptionalSizes, TestMultipleFieldsInheritanceChild
 from ..models import Size, Image
 from ..exceptions import CropDusterResizeException
 
@@ -281,3 +281,8 @@ class TestModelSaving(CropdusterTestCaseMediaMixin, test.TestCase):
             object_id=test_b.pk)
         num_thumbs = len(image.thumbs.all())
         self.assertEqual(num_thumbs, 2, "Expected one thumb; instead got %d" % num_thumbs)
+
+    def test_multiple_fields_with_inheritance(self):
+        child_fields = [f.name for f in TestMultipleFieldsInheritanceChild._meta.local_fields]
+        self.assertNotIn('image', child_fields,
+            "Field 'image' from parent model should not be in the child model's local_fields")
