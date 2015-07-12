@@ -191,7 +191,7 @@ class CropDusterField(GenericForeignFileField):
     def formfield(self, **kwargs):
         factory_kwargs = {
             'sizes': kwargs.pop('sizes', None) or self.sizes,
-            'related': self.related,
+            'related': getattr(self, 'related', None),
         }
 
         widget = generic_fk_file_widget_factory(CropDusterWidget, **factory_kwargs)
