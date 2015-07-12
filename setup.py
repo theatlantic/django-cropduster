@@ -17,7 +17,7 @@ except IOError:
 
 setup(
     name='django-cropduster',
-    version='4.8.26',
+    version='4.8.27',
     author='The Atlantic',
     author_email='programmers@theatlantic.com',
     url='https://github.com/theatlantic/django-cropduster',
@@ -28,7 +28,7 @@ setup(
         'Pillow',
         'Django>=1.2',
         'python-xmp-toolkit',
-        'django-generic-plus>=1.2.14',
+        'django-generic-plus>=1.2.16',
         'six>=1.7.0',
     ],
     include_package_data=True,
