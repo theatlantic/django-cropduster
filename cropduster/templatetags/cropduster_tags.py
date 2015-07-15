@@ -65,7 +65,9 @@ def get_crop(image, crop_name, exact_size=False, **kwargs):
 
             if size.height:
                 data['height'] = size.height
-    elif image.related_object:
+    elif not image.related_object:
+        return None
+    else:
         thumbs = {thumb.name: thumb for thumb in image.related_object.thumbs.all()}
 
         try:
