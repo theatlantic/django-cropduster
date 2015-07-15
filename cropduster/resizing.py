@@ -24,6 +24,9 @@ else:
 __all__ = ('Size', 'Box', 'Crop')
 
 
+INFINITY = float('inf')
+
+
 class Size(object):
 
     parent = None
@@ -54,6 +57,22 @@ class Size(object):
         self.height = h
         self.label = label or u' '.join(filter(None, re.split(r'[_\-]', name))).title()
         self.required = required
+
+        self.min_aspect = (self.w / self.h) if (self.w and self.h) else 0
+        self.max_aspect = self.min_aspect or INFINITY
+
+        if self.w and self.min_h > 1:
+            self.max_aspect = min(self.max_aspect, self.w / self.min_h);
+
+        if self.w and self.max_h:
+            self.min_aspect = max(self.min_aspect, self.w / self.max_h);
+
+        if self.h and self.min_w > 1:
+            self.min_aspect = max(self.min_aspect, self.min_w / self.h);
+
+        if self.h and self.max_w:
+            self.max_aspect = min(self.max_aspect, self.max_w / self.h);
+
 
     def __unicode__(self):
         name = u'Size %s (%s):' % (self.label, self.name)

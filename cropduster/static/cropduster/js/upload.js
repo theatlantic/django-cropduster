@@ -255,13 +255,55 @@
                 this.setCropOptions(sizeData);
             }
         },
+        getAspectRatioExtent: function(size) {
+            var aspect = (!size.is_auto && size.w && size.h) ? (size.w / size.h) : 0,
+                minAspect = aspect,
+                maxAspect = aspect || Infinity;
+
+            if (size.w && size.min_h > 1) {
+                maxAspect = Math.min(maxAspect, size.w / size.min_h);
+            }
+            if (size.w && size.max_h) {
+                minAspect = Math.max(minAspect, size.w / size.max_h);
+            }
+            if (size.h && size.min_w > 1) {
+                minAspect = Math.max(minAspect, size.min_w / size.h);
+            }
+            if (size.h && size.max_w) {
+                maxAspect = Math.min(maxAspect, size.max_w / size.h);
+            }
+
+            return {
+                min: minAspect,
+                max: maxAspect
+            };
+        },
         setCropOptions: function(size) {
             if (!size || typeof size != 'object') {
                 return;
             }
-            var aspectRatio = (size.w && size.h) ? (size.w / size.h) : 0;
+            var self = this;
+
+            var aspectRatio = (size.w && size.h) ? (size.w / size.h) : 0,
+                minAspectRatio = aspectRatio,
+                maxAspectRatio = aspectRatio || Infinity;
+            var minSize = {
+                w: size.min_w || size.w || 0,
+                h: size.min_h || size.h || 0
+            };
+
+            var aspectExtent = this.getAspectRatioExtent(size);
+
+            $.each(size.auto || [], function(i, autoSize) {
+                minSize.w = Math.max(minSize.w, autoSize.min_w || autoSize.w || 0);
+                minSize.h = Math.max(minSize.h, autoSize.min_h || autoSize.h || 0);
+            });
+
+            if (aspectExtent.max == Infinity) {
+                aspectExtent.max = 0;
+            }
+
             var options = {
-                aspectRatio: aspectRatio,
                 boxWidth: $('#cropbox').width(),
                 boxHeight: $('#cropbox').height(),
                 minSize: calcMinSize(size),
@@ -269,10 +311,15 @@
                 setSelect: this.getCropSelect(aspectRatio),
                 bgColor: '#ffffff'
             };
+            if (aspectRatio) {
+                options.aspectRatio = aspectRatio;
+            } else {
+                options.minAspectRatio = aspectExtent.min;
+                options.maxAspectRatio = aspectExtent.max;
+            }
             if (this.jcrop) {
                 this.jcrop.setOptions(options);
             } else {
-                var self = this;
                 options = $.extend(options, {
                     onSelect: function(c) { self.updateCoordinates(c, self.index); }
                 });
