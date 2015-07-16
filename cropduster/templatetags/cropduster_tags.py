@@ -1,4 +1,3 @@
-import base64
 import time
 import warnings
 
@@ -69,7 +68,6 @@ def get_crop(image, crop_name, exact_size=False, **kwargs):
         return None
     else:
         thumbs = {thumb.name: thumb for thumb in image.related_object.thumbs.all()}
-
         try:
             thumb = thumbs[crop_name]
         except KeyError:
@@ -78,7 +76,7 @@ def get_crop(image, crop_name, exact_size=False, **kwargs):
             else:
                 return None
 
-        cache_buster = base64.b32encode(str(time.mktime(thumb.date_modified.timetuple())))
+        cache_buster = str(time.mktime(thumb.date_modified.timetuple()))[:-2]
         data.update({
             "url": "%s?%s" % (data["url"], cache_buster),
             "width": thumb.width,
