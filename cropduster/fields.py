@@ -220,7 +220,8 @@ class CropDusterField(GenericForeignFileField):
                 'sizes': self.sizes,
                 'get_formset': get_formset,
                 'field': self,
-        })
+            }
+        )
 
 
 class CropDusterThumbField(ManyToManyField):

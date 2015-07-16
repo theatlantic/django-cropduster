@@ -139,5 +139,3 @@ class ImageFile(VirtualFieldFile):
             if not os.path.exists(image.path):
                 Image.save_preview_file(self, preview_w=self.preview_width, preview_h=self.preview_height)
         return image
-
-

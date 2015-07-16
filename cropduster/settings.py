@@ -34,6 +34,7 @@ def default_jpeg_quality(width, height):
 
 CROPDUSTER_JPEG_QUALITY = getattr(settings, 'CROPDUSTER_JPEG_QUALITY', default_jpeg_quality)
 
+
 def get_jpeg_quality(width, height):
     if six.callable(CROPDUSTER_JPEG_QUALITY):
         return CROPDUSTER_JPEG_QUALITY(width, height)

@@ -48,7 +48,8 @@ class FauxTb(object):
 
 
 def current_stack(skip=0):
-    try: 1/0
+    try:
+        1 / 0
     except ZeroDivisionError:
         f = sys.exc_info()[2].tb_frame
     for i in xrange(skip + 2):
@@ -81,7 +82,7 @@ def format_error(error):
     if isinstance(error, six.string_types):
         return error
     elif isinstance(error, IOError):
-        if error.errno == errno.ENOENT: # No such file or directory
+        if error.errno == errno.ENOENT:  # No such file or directory
             file_name = get_relative_media_url(error.filename)
             return u"Could not find file %s" % file_name
 
@@ -208,7 +209,7 @@ def json_error(request, view, action, errors=None, forms=None, formsets=None, lo
     if len(errors) == 1:
         error_msg = "Error %s: %s" % (action, format_error(errors[0]))
     else:
-        error_msg =  "Errors %s: " % action
+        error_msg = "Errors %s: " % action
         error_msg += "<ul>"
         for error in errors:
             error_msg += "<li>&nbsp;&nbsp;&nbsp;&bull;&nbsp;%s</li>" % format_error(error)

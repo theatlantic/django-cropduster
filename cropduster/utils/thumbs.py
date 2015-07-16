@@ -1,6 +1,7 @@
 from ..resizing import Crop
 from ..exceptions import CropDusterException
 
+
 class DummyImage(object):
     def __init__(self, image):
         self.size = [image.width, image.height]

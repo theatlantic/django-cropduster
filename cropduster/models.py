@@ -92,7 +92,7 @@ class Thumb(models.Model):
             except Thumb.DoesNotExist:
                 pass
             else:
-                if self.image_id and not orig_thumb.image_id:                    
+                if self.image_id and not orig_thumb.image_id:
                     try:
                         os.rename(
                             self.image.get_image_path(self.name, tmp=True),
@@ -193,6 +193,7 @@ class StrFileSystemStorage(FileSystemStorage):
 
 
 image_storage = StrFileSystemStorage()
+
 
 def generate_filename(instance, filename):
     return filename
@@ -527,7 +528,6 @@ else:
             if is_sizes_list:
                 return [sz.__serialize__() for sz in value]
         return repr(value)
-
 
     add_introspection_rules(rules=[
         (

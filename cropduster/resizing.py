@@ -62,17 +62,16 @@ class Size(object):
         self.max_aspect = self.min_aspect or INFINITY
 
         if self.w and self.min_h > 1:
-            self.max_aspect = min(self.max_aspect, self.w / self.min_h);
+            self.max_aspect = min(self.max_aspect, self.w / self.min_h)
 
         if self.w and self.max_h:
-            self.min_aspect = max(self.min_aspect, self.w / self.max_h);
+            self.min_aspect = max(self.min_aspect, self.w / self.max_h)
 
         if self.h and self.min_w > 1:
-            self.min_aspect = max(self.min_aspect, self.min_w / self.h);
+            self.min_aspect = max(self.min_aspect, self.min_w / self.h)
 
         if self.h and self.max_w:
-            self.max_aspect = min(self.max_aspect, self.max_w / self.h);
-
+            self.max_aspect = min(self.max_aspect, self.max_w / self.h)
 
     def __unicode__(self):
         name = u'Size %s (%s):' % (self.label, self.name)
@@ -183,7 +182,7 @@ class Box(object):
     @property
     def midpoint(self):
         x = (self.x1 + self.x2) / 2
-        y = (self.y1 + self.y2) / 2;
+        y = (self.y1 + self.y2) / 2
         return (x, y)
 
     @property
@@ -362,7 +361,7 @@ class Crop(object):
 
         if not xmp_file.can_put_xmp(xmp_meta):
             if not file_format_supported(image_path):
-                raise Exception("Image format of %s does not allow metadata" %(
+                raise Exception("Image format of %s does not allow metadata" % (
                         os.path.basename(image_path)))
             else:
                 raise Exception("Could not add metadata to image %s" % (
@@ -401,9 +400,8 @@ class Crop(object):
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Name', 'Crop')
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area', '', prop_value_is_struct=True)
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:unit', "normalized")
-        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:w',    "%.5f" % (self.box.w  / self.bounds.w))
-        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:h',    "%.5f" % (self.box.h  / self.bounds.h))
-        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:x',    "%.5f" % (self.box.x1 / self.bounds.w))
-        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:y',    "%.5f" % (self.box.y1 / self.bounds.h))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:w', "%.5f" % (self.box.w / self.bounds.w))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:h', "%.5f" % (self.box.h / self.bounds.h))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:x', "%.5f" % (self.box.x1 / self.bounds.w))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:y', "%.5f" % (self.box.y1 / self.bounds.h))
         return md
-
