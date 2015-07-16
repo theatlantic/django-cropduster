@@ -178,7 +178,7 @@
                     w = options.minSize[0];
                 }
                 if (Math.abs(h - options.minSize[1]) == 1) {
-                    w = options.minSize[1];
+                    h = options.minSize[1];
                 }
             }
             if (options.maxSize) {
@@ -186,7 +186,7 @@
                     w = options.maxSize[0];
                 }
                 if (Math.abs(h - options.maxSize[1]) == 1) {
-                    w = options.maxSize[1];
+                    h = options.maxSize[1];
                 }
             }
             $('#id_thumbs-' + i + '-crop_x').val(x);
