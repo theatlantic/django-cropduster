@@ -2,10 +2,10 @@ from django.conf import settings
 
 
 def get_admin_base_template():
-    if 'django_admin_mod' in settings.INSTALLED_APPS:
-        return 'admin_mod/base.html'
-    elif 'custom_admin' in settings.INSTALLED_APPS:
+    if 'custom_admin' in settings.INSTALLED_APPS:
         return 'custom_admin/base.html'
+    elif 'django_admin_mod' in settings.INSTALLED_APPS:
+        return 'admin_mod/base.html'
     else:
         return 'admin/base.html'
 
