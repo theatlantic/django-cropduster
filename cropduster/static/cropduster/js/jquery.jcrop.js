@@ -91,6 +91,7 @@
 
       Coords.setPressed(Coords.getCorner(opp));
       Coords.setCurrent(opc);
+      Coords.setWidthHeight(fc.w, fc.h);
 
       Tracker.activateHandlers(dragmodeHandler(mode, fc), doneSelect, touch);
     }
@@ -129,7 +130,7 @@
             break;
           }
         }
-        Coords.setCurrent(pos);
+        Coords.setCurrent(pos, mode);
         Selection.update();
       };
     }
@@ -466,7 +467,7 @@
           y1 = 0,
           x2 = 0,
           y2 = 0,
-          ox, oy;
+          ox, oy, iw, ih;
 
       function setPressed(pos) //{{{
       {
@@ -475,13 +476,54 @@
         y2 = y1 = pos[1];
       }
       //}}}
-      function setCurrent(pos) //{{{
+      function setCurrent(pos, mode) //{{{
       {
         pos = rebound(pos);
+        var c1, c2, old_x1 = x1, old_y1 = y1;
+        if (typeof mode != 'undefined') {
+          c1 = Coords.getFixed();
+          x1 = old_x1;
+          y1 = old_y1;
+        }
         ox = pos[0] - x2;
         oy = pos[1] - y2;
         x2 = pos[0];
         y2 = pos[1];
+        if (typeof mode == 'undefined') {
+          return;
+        }
+        c2 = Coords.getFixed();
+        x1 = old_x1;
+        y1 = old_y1;
+        if (c1.w == c2.w && c1.h == c2.h) {
+          return;
+        }
+        if (ox !== 0 && oy !== 0) {
+          return;
+        }
+        var aspect = c2.w / c2.h,
+            minAspect = options.minAspectRatio,
+            maxAspect = options.maxAspectRatio;
+        if (minAspect && aspect <= minAspect || maxAspect && aspect >= maxAspect) {
+          switch (mode) {
+            case 'n':
+            case 's':
+              var dx = c1.x2 - c2.x2;
+              x1 += dx / 2;
+              break;
+            case 'e':
+            case 'w':
+              var dy = c1.y2 - c2.y2;
+              y1 += dy / 2;
+              break;
+          }
+        }
+      }
+      //}}}
+      function setWidthHeight(w, h) //{{{
+      {
+        iw = w;
+        ih = h;
       }
       //}}}
       function getOffset() //{{{
@@ -548,7 +590,32 @@
             rwa = Math.abs(rw),
             rha = Math.abs(rh),
             real_ratio = rwa / rha,
-            xx, yy, w, h, aspect;
+            xx, yy, w, h, aspect,
+            vertical = function() {
+                yy = y2;
+                w = rha * aspect;
+                xx = rw < 0 ? x1 - w : w + x1;
+
+                if (xx < 0) {
+                  xx = 0;
+                } else if (xx > boundx) {
+                  xx = boundx;
+                }
+                h = Math.abs((xx - x1) / aspect);
+                yy = rh < 0 ? y1 - h : h + y1;
+            },
+            horizontal = function() {
+                xx = x2;
+                h = rwa / aspect;
+                yy = rh < 0 ? y1 - h : y1 + h;
+                if (yy < 0) {
+                  yy = 0;
+                } else if (yy > boundy) {
+                  yy = boundy;
+                }
+                w = Math.abs((yy - y1) * aspect);
+                xx = rw < 0 ? x1 - w : w + x1;
+            };
 
         if (max_x === 0) {
           max_x = boundx * 10;
@@ -558,32 +625,13 @@
         }
         if (minAspect && real_ratio < minAspect) {
           aspect = minAspect;
-          yy = y2;
-          w = rha * aspect;
-          xx = rw < 0 ? x1 - w : w + x1;
-
-          if (xx < 0) {
-            xx = 0;
-          } else if (xx > boundx) {
-            xx = boundx;
-          }
-          h = Math.abs((xx - x1) / aspect);
-          yy = rh < 0 ? y1 - h : h + y1;
         } else if (maxAspect && real_ratio > maxAspect) {
           aspect = maxAspect;
-          xx = x2;
-          h = rwa / aspect;
-          yy = rh < 0 ? y1 - h : y1 + h;
-          if (yy < 0) {
-            yy = 0;
-          } else if (yy > boundy) {
-            yy = boundy;
-          }
-          w = Math.abs((yy - y1) * aspect);
-          xx = rw < 0 ? x1 - w : w + x1;
         } else {
           return getRect();
         }
+
+        Math.abs(rwa - iw) > Math.abs(rha - ih) ? horizontal() : vertical();
 
         // Magic %-)
         if (xx > x1) { // right side
@@ -734,6 +782,7 @@
         flipCoords: flipCoords,
         setPressed: setPressed,
         setCurrent: setCurrent,
+        setWidthHeight: setWidthHeight,
         getOffset: getOffset,
         moveOffset: moveOffset,
         getCorner: getCorner,
