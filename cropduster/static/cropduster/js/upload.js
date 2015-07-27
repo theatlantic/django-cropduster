@@ -308,7 +308,7 @@
                 boxHeight: $('#cropbox').height(),
                 minSize: calcMinSize(size),
                 trueSize: [this.orig_w, this.orig_h],
-                setSelect: this.getCropSelect(aspectRatio),
+                setSelect: this.getCropSelect(aspectRatio, aspectExtent),
                 bgColor: '#ffffff'
             };
             if (aspectRatio) {
@@ -335,7 +335,7 @@
             $('#upload-footer').hide();
             $('#crop-footer').show();
         },
-        getCropSelect: function(aspectRatio) {
+        getCropSelect: function(aspectRatio, aspectExtent) {
             var x, y, w, h;
             var thumbData = ($.isArray(this.data.thumbs)) ? this.data.thumbs[this.index] : {};
             if (typeof thumbData == 'object' && thumbData.crop_w && thumbData.crop_h) {
@@ -350,7 +350,14 @@
                 y = 0;
                 w = this.orig_w;
                 h = this.orig_h;
-            } else if ((this.orig_w / this.orig_h) < aspectRatio) {
+                aspectRatio = w / h;
+                if (aspectExtent.min && aspectRatio < aspectExtent.min) {
+                    aspectRatio = aspectExtent.min;
+                } else if (aspectExtent.max && aspectRatio > aspectExtent.max) {
+                    aspectRatio = aspectExtent.max;
+                }
+            }
+            if ((this.orig_w / this.orig_h) < aspectRatio) {
                 // The uploaded image is taller than the needed aspect ratio
                 x = 0;
                 w = this.orig_w;

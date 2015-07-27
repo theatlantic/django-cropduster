@@ -131,6 +131,8 @@ class Size(object):
             'min_h': self.min_h or self.height,
             'max_w': self.max_w,
             'max_h': self.max_h,
+            'min_aspect': self.min_aspect,
+            'max_aspect': self.max_aspect,
         }
         if self.width and self.height:
             best_fit_kwargs.update({'w': self.width, 'h': self.height})
@@ -249,11 +251,16 @@ class Crop(object):
         os.unlink(temp_filename)
         return new_image
 
-    def best_fit(self, w=None, h=None, min_w=None, min_h=None, max_w=None, max_h=None):
+    def best_fit(self, w=None, h=None, min_w=None, min_h=None, max_w=None, max_h=None, min_aspect=None, max_aspect=None):
         if w and h:
             aspect_ratio = w / h
         else:
             aspect_ratio = self.box.aspect_ratio
+
+        if min_aspect and aspect_ratio < min_aspect:
+            aspect_ratio = min_aspect
+        elif max_aspect and aspect_ratio > max_aspect:
+            aspect_ratio = max_aspect
 
         scale = math.sqrt(aspect_ratio / self.box.aspect_ratio)
 
