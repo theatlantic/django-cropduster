@@ -223,7 +223,6 @@ body.cropduster-debug .cropduster-form .inline-related .grp-collapse-handler {
 .cropduster-upload-form input[type="button"].rounded-button.green:visited {
 	color: #fff;
 	border: 0;
-	background: #3a4d00 url(../img/button-overlay.png) repeat-x 0 0;
 }
 .cropduster-upload-form .rounded-button.green:hover,
 .cropduster-upload-form input[type="submit"].rounded-button.green:hover,
@@ -245,7 +244,6 @@ body.cropduster-debug .cropduster-form .inline-related .grp-collapse-handler {
 .cropduster-upload-form input[type="button"].rounded-button.blue:active {
 	color: #fff;
 	border: 0;
-	background: #162d3e url(../img/button-overlay.png) repeat-x 0 0;
 }
 .cropduster-upload-form .rounded-button.blue:hover,
 .cropduster-upload-form input[type="submit"].rounded-button.blue:hover,
@@ -267,7 +265,6 @@ body.cropduster-debug .cropduster-form .inline-related .grp-collapse-handler {
 .cropduster-upload-form input[type="button"].rounded-button.magenta:active {
 	color: #fff;
 	border: 0;
-	background: #a9014b url(../img/button-overlay.png) repeat-x 0 0;
 }
 .cropduster-upload-form .rounded-button.magenta:hover,
 .cropduster-upload-form input[type="submit"].rounded-button.magenta:hover,
@@ -289,7 +286,6 @@ body.cropduster-debug .cropduster-form .inline-related .grp-collapse-handler {
 .cropduster-upload-form input[type="button"].rounded-button.orange:active {
 	color: #fff;
 	border: 0;
-	background: #ff5c00 url(../img/button-overlay.png) repeat-x 0 0;
 }
 .cropduster-upload-form .rounded-button.orange:hover,
 .cropduster-upload-form input[type="submit"].rounded-button.orange:hover,
@@ -311,7 +307,6 @@ body.cropduster-debug .cropduster-form .inline-related .grp-collapse-handler {
 .cropduster-upload-form input[type="button"].rounded-button.yellow:active {
 	color: #fff;
 	border: 0;
-	background: #ffb515 url(../img/button-overlay.png) repeat-x 0 0;
 }
 .cropduster-upload-form .rounded-button.yellow:hover,
 .cropduster-upload-form input[type="submit"].rounded-button.yellow:hover,
