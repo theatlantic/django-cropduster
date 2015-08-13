@@ -13,6 +13,7 @@ from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.core.files.storage import FileSystemStorage
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.db import transaction
 
 try:
     from django.contrib.contenttypes.fields import GenericForeignKey
@@ -86,20 +87,21 @@ class Thumb(models.Model):
         return self.image_file.path if self.image_file else ''
 
     def save(self, *args, **kwargs):
-        if self.pk:
-            try:
-                orig_thumb = Thumb.objects.select_for_update().get(pk=self.pk)
-            except Thumb.DoesNotExist:
-                pass
-            else:
-                if self.image_id and not orig_thumb.image_id:
-                    try:
-                        os.rename(
-                            self.image.get_image_path(self.name, tmp=True),
-                            self.image.get_image_path(self.name))
-                    except (IOError, OSError):
-                        pass
-        return super(Thumb, self).save(*args, **kwargs)
+        with transaction.atomic():
+            if self.pk:
+                try:
+                    orig_thumb = Thumb.objects.select_for_update().get(pk=self.pk)
+                except Thumb.DoesNotExist:
+                    pass
+                else:
+                    if self.image_id and not orig_thumb.image_id:
+                        try:
+                            os.rename(
+                                self.image.get_image_path(self.name, tmp=True),
+                                self.image.get_image_path(self.name))
+                        except (IOError, OSError):
+                            pass
+            return super(Thumb, self).save(*args, **kwargs)
 
     def to_dict(self):
         """Returns a dict of the thumb's values which are JSON serializable."""
