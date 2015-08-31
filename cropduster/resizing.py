@@ -341,7 +341,10 @@ class Crop(object):
         return Crop(Box(x1, y1, x2, y2), self.image)
 
     def add_xmp_to_crop(self, cropped_image, size):
-        from cropduster.standalone.metadata import libxmp, file_format_supported
+        try:
+            from cropduster.standalone.metadata import libxmp, file_format_supported
+        except ImproperlyConfigured:
+            libxmp = None
 
         if not libxmp:
             return
