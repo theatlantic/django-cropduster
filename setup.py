@@ -26,7 +26,6 @@ setup(
     zip_safe=False,
     install_requires=[
         'Pillow',
-        'Django>=1.2',
         'python-xmp-toolkit',
         'django-generic-plus>=1.2.16',
         'six>=1.7.0',
