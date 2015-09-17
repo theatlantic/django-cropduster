@@ -136,6 +136,10 @@ class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
 
     fields = ('image', 'thumbs', 'attribution', 'attribution_link', 'caption', 'field_identifier')
 
+    def __init__(self, *args, **kwargs):
+        super(CropDusterInlineFormSet, self).__init__(*args, **kwargs)
+        self.queryset = self.queryset.prefetch_related('thumbs')
+
     def _construct_form(self, i, **kwargs):
         """
         Limit the queryset of the thumbs for performance reasons (so that it doesn't
