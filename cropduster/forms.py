@@ -56,6 +56,20 @@ class CropDusterWidget(GenericForeignFileWidget):
 
 class ThumbChoiceIterator(ModelChoiceIterator):
 
+    def __iter__(self):
+        if self.field.empty_label is not None:
+            yield ("", self.field.empty_label)
+        if self.field.cache_choices:
+            if self.field.choice_cache is None:
+                self.field.choice_cache = [
+                    self.choice(obj) for obj in self.queryset
+                ]
+            for choice in self.field.choice_cache:
+                yield choice
+        else:
+            for obj in self.queryset:
+                yield self.choice(obj)
+
     def choice(self, obj):
         return (obj, self.field.label_from_instance(obj))
 
@@ -132,13 +146,40 @@ class CropDusterThumbFormField(ModelMultipleChoiceField):
     choices = property(_get_choices, ChoiceField._set_choices)
 
 
+def get_cropduster_field_on_model(model, field_identifier):
+    from cropduster.fields import CropDusterField
+
+    opts = model._meta
+    if hasattr(opts, 'get_fields'):
+        # Django 1.8+
+        m2m_fields = [f for f in opts.get_fields() if f.many_to_many and not f.auto_created]
+    else:
+        m2m_fields = opts.many_to_many
+    m2m_related_fields = set(m2m_fields + opts.virtual_fields)
+
+    field_match = lambda f: (isinstance(f, CropDusterField)
+        and f.field_identifier == field_identifier)
+
+    try:
+        return [f for f in m2m_related_fields if field_match(f)][0]
+    except IndexError:
+        return None
+
+
 class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
 
     fields = ('image', 'thumbs', 'attribution', 'attribution_link', 'caption', 'field_identifier')
 
     def __init__(self, *args, **kwargs):
         super(CropDusterInlineFormSet, self).__init__(*args, **kwargs)
-        self.queryset = self.queryset.prefetch_related('thumbs')
+        if self.instance and not self.data:
+            cropduster_field = get_cropduster_field_on_model(self.instance.__class__, self.field_identifier)
+            if cropduster_field:
+                # An order_by() is required to prevent the queryset result cache
+                # from being removed
+                self.queryset = self.queryset.order_by('pk')
+                field_file = getattr(self.instance, cropduster_field.name)
+                self.queryset._result_cache = list(filter(None, [field_file.related_object]))
 
     def _construct_form(self, i, **kwargs):
         """
