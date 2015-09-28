@@ -215,6 +215,8 @@ class MetadataDict(dict):
                     v = re.sub(r'^xmp\.did:', '', v).lower()
                 elif ns_prefix == 'crop' and k == 'json':
                     v = json.loads(v)
+                elif ns_prefix == 'crop' and k == 'md5':
+                    v = v.lower()
 
                 m = re.search(r'^(.*)\[(\d+)\](?=\/|\Z)', k)
                 if m:

@@ -14,6 +14,8 @@ from PIL.ImageFile import ImageFile
 from django.db.models.fields.files import FieldFile
 from django.core.exceptions import ImproperlyConfigured
 
+from .settings import CROPDUSTER_RETAIN_METADATA
+
 
 if hasattr(six.moves.builtins, 'file'):
     BUILTIN_FILE_TYPE = file
@@ -340,7 +342,7 @@ class Crop(object):
 
         return Crop(Box(x1, y1, x2, y2), self.image)
 
-    def add_xmp_to_crop(self, cropped_image, size):
+    def add_xmp_to_crop(self, cropped_image, size, original_image=None):
         try:
             from cropduster.standalone.metadata import libxmp, file_format_supported
         except ImproperlyConfigured:
@@ -349,25 +351,46 @@ class Crop(object):
         if not libxmp:
             return
 
-        from cropduster.models import Thumb
+        from cropduster.models import Image, Thumb
 
-        if isinstance(cropped_image, ImageFile):
-            image_path = cropped_image.filename
-        elif isinstance(cropped_image, BUILTIN_FILE_TYPE):
-            image_path = cropped_image.name
-        elif isinstance(cropped_image, FieldFile):
-            image_path = cropped_image.path
-        elif isinstance(cropped_image, Thumb):
-            image = cropped_image.image
-            if not cropped_image:
-                return False
-            image_path = image.get_image_path(cropped_image.name)
-        elif isinstance(cropped_image, six.string_types):
-            image_path = cropped_image
+        def get_image_path(img):
+            if isinstance(img, ImageFile):
+                path = img.filename
+            elif isinstance(img, BUILTIN_FILE_TYPE):
+                path = img.name
+            elif isinstance(img, FieldFile):
+                path = img.path
+            elif isinstance(img, Thumb):
+                image = img.image
+                if not img:
+                    return None
+                path = image.get_path(img.name)
+            elif isinstance(img, Image):
+                path = img.get_path('original')
+            elif isinstance(img, six.string_types):
+                path = img
+            else:
+                path = None
+            return path
+
+        image_path = get_image_path(cropped_image)
+
+        if not image_path:
+            return
 
         xmp_file = libxmp.XMPFiles(file_path=image_path, open_forupdate=True)
 
-        xmp_meta = self.generate_xmp(size)
+        original_metadata = None
+        if original_image and CROPDUSTER_RETAIN_METADATA:
+            original_image_path = get_image_path(original_image)
+            if original_image_path:
+                try:
+                    original_xmp_file = libxmp.XMPFiles(file_path=original_image_path)
+                    original_metadata = original_xmp_file.get_xmp()
+                except:
+                    pass
+
+        xmp_meta = self.generate_xmp(size, original_metadata=original_metadata)
 
         if not xmp_file.can_put_xmp(xmp_meta):
             if not file_format_supported(image_path):
@@ -380,7 +403,7 @@ class Crop(object):
         xmp_file.put_xmp(xmp_meta)
         xmp_file.close_file()
 
-    def generate_xmp(self, size):
+    def generate_xmp(self, size, original_metadata=None):
         from cropduster.standalone.metadata import libxmp
         from cropduster.utils import json
 
@@ -393,7 +416,7 @@ class Crop(object):
             md5.update(f.read())
         digest = md5.hexdigest()
 
-        md = libxmp.XMPMeta()
+        md = original_metadata or libxmp.XMPMeta()
         md.register_namespace(NS_XMPMM, 'xmpMM')
         md.register_namespace(NS_MWG_RS, 'mwg-rs')
         md.register_namespace('http://ns.adobe.com/xap/1.0/sType/Dimensions#', 'stDim')
@@ -402,7 +425,7 @@ class Crop(object):
         md.set_property(NS_CROP, 'crop:size/stDim:w', '%s' % (size.width or ''))
         md.set_property(NS_CROP, 'crop:size/stDim:h', '%s' % (size.height or ''))
         md.set_property(NS_CROP, 'crop:size/crop:json', json.dumps(size))
-        md.set_property(NS_XMPMM, 'xmpMM:DerivedFrom', u'xmp.did:%s' % digest.upper())
+        md.set_property(NS_CROP, 'crop:md5', digest.upper())
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions', '', prop_value_is_struct=True)
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:w', six.text_type(self.image.size[0]))
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:h', six.text_type(self.image.size[1]))

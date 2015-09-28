@@ -484,7 +484,7 @@ class Image(models.Model):
         thumb_image = thumb.crop(thumb_path, image, **crop_kwargs)
 
         if StandaloneImage:
-            thumb_image.crop.add_xmp_to_crop(thumb_path, size)
+            thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
 
         if standalone:
             md5 = hashlib.md5()

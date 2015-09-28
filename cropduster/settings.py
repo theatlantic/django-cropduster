@@ -53,3 +53,5 @@ CROPDUSTER_GIFSICLE_PATH = getattr(settings, 'CROPDUSTER_GIFSICLE_PATH', None)
 if CROPDUSTER_GIFSICLE_PATH is None:
     # Try to find executable in the PATH
     CROPDUSTER_GIFSICLE_PATH = distutils.spawn.find_executable("gifsicle")
+
+CROPDUSTER_RETAIN_METADATA = getattr(settings, 'CROPDUSTER_RETAIN_METADATA', False)

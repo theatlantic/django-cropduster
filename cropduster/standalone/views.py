@@ -24,8 +24,9 @@ class CropDusterStandaloneIndex(CropDusterIndex):
     def db_image(self):
         if not self.image_file:
             return None
+        md5 = self.image_file.metadata.get('md5') or self.image_file.metadata.get('DerivedFrom')
         try:
-            standalone = StandaloneImage.objects.get(md5=self.image_file.metadata.get('DerivedFrom'))
+            standalone = StandaloneImage.objects.get(md5=md5)
         except StandaloneImage.DoesNotExist:
             (preview_w, preview_h) = self.preview_size
             standalone = StandaloneImage.objects.get_from_file(self.image_file.name,
