@@ -203,6 +203,8 @@ class CropDusterField(GenericForeignFileField):
         return super(CropDusterField, self).formfield(**kwargs)
 
     def get_inline_admin_formset(self, *args, **kwargs):
+        for_concrete_model = self.for_concrete_model
+
         def get_formset(self, request, obj=None, **kwargs):
             formset_attrs = {'sizes': self.field.sizes, 'max_num': 1}
             formset_attrs.update(kwargs)
@@ -212,6 +214,7 @@ class CropDusterField(GenericForeignFileField):
                 formset_attrs=formset_attrs,
                 prefix=self.default_prefix,
                 form_attrs={"caption": forms.CharField(required=False)},
+                for_concrete_model=for_concrete_model,
                 )
 
         return super(CropDusterField, self).get_inline_admin_formset(
