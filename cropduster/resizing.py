@@ -310,12 +310,20 @@ class Crop(object):
             scale_y = (y2 - y1) / initial_fit.h
 
         if scale_y < scale_x:
+            # scale down the width to maintain aspect ratio
             w = (x2 - x1) * (scale_y / scale_x)
+            # unless the scaled width would drop below the min_w
+            if w < min_w:
+                w = min_w
             dw = initial_fit.w - w
             x1 += (dw / 2)
             x2 = x1 + w
         elif scale_x < scale_y:
+            # scale down the height to maintain aspect ratio
             h = (y2 - y1) * (scale_x / scale_y)
+            # unless the scaled height would drop below the min_h
+            if h < min_w:
+                h = min_h
             dh = initial_fit.h - h
             y1 += (dh / 2)
             y2 = y1 + h
