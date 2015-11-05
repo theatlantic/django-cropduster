@@ -191,8 +191,11 @@ class CropDusterField(GenericForeignFileField):
     def formfield(self, **kwargs):
         factory_kwargs = {
             'sizes': kwargs.pop('sizes', None) or self.sizes,
-            'related': getattr(self, 'related', None),
         }
+        if django.VERSION > (1, 9):
+            factory_kwargs['related'] = getattr(self, 'remote_field', None)
+        else:
+            factory_kwargs['related'] = getattr(self, 'related', None)
 
         widget = generic_fk_file_widget_factory(CropDusterWidget, **factory_kwargs)
         formfield = generic_fk_file_formfield_factory(widget=widget, **factory_kwargs)

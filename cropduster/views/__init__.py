@@ -34,12 +34,13 @@ import os
 import copy
 import shutil
 
+import django
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 from django.forms.models import modelformset_factory
 from django.http import HttpResponse
-from django.shortcuts import render_to_response
+from django.shortcuts import render
 from django.template import RequestContext
 from django.utils.functional import cached_property
 from django.views.decorators.csrf import csrf_exempt
@@ -182,7 +183,8 @@ class CropDusterIndex(View):
                 'changed': False,
             })
 
-        return render_to_response('cropduster/upload.html', RequestContext(self.request, {
+        return render(self.request, 'cropduster/upload.html', {
+            'django_is_19': (django.VERSION[:2] == (1, 9)),
             'is_popup': True,
             'orig_image': '',
             'parent_template': get_admin_base_template(),
@@ -198,7 +200,7 @@ class CropDusterIndex(View):
             }),
             'crop_form': CropForm(initial=initial, prefix='crop'),
             'thumb_formset': thumb_formset,
-        }))
+        })
 
 
 

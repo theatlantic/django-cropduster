@@ -9,6 +9,7 @@ import random
 import os
 from datetime import datetime
 
+import django
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.core.files.storage import FileSystemStorage
 from django.contrib.contenttypes.models import ContentType
@@ -342,7 +343,19 @@ class Image(models.Model):
         # If the Image has changed, we need to make sure the related field on the
         # model class has also been updated
         model_class = self.content_type.model_class()
-        for field, field_model_class in model_class._meta.get_fields_with_model():
+
+        if django.VERSION > (1, 9):
+            fields_with_models = [
+                (f, f.model if f.model != model_class else None)
+                for f in model_class._meta.get_fields()
+                if not f.is_relation
+                    or f.one_to_one
+                    or (f.many_to_one and f.related_model)
+            ]
+        else:
+            fields_with_models = model_class._meta.get_fields_with_model()
+
+        for field, field_model_class in fields_with_models:
             field_model_class = field_model_class or model_class
             if (isinstance(field, CropDusterImageField) and
                     field.generic_field.field_identifier == self.field_identifier):

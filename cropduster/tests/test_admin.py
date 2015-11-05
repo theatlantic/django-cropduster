@@ -2,9 +2,9 @@ import os
 import contextlib
 
 from django.contrib.auth.models import User
-from django.core.urlresolvers import reverse
-
 from django.contrib.admin.tests import AdminSeleniumWebDriverTestCase
+from django.core.urlresolvers import reverse
+from django.test.utils import override_settings
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.expected_conditions import (
@@ -20,9 +20,8 @@ from .models import Article, Author, TestForOptionalSizes, TestForOrphanedThumbs
 from ..models import Size, Thumb
 
 
+@override_settings(ROOT_URLCONF='cropduster.tests.urls')
 class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
-
-    urls = 'cropduster.tests.urls'
 
     available_apps = [
         'django.contrib.auth',

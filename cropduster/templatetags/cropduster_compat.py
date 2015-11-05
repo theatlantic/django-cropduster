@@ -1,5 +1,5 @@
 import django
-from django.template.base import Library
+from django.template import Library
 
 if django.VERSION[:2] < (1, 5):
     from django.templatetags.future import url as url_compat

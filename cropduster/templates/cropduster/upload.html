@@ -5,7 +5,11 @@
 {% load url from cropduster_compat %}
 
 {% block extrahead %}
+    {% if django_is_19 %}
+    <script type="text/javascript" src="{{ STATIC_URL }}admin/js/vendor/jquery/jquery.min.js"></script>
+    {% else %}
     <script type="text/javascript" src="{{ STATIC_URL }}admin/js/jquery.min.js"></script>
+    {% endif %}
     <script type="text/javascript" src="{{ STATIC_URL }}admin/js/jquery.init.js"></script>
     {{ block.super }}
     {{ crop_form.media }}
@@ -30,7 +34,7 @@
 <div id="content-main">
     <fieldset class="module grp-module aligned">
 
-        <form id="upload" action="{% url 'cropduster.views.upload' %}{% if standalone %}?standalone=1{% endif %}" method="POST">
+        <form id="upload" action="{% url 'cropduster-upload' %}{% if standalone %}?standalone=1{% endif %}" method="POST">
             {% for field in upload_form %}
                 <div class="grp-row row {{ field.name }}{% if field.name != 'image' %} hidden{% endif %}">
                     {% if field.name != "image" %}{{ field.label_tag|safe }}{% endif %}
@@ -79,7 +83,7 @@
         <p class="errornote"></p>
     </div>
 
-    <form action="{% url 'cropduster.views.crop' %}" method="POST" id="crop-form">
+    <form action="{% url 'cropduster-crop' %}" method="POST" id="crop-form">
         <div id="image-container">
             <img src="{{ image }}" id="cropbox" />
         </div>

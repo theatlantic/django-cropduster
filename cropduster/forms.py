@@ -59,7 +59,7 @@ class ThumbChoiceIterator(ModelChoiceIterator):
     def __iter__(self):
         if self.field.empty_label is not None:
             yield ("", self.field.empty_label)
-        if self.field.cache_choices:
+        if getattr(self.field, 'cache_choices', None):
             if self.field.choice_cache is None:
                 self.field.choice_cache = [
                     self.choice(obj) for obj in self.queryset
