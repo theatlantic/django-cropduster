@@ -44,8 +44,8 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
     def setUp(self):
         super(TestAdmin, self).setUp()
         self.selenium.set_window_size(1120, 550)
+        self.selenium.set_page_load_timeout(10)
         User.objects.create_superuser('mtwain', 'me@example.com', 'p@ssw0rd')
-        self.admin_login("mtwain", "p@ssw0rd", login_url=reverse('admin:index'))
 
     def wait_until_visible_selector(self, selector, timeout=10):
         self.wait_until(
@@ -85,8 +85,8 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
         self.selenium.switch_to.window(self.selenium.window_handles[0])
 
     def test_addform_single_image(self):
+        self.admin_login("mtwain", "p@ssw0rd", login_url=reverse('admin:cropduster_author_add'))
         browser = self.selenium
-        browser.get(self.live_server_url + reverse('admin:cropduster_author_add'))
         browser.find_element_by_id('id_name').send_keys('Mark Twain')
         browser.find_element_by_css_selector('#headshot-group .rounded-button').click()
 
@@ -138,9 +138,9 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
     def test_addform_multiple_image(self):
         author = Author.objects.create(name="Mark Twain")
 
-        browser = self.selenium
-        browser.get(self.live_server_url + reverse('admin:cropduster_article_add'))
+        self.admin_login("mtwain", "p@ssw0rd", login_url=reverse('admin:cropduster_article_add'))
 
+        browser = self.selenium
         browser.find_element_by_id('id_title').send_keys("A Connecticut Yankee in King Arthur's Court")
 
         # Upload and crop first Image
@@ -192,7 +192,9 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
 
         url = reverse('admin:cropduster_author_change', args=(author.pk, ))
         browser = self.selenium
-        browser.get(self.live_server_url + url)
+
+        self.admin_login("mtwain", "p@ssw0rd", login_url=url)
+
         elem = browser.find_element_by_id('id_name')
         elem.clear()
         elem.send_keys("Mark Twain")
@@ -211,7 +213,9 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
 
         url = reverse('admin:cropduster_article_change', args=(article.pk, ))
         browser = self.selenium
-        browser.get(self.live_server_url + url)
+
+        self.admin_login("mtwain", "p@ssw0rd", login_url=url)
+
         elem = browser.find_element_by_id('id_title')
         elem.clear()
         elem.send_keys("Updated Title")
@@ -223,8 +227,8 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
     def test_changeform_with_optional_sizes_small_image(self):
         test_a = TestForOptionalSizes.objects.create(slug='a')
 
-        self.selenium.get("%s%s" % (self.live_server_url,
-            reverse('admin:cropduster_testforoptionalsizes_change', args=[test_a.pk])))
+        self.admin_login("mtwain", "p@ssw0rd",
+            login_url=reverse('admin:cropduster_testforoptionalsizes_change', args=[test_a.pk]))
         self.wait_page_loaded()
 
         # Upload and crop image
@@ -253,8 +257,8 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
     def test_changeform_with_optional_sizes_large_image(self):
         test_a = TestForOptionalSizes.objects.create(slug='a')
 
-        self.selenium.get("%s%s" % (self.live_server_url,
-            reverse('admin:cropduster_testforoptionalsizes_change', args=[test_a.pk])))
+        self.admin_login("mtwain", "p@ssw0rd",
+            login_url=reverse('admin:cropduster_testforoptionalsizes_change', args=[test_a.pk]))
         self.wait_page_loaded()
 
         # Upload and crop image
@@ -283,8 +287,8 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
     def test_orphaned_thumbs_after_delete(self):
         test_a = TestForOrphanedThumbs.objects.create(slug='a')
 
-        self.selenium.get("%s%s" % (self.live_server_url,
-            reverse('admin:cropduster_testfororphanedthumbs_change', args=[test_a.pk])))
+        self.admin_login("mtwain", "p@ssw0rd",
+            login_url=reverse('admin:cropduster_testfororphanedthumbs_change', args=[test_a.pk]))
         self.wait_page_loaded()
 
         # Upload and crop image
