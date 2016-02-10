@@ -2,8 +2,10 @@
 from __future__ import unicode_literals
 
 from django.db import models, migrations
+
 import cropduster.models
 import cropduster.fields
+import cropduster.settings
 
 
 class Migration(migrations.Migration):
@@ -31,7 +33,7 @@ class Migration(migrations.Migration):
                 ('content_type', models.ForeignKey(to='contenttypes.ContentType')),
             ],
             options={
-                'db_table': 'cropduster4_image',
+                'db_table': '%s_image' % cropduster.settings.CROPDUSTER_DB_PREFIX,
             },
         ),
         migrations.CreateModel(
@@ -42,7 +44,7 @@ class Migration(migrations.Migration):
                 ('image', cropduster.fields.CropDusterImageField(db_column=b'image', default=b'', editable=False, upload_to=b'/Users/fdintino/Sites/cms/assets/media', blank=True)),
             ],
             options={
-                'db_table': 'cropduster4_standaloneimage',
+                'db_table': '%s_standaloneimage' % cropduster.settings.CROPDUSTER_DB_PREFIX,
             },
         ),
         migrations.CreateModel(
@@ -61,7 +63,7 @@ class Migration(migrations.Migration):
                 ('reference_thumb', models.ForeignKey(related_name='auto_set', blank=True, to='cropduster.Thumb', null=True)),
             ],
             options={
-                'db_table': 'cropduster4_thumb',
+                'db_table': '%s_thumb' % cropduster.settings.CROPDUSTER_DB_PREFIX,
             },
         ),
         migrations.AlterUniqueTogether(
