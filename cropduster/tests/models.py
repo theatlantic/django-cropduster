@@ -31,7 +31,8 @@ class Author(models.Model):
 
 class Article(models.Model):
     title = models.CharField(max_length=255)
-    author = models.ForeignKey(to=Author, on_delete=models.SET_NULL)
+    author = models.ForeignKey(to=Author, blank=True, null=True,
+        on_delete=models.SET_NULL)
     LEAD_IMAGE_SIZES = [
         Size(u'main', w=600, h=480, auto=[
             Size(u'thumb', w=110, h=90),
