@@ -3,6 +3,7 @@ import warnings
 
 import six
 
+import django
 from django import template
 from cropduster.models import Image
 from cropduster.resizing import Size
@@ -11,7 +12,13 @@ from cropduster.resizing import Size
 register = template.Library()
 
 
-@register.assignment_tag
+if django.VERSION >= (1, 9):
+    tag_decorator = register.simple_tag
+else:
+    tag_decorator = register.assignment_tag
+
+
+@tag_decorator
 def get_crop(image, crop_name, exact_size=False, **kwargs):
     """
     Get the crop of an image. Usage:

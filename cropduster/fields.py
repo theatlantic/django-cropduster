@@ -23,6 +23,10 @@ from .utils import json
 from .resizing import Box, Crop
 
 
+compat_rel = lambda f: getattr(f, 'remote_field' if django.VERSION >= (1, 9) else 'rel')
+compat_rel_to = lambda f: getattr(compat_rel(f), 'model' if django.VERSION >= (1, 9) else 'to')
+
+
 class BaseCropDusterImageFieldFile(type):
     """
     A metaclass to fix a pre-Django 1.6 bug. If the following queryset is
@@ -67,8 +71,8 @@ class CropDusterImageFieldFile(ImageFieldFile):
 
     def _get_new_crop_thumb(self, size):
         # "Imports"
-        Image = self.field.db_field.rel.to
-        Thumb = Image._meta.get_field("thumbs").rel.to
+        Image = compat_rel_to(self.field.db_field)
+        Thumb = compat_rel_to(Image._meta.get_field("thumbs"))
 
         box = Box(0, 0, self.width, self.height)
         crop_box = Crop(box, self.path)
@@ -88,8 +92,8 @@ class CropDusterImageFieldFile(ImageFieldFile):
 
     def generate_thumbs(self, permissive=False):
         # "Imports"
-        Image = self.field.db_field.rel.to
-        Thumb = Image._meta.get_field("thumbs").rel.to
+        Image = compat_rel_to(self.field.db_field)
+        Thumb = compat_rel_to(Image._meta.get_field("thumbs"))
 
         has_existing_image = self.related_object is not None
 
@@ -254,7 +258,7 @@ class ReverseForeignRelatedObjectsDescriptor(object):
         manager = self.__get__(instance)
         # If the foreign key can support nulls, then completely clear the related set.
         # Otherwise, just move the named objects into the set.
-        rel_field = self.field.rel.to._meta.get_field(self.field.field_name)
+        rel_field = compat_rel_to(self.field)._meta.get_field(self.field.field_name)
         if rel_field.null:
             manager.clear()
         manager.add(*value)
@@ -263,11 +267,11 @@ class ReverseForeignRelatedObjectsDescriptor(object):
     def related_manager_cls(self):
         # Dynamically create a class that subclasses the related model's default
         # manager.
-        rel_field = self.field.rel.to._meta.get_field(self.field.field_name)
-        rel_model = self.field.rel.to
+        rel_model = compat_rel_to(self.field)
+        rel_field = rel_model._meta.get_field(self.field.field_name)
         superclass = rel_model._default_manager.__class__
-        attname = rel_field.rel.get_related_field().attname
-        limit_choices_to = self.field.rel.limit_choices_to
+        attname = compat_rel(rel_field).get_related_field().attname
+        limit_choices_to = compat_rel(self.field).limit_choices_to
 
         class RelatedManager(superclass):
             def __init__(self, instance):
@@ -283,14 +287,14 @@ class ReverseForeignRelatedObjectsDescriptor(object):
                     return self.instance._prefetched_objects_cache[rel_field.related_query_name()]
                 except (AttributeError, KeyError):
                     db = self._db or router.db_for_read(self.model, instance=self.instance)
-                    if django.VERSION < (1, 7):
+                    if django.VERSION < (1, 6):
                         qset = super(RelatedManager, self).get_query_set()
                     else:
                         qset = super(RelatedManager, self).get_queryset()
                     return (qset.using(db).complex_filter(limit_choices_to)
                                 .filter(**self.core_filters))
 
-            if django.VERSION < (1, 7):
+            if django.VERSION < (1, 6):
                 get_query_set = get_queryset
 
             def get_prefetch_queryset(self, instances, queryset=None):
@@ -298,7 +302,7 @@ class ReverseForeignRelatedObjectsDescriptor(object):
                 query = {'%s__%s__in' % (rel_field.name, attname):
                              set(getattr(obj, attname) for obj in instances)}
 
-                if django.VERSION < (1, 7):
+                if django.VERSION < (1, 6):
                     qs = super(RelatedManager, self).get_query_set()
                 else:
                     qs = super(RelatedManager, self).get_queryset()
@@ -344,7 +348,7 @@ class ReverseForeignRelatedObjectsDescriptor(object):
                             setattr(obj, rel_field.name, None)
                             obj.save()
                         else:
-                            raise rel_field.rel.to.DoesNotExist("%r is not related to %r." % (obj, self.instance))
+                            raise compat_rel_to(rel_field).DoesNotExist("%r is not related to %r." % (obj, self.instance))
                 remove.alters_data = True
 
                 def clear(self):
@@ -377,9 +381,9 @@ def rel_through_none(instance):
     Temporarily set instance.rel.through to None, instead of our FalseThrough
     object.
     """
-    through, instance.rel.through = instance.rel.through, None
+    through, compat_rel(instance).through = compat_rel(instance).through, None
     yield
-    instance.rel.through = through
+    compat_rel(instance).through = through
 
 
 class ReverseForeignRelation(ManyToManyField):
@@ -424,19 +428,19 @@ class ReverseForeignRelation(ManyToManyField):
         return True
 
     def m2m_db_table(self):
-        return self.rel.to._meta.db_table
+        return compat_rel_to(self)._meta.db_table
 
     def m2m_column_name(self):
-        return self.rel.to._meta.get_field(self.field_name).attname
+        return compat_rel_to(self)._meta.get_field(self.field_name).attname
 
     def m2m_reverse_name(self):
-        return self.rel.to._meta.pk.column
+        return compat_rel_to(self)._meta.pk.column
 
     def m2m_target_field_name(self):
         return self.model._meta.pk.name
 
     def m2m_reverse_target_field_name(self):
-        return self.rel.to._meta.pk.name
+        return compat_rel_to(self)._meta.pk.name
 
     def contribute_to_class(self, cls, name, **kwargs):
         if django.VERSION >= (1, 8):
@@ -456,7 +460,7 @@ class ReverseForeignRelation(ManyToManyField):
     def formfield(self, **kwargs):
         kwargs.update({
             'form_class': CropDusterThumbFormField,
-            'queryset': self.rel.to._default_manager.none(),
+            'queryset': compat_rel_to(self)._default_manager.none(),
         })
         return super(ManyToManyField, self).formfield(**kwargs)
 
@@ -464,10 +468,11 @@ class ReverseForeignRelation(ManyToManyField):
         """
         Return all objects related to ``objs`` via this ``ReverseForeignRelation``.
         """
-        rel_field_attname = self.rel.to._meta.get_field(self.field_name).attname
-        return self.rel.to._base_manager.db_manager(using).complex_filter(self.rel.limit_choices_to).filter(**{
-            '%s__in' % rel_field_attname: [obj.pk for obj in objs]
-        })
+        rel_field_attname = compat_rel_to(self)._meta.get_field(self.field_name).attname
+        return (
+            compat_rel_to(self)._base_manager.db_manager(using)
+                .complex_filter(compat_rel(self).limit_choices_to)
+                .filter(**{'%s__in' % rel_field_attname: [obj.pk for obj in objs]}))
 
     def related_query_name(self):
         # This method defines the name that can be used to identify this

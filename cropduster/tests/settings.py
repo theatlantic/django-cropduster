@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 import os
 import tempfile
+import warnings
+
+warnings.simplefilter('default')
 
 import django
 
@@ -17,7 +20,7 @@ DATABASES = {
 }
 SECRET_KEY = 'z-i*xqqn)r0i7leak^#clq6y5j8&tfslp^a4duaywj2$**s*0_'
 
-if django.VERSION > (1, 9):
+if django.VERSION >= (1, 8):
     TEMPLATES = [{
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [os.path.join(current_dir, 'templates')],
@@ -77,6 +80,11 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
 )
+
+if django.VERSION >= (1, 7):
+    MIDDLEWARE_CLASSES += (
+        'django.contrib.auth.middleware.SessionAuthenticationMiddleware', )
+
 SITE_ID = 1
 ROOT_URLCONF = 'cropduster.tests.urls'
 MEDIA_ROOT = os.path.join(temp_dir, 'media')

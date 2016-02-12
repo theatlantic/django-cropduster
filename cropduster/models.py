@@ -344,7 +344,7 @@ class Image(models.Model):
         # model class has also been updated
         model_class = self.content_type.model_class()
 
-        if django.VERSION > (1, 9):
+        if django.VERSION >= (1, 8):
             fields_with_models = [
                 (f, f.model if f.model != model_class else None)
                 for f in model_class._meta.get_fields()
