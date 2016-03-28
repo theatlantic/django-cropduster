@@ -8,13 +8,6 @@ except ImportError:
     from setuptools import setup, find_packages
 
 
-setup_kwargs = {}
-
-try:
-    setup_kwargs['long_description'] = open('README.rst').read()
-except IOError:
-    pass
-
 setup(
     name='django-cropduster',
     version='4.8.46',
@@ -24,6 +17,9 @@ setup(
     description='Django image uploader and cropping tool',
     packages=find_packages(),
     zip_safe=False,
+    long_description=open('README.rst').read(),
+    license='BSD',
+    platforms='any',
     install_requires=[
         'Pillow',
         'python-xmp-toolkit',
@@ -32,11 +28,16 @@ setup(
     ],
     include_package_data=True,
     classifiers=[
-        'Programming Language :: Python',
-        'Framework :: Django',
+        'Development Status :: 5 - Production/Stable',
+        'Environment :: Web Environment',
         'Intended Audience :: Developers',
-        'Intended Audience :: System Administrators',
+        'Natural Language :: English',
         'Operating System :: OS Independent',
-        'Topic :: Software Development'
-    ],
-    **setup_kwargs)
+        'Framework :: Django',
+        'Programming Language :: Python',
+        "Programming Language :: Python :: 2",
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+    ])
