@@ -434,7 +434,7 @@ class Image(models.Model):
                     new_thumb = self._save_thumb(sz, image, ref_thumb=thumb, tmp=tmp)
                 else:
                     thumb = new_thumb = self._save_thumb(sz, image, thumb, tmp=tmp)
-            except CropDusterResizeException:
+            except (CropDusterResizeException, ValueError):
                 if permissive or not sz.required:
                     continue
                 else:
