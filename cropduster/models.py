@@ -430,12 +430,13 @@ class Image(models.Model):
 
         for sz in Size.flatten([size]):
             try:
-                if sz.is_auto:
+                if thumb and sz.is_auto:
                     new_thumb = self._save_thumb(sz, image, ref_thumb=thumb, tmp=tmp)
                 else:
                     thumb = new_thumb = self._save_thumb(sz, image, thumb, tmp=tmp)
-            except (CropDusterResizeException, ValueError):
+            except CropDusterResizeException:
                 if permissive or not sz.required:
+                    thumb = new_thumb = None
                     continue
                 else:
                     raise
