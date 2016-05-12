@@ -36,12 +36,14 @@ import shutil
 
 import django
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 from django.forms.models import modelformset_factory
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.template import RequestContext
+from django.utils.decorators import method_decorator
 from django.utils.functional import cached_property
 from django.views.decorators.csrf import csrf_exempt
 
@@ -74,6 +76,7 @@ class CropDusterIndex(View):
 
     is_standalone = False
 
+    @method_decorator(login_required)
     def dispatch(self, request, *args, **kwargs):
         self.request = request
         self.upload_to = self.request.GET.get('upload_to') or None
@@ -203,12 +206,11 @@ class CropDusterIndex(View):
         })
 
 
-
-
 index = CropDusterIndex.as_view()
 
 
 @csrf_exempt
+@login_required
 def upload(request):
     if request.method == 'GET':
         return index(request)
@@ -332,6 +334,7 @@ def upload(request):
 
 
 @csrf_exempt
+@login_required
 def crop(request):
     if request.method == "GET":
         return json_error(request, 'crop', action="cropping image",
