@@ -25,11 +25,13 @@ class TestIndex(CropdusterViewTestRunner):
 
     def test_get_is_200(self):
         request = self.factory.get(reverse('cropduster-index'))
+        request.user = self.user
         response = views.index(request)
         self.assertEqual(response.status_code, 200)
 
     def test_post_is_405(self):
         request = self.factory.post(reverse('cropduster-index'), {})
+        request.user = self.user
         response = views.index(request)
         self.assertEqual(response.status_code, 405)
 
@@ -39,6 +41,7 @@ class TestUpload(CropdusterViewTestRunner):
     def test_get_request(self):
         request = HttpRequest()
         request.method = "GET"
+        request.user = self.user
         self.assertEqual(
             views.upload(request).content,
             views.index(request).content)
