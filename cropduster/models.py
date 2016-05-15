@@ -123,7 +123,7 @@ class Thumb(models.Model):
             return None
         return Box(x1, y1, x2, y2)
 
-    def crop(self, output_filename, original_image=None, w=None, h=None, min_w=None, min_h=None, max_w=None, max_h=None):
+    def crop(self, original_image=None, size=None, w=None, h=None):
         if original_image is None:
             if not self.pk:
                 raise Exception(
@@ -142,43 +142,46 @@ class Thumb(models.Model):
             raise Exception("Cannot crop thumbnail without crop data")
         crop = Crop(crop_box, original_image)
 
-        self.width = w or None
-        self.height = h or None
+        width = size.w or w
+        height = size.h or h
 
         if self.reference_thumb:
             best_fit_kwargs = {
-                'min_w': min_w or self.width,
-                'min_h': min_h or self.height,
+                'min_w': size.min_w or width,
+                'min_h': size.min_h or height,
             }
-            if self.width and self.height:
-                best_fit_kwargs.update({'w': self.width, 'h': self.height})
-            fit = crop.best_fit(**best_fit_kwargs)
-            if not self.width and not self.height:
-                self.width, self.height = fit.box.size
-            elif not self.width:
-                width = fit.box.w * (self.height / fit.box.h)
-                self.width = min(int(round(width)), crop.bounds.w)
-            elif not self.height:
-                height = fit.box.h * (self.width / fit.box.w)
-                self.height = min(int(round(height)), crop.bounds.h)
-            new_image = fit.create_image(output_filename, width=self.width, height=self.height, max_w=max_w, max_h=max_h)
-        else:
-            if w and h:
-                self.width = w
-                self.height = h
-            elif w:
-                height = crop_box.h * (w / crop_box.w)
-                self.height = min(int(round(height)), crop.bounds.h)
-            elif h:
-                width = crop_box.w * (h / crop_box.h)
-                self.width = min(int(round(width)), crop.bounds.w)
-            else:
-                self.width, self.height = crop.box.size
+            if width and height:
+                best_fit_kwargs.update({'w': width, 'h': height})
+            crop = crop.best_fit(**best_fit_kwargs)
+        if not width and not height:
+            width, height = crop.box.size
+        elif not width:
+            width = crop.box.w * (height / crop.box.h)
+            width = min(int(round(width)), crop.bounds.w)
+        elif not height:
+            height = crop.box.h * (width / crop.box.w)
+            height = min(int(round(height)), crop.bounds.h)
 
-            new_image = crop.create_image(output_filename, width=self.width, height=self.height, max_w=max_w, max_h=max_h)
+        new_w, new_h = crop.box.size
+        if new_w < width or new_h < height:
+            raise CropDusterResizeException(
+                u"Crop box (%dx%d) is too small for resize to (%dx%d)" % (new_w, new_h, width, height))
 
-        self.width, self.height = new_image.size
-        return new_image
+        # Scale our initial width and height based on the max_w and max_h
+        max_scales = []
+        if size.max_w and size.max_w < width:
+            max_scales.append(size.max_w / width)
+        if size.max_h and size.max_h < height:
+            max_scales.append(size.max_h / height)
+        if max_scales:
+            max_scale = min(max_scales)
+            width = int(round(width * max_scale))
+            height = int(round(height * max_scale))
+
+        self.width = width
+        self.height = height
+
+        return crop
 
 
 class StrFileSystemStorage(FileSystemStorage):
@@ -426,7 +429,7 @@ class Image(models.Model):
         if standalone:
             if not StandaloneImage:
                 raise ImproperlyConfigured(u"standalone mode used, but not installed.")
-            return self._save_thumb(size, image, thumb, standalone=True)
+            return self._save_standalone_thumb(size, image, thumb)
 
         for sz in Size.flatten([size]):
             try:
@@ -446,69 +449,48 @@ class Image(models.Model):
                 thumbs[sz.name] = new_thumb
         return thumbs
 
-    def _save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False, standalone=False):
-        img_save_params = {}
-        if image.format == 'JPEG':
-            img_save_params['quality'] = cropduster_settings.get_jpeg_quality(self.width, self.height)
-        if image.format in ('JPEG', 'PNG') and cropduster_settings.JPEG_SAVE_ICC_SUPPORTED:
-            img_save_params['icc_profile'] = image.info.get('icc_profile')
-
+    def _save_standalone_thumb(self, size, image=None, thumb=None):
         if not thumb:
-            if standalone:
-                thumb = Thumb(
-                    width=self.width, height=self.height,
-                    crop_x=0, crop_y=0, crop_w=self.width, crop_h=self.height)
-            elif self.pk:
-                try:
-                    thumb = self.thumbs.get(name=size.name)
-                except Thumb.DoesNotExist:
-                    pass
+            thumb = Thumb(
+                width=self.width, height=self.height,
+                crop_x=0, crop_y=0, crop_w=self.width, crop_h=self.height)
+        thumb.name = ''.join([random.choice('abcdefghijklmnopqrstuvwxyz0123456789') for i in xrange(0, 8)])
+        thumb_path = self.get_image_path(thumb.name)
+        thumb_crop = thumb.crop(image, size,
+            w=(size.w or thumb.crop_w),
+            h=(size.h or thumb.crop_h))
+        thumb_image = thumb_crop.create_image(thumb_path, width=thumb.width, height=thumb.height)
+        thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
+        md5 = hashlib.md5()
+        with open(thumb_path, mode='rb') as f:
+            md5.update(f.read())
+        thumb.name = md5.hexdigest()[0:9]
+        os.rename(thumb_path, self.get_image_path(thumb.name))
+        return thumb
 
-        if standalone:
-            thumb.name = ''.join([random.choice('abcdefghijklmnopqrstuvwxyz0123456789') for i in xrange(0, 8)])
-        elif not thumb:
+    def _save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False):
+        image = image or PIL.Image.open(safe_str_path(self.image.path))
+        if not thumb and self.pk:
+            try:
+                thumb = self.thumbs.get(name=size.name)
+            except Thumb.DoesNotExist:
+                pass
+        if not thumb:
             thumb = Thumb(name=size.name)
         elif not thumb.name:
             thumb.name = size.name
 
-        crop_box = None
-
         if size.is_auto:
-            ref_thumb = ref_thumb or thumb.reference_thumb
-            if ref_thumb:
-                crop_box = ref_thumb.get_crop_box()
-        elif thumb:
-            crop_box = thumb.get_crop_box()
+            thumb.reference_thumb = ref_thumb or thumb.reference_thumb
 
-        if not crop_box:
-            return None
-
-        thumb.reference_thumb = ref_thumb
-
-        crop_kwargs = dict([(k, getattr(size, k))
-                            for k in ['w', 'h', 'min_w', 'min_h', 'max_w', 'max_h']])
-        if standalone and not(size.w or size.h) and (thumb.crop_w and thumb.crop_h):
-            crop_kwargs['w'] = thumb.crop_w
-            crop_kwargs['h'] = thumb.crop_h
-
-        if standalone:
-            thumb_path = self.get_image_path(thumb.name)
-        else:
-            thumb_path = self.get_image_path(size.name, tmp=tmp)
-
-        thumb_image = thumb.crop(thumb_path, image, **crop_kwargs)
+        thumb_crop = thumb.crop(image, size)
+        thumb_path = self.get_image_path(size.name, tmp=tmp)
+        thumb_image = thumb_crop.create_image(thumb_path, width=thumb.width, height=thumb.height)
 
         if StandaloneImage:
             thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
 
-        if standalone:
-            md5 = hashlib.md5()
-            with open(thumb_path, mode='rb') as f:
-                md5.update(f.read())
-            thumb.name = md5.hexdigest()[0:9]
-            os.rename(thumb_path, self.get_image_path(thumb.name))
-        else:
-            thumb.save()
+        thumb.save()
         return thumb
 
 

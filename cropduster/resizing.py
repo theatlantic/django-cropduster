@@ -213,25 +213,8 @@ class Crop(object):
         self.image = image
         self.bounds = Box(0, 0, *image.size)
 
-    def create_image(self, output_filename, width=None, height=None, max_w=None, max_h=None):
-        from cropduster.exceptions import CropDusterResizeException
+    def create_image(self, output_filename, width, height):
         from cropduster.utils import process_image, get_image_extension
-
-        new_w, new_h = self.box.size
-        if new_w < width or new_h < height:
-            raise CropDusterResizeException(
-                u"Crop box (%dx%d) is too small for resize to (%dx%d)" % (new_w, new_h, width, height))
-
-        # Scale our initial width and height based on the max_w and max_h
-        max_scales = []
-        if max_w and max_w < width:
-            max_scales.append(max_w / width)
-        if max_h and max_h < height:
-            max_scales.append(max_h / height)
-        if max_scales:
-            max_scale = min(max_scales)
-            width = int(round(width * max_scale))
-            height = int(round(height * max_scale))
 
         temp_file = tempfile.NamedTemporaryFile(suffix=get_image_extension(self.image), delete=False)
         temp_filename = temp_file.name
@@ -318,7 +301,7 @@ class Crop(object):
             dw = initial_fit.w - w
             x1 += (dw / 2)
             x2 = x1 + w
-        elif scale_x < scale_y:
+        elif scale_x <= scale_y:
             # scale down the height to maintain aspect ratio
             h = (y2 - y1) * (scale_x / scale_y)
             # unless the scaled height would drop below the min_h
