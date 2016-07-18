@@ -468,7 +468,7 @@ class Image(models.Model):
         os.rename(thumb_path, self.get_image_path(thumb.name))
         return thumb
 
-    def _save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False):
+    def _save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False, commit=True):
         image = image or PIL.Image.open(safe_str_path(self.image.path))
         if not thumb and self.pk:
             try:
@@ -490,7 +490,8 @@ class Image(models.Model):
         if StandaloneImage:
             thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
 
-        thumb.save()
+        if commit:
+            thumb.save()
         return thumb
 
 
