@@ -474,6 +474,18 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
         }
     }
 
+    tabElements.push({
+        id: 'alt',
+        type: 'text',
+        label: lang.alt,
+        setup: function (widget) {
+            this.setValue(widget.data.alt);
+        },
+        commit: function (widget) {
+            widget.setData('alt', this.getValue());
+        }
+    });
+
     return {
         title: lang.title,
         minWidth: 650,
@@ -544,16 +556,6 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
                 },
                 validate: function() {
                     return true;
-                }
-            }, {
-                id: 'alt',
-                type: 'text',
-                label: lang.alt,
-                setup: function (widget) {
-                    this.setValue(widget.data.alt);
-                },
-                commit: function (widget) {
-                    widget.setData('alt', this.getValue());
                 }
             }, {
                 type: 'hbox',
