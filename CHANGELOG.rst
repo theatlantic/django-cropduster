@@ -1,15 +1,72 @@
 Changelog
 =========
 
-**4.8.25 (July 11, 2015)**
+**4.9.0 (May 13, 2016)**
+
+* Fixed: upload and crop views now require admin login
+
+**4.8.49 (Apr 14, 2016)**
+
+* Fix bugs with ``regenerate_thumbs()`` when ``permissive=True``
+
+**4.8.41 (Dec 16, 2015)**
+
+* New: Django 1.9 support
+
+**4.8.39 (Oct 28, 2015)**
+
+* Fixed: bug in ``best_fit`` calculation where scaling could cause the image dimensions to drop below mins.
+
+**4.8.38 (Oct 22, 2015)**
+
+* Fixed: Bug where ``for_concrete_model`` might not be set correctly.
+
+**4.8.37 (Sep 28, 2015)**
+
+* New: Add ability to retain xmp metadata (if ``CROPDUSTER_RETAIN_METADATA = True``)
+
+**4.8.36 (Sep 17, 2015)**
+
+* Improved: optimized cropduster inline formset with ``prefetch_related`` on ``thumbs``
+
+**4.8.35 (Sep 3, 2015)**
+
+* Fixed: Initial migrations in Django 1.8.
+
+**4.8.34 (Aug 30, 2015)**
+
+* Fixed: The python-xmp-toolkit package is now optional.
+
+**4.8.32 (Jul 27, 2015)**
+
+* Improved: Drag resizing of non-corner handlers in jCrop scales in a more sensible way.
+
+**4.8.31 (Jul 26, 2015)**
+
+* Fixed: Center initial crop when min/max aspect ratio is specified
+
+**4.8.30 (Jul 22, 2015)**
+
+* Fixed: A bug in updates when CropDusterField is defined on a parent model
+
+**4.8.28 (Jul 16, 2015)**
+
+* Fixed: CropDusterField kwargs ``min_w``, ``min_h``, ``max_w``, and ``max_h`` now work as expected.
+
+**4.8.26 (Jul 12, 2015)**
+
+* Fixed: AttributeError in Django 1.6+ when using custom cropduster formfield
+* Fixed: Updated django-generic-plus to fix an issue with multiple CropDusterFields spanning model inheritance.
+
+**4.8.25 (Jul 11, 2015)**
 
 * Fixed: Orphaned thumbs were being created when cropping images with multiple sizes (issue #41)
 
-**4.8.23 (June 15, 2015)**
+**4.8.23 (Jun 15, 2015)**
 
 * Fixed: Off-by-one rounding bug in Size.fit_to_crop()
 
-**4.8.22 (June 12, 2015)**
+**4.8.22 (Jun 12, 2015)**
 
 * Improved: Show help text about minimum image on upload dialog, when applicable.
 
