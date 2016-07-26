@@ -88,7 +88,7 @@ To get a dictionary containing information about an image within a template, use
 
     {% load cropduster_tags %}
 
-    {% get_crop obj.image 'large' exact_size=1 as img %}
+    {% get_crop obj.image 'large' as img %}
 
     {% if img %}
     <figure>
@@ -101,8 +101,6 @@ To get a dictionary containing information about an image within a template, use
         {% endif %}
     </figure>
     {% endif %}
-
-The ``exact_size`` keyword argument to the template tag is poorly named. If it is false (the default) then it will infer the url of the image based on the ``MEDIA_URL`` and the value of cropduster's FileField in the target model. It will also supply the width and height if they are explicitly defined in the size definition. It will not verify whether this information is accurate, or if the file for the crop in question even exists. In contrast, if ``exact_size`` is True, it will look up this information in the database via generic foreign key, and also pull in the image's caption and/or attribution.
 
 Testing
 -------
