@@ -92,7 +92,7 @@ To get a dictionary containing information about an image within a template, use
 
     {% if img %}
     <figure>
-        <img src="{{ img.url }}" width="{{ img.width }}" height="{{ img.height }}"
+        <img src="{{ img.url }}" alt="{{ alt_text }}" width="{{ img.width }}" height="{{ img.height }}"
              alt="{{ img.caption }}" />
         {% if img.attribution %}
         <figcaption>

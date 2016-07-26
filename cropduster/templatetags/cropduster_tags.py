@@ -34,6 +34,7 @@ def get_crop(image, crop_name, **kwargs):
         "attribution": 'Stock Photoz',
         "attribution_link": 'http://stockphotoz.com',
         "caption": 'Woman laughing alone with salad.',
+        "alt_text": 'Woman laughing alone with salad.'
     }
 
     For use in an image tag or style block like:
@@ -71,4 +72,5 @@ def get_crop(image, crop_name, **kwargs):
         "attribution": image.related_object.attribution,
         "attribution_link": image.related_object.attribution_link,
         "caption": image.related_object.caption,
+        "alt_text": image.related_object.alt_text,
     }

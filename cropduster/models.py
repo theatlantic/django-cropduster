@@ -228,6 +228,7 @@ class Image(models.Model):
     attribution = models.CharField(max_length=255, blank=True, null=True)
     attribution_link = models.URLField(max_length=255, blank=True, null=True)
     caption = models.TextField(blank=True, null=True)
+    alt_text = models.TextField("Alt Text", blank=True, default="")
 
     class Meta:
         app_label = cropduster_settings.CROPDUSTER_APP_LABEL
