@@ -1,6 +1,13 @@
 Changelog
 =========
 
+**4.10.0 (July 26, 2015)**
+
+* New: Add Image.alt_text field (requires a migration), which also gets returned now in the {% get_crop %} templatetag.
+* Removed: ``exact_size`` argument for ``get_crop`` templatetag. Looking up exact
+  sizes in the database and including the caption/attribution/alt_text is now the
+  default behavior.
+
 **4.9.0 (May 13, 2016)**
 
 * Fixed: upload and crop views now require admin login
