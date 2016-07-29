@@ -494,6 +494,7 @@
         // The other case is:
         //         <p style="text-align:center"><img></p>.
         // Then <p> takes charge of <figure> and nothing is to be changed.
+        image = el.getFirst('img') || (el.getFirst('a') ? el.getFirst('a').getFirst('img') : null);
         if (isCenterWrapper(el)) {
             if (name == 'div') {
                 var figure = el.getFirst('figure');
@@ -502,11 +503,6 @@
             }
 
             data.align = 'center';
-            image = el.getFirst('img');
-        // No center wrapper has been found.
-        } else if (name == 'figure' && el.getFirst('img')) {
-            image = el.getFirst('img');
-        // Inline widget from plain img.
         } else if (name == 'img') {
             image = el;
         }
@@ -587,7 +583,7 @@
 
         // The only child of centering wrapper can be <figure> with
         // class="caption" or plain <img>.
-        if (childName != 'img' && !(childName == 'figure' && child.getFirst('img'))) {
+        if (childName != 'img' && !(childName == 'figure' && (child.getFirst('img') || child.getFirst('a')))) {
             return false;
         }
 
@@ -633,17 +629,17 @@
 
         // Inline widgets don't need a resizer wrapper as an image spans the entire widget.
         if (!widget.inline) {
-            var oldResizeWrapper = widget.element.getFirst(),
+            var oldResizeWrapper = widget.element.findOne('span'),
                 resizeWrapper = doc.createElement('span');
 
             resizeWrapper.addClass('cke_cropduster_resizer_wrapper');
-            resizeWrapper.append(widget.parts.image);
-            resizeWrapper.append(resizer);
-            widget.element.append(resizeWrapper, true);
+            resizeWrapper.append(widget.parts.image.clone());
+            resizeWrapper.replace(widget.parts.image);
+            widget.parts.image = resizeWrapper.findOne('img');
 
             // Remove the old wrapper which could came from e.g. pasted HTML
             // and which could be corrupted (e.g. resizer span has been lost).
-            if (oldResizeWrapper.is('span')) {
+            if (oldResizeWrapper) {
                 oldResizeWrapper.remove();
             }
         } else {
