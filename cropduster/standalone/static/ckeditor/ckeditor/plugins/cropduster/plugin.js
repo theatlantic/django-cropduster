@@ -640,7 +640,7 @@
             // Remove the old wrapper which could came from e.g. pasted HTML
             // and which could be corrupted (e.g. resizer span has been lost).
             if (oldResizeWrapper) {
-                oldResizeWrapper.remove();
+                resizeWrapper.replace(oldResizeWrapper);
             }
         } else {
             widget.wrapper.append(resizer);
