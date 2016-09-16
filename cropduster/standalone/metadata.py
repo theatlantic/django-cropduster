@@ -29,6 +29,9 @@ except:
 
 if not libxmp:
     check_file_format = get_format_info = None
+
+    def file_to_dict(f):
+        return {}
 else:
     try:
         exempi = libxmp._exempi
@@ -46,6 +49,11 @@ else:
         get_format_info.argtypes = [ctypes.c_ulong, ctypes.c_void_p]
     if not get_format_info.restype:
         get_format_info.restype = ctypes.c_bool
+
+    try:
+        from libxmp.utils import file_to_dict
+    except ImportError:
+        from libxmp import file_to_dict
 
 
 class EnumerationMeta(type):
@@ -170,7 +178,7 @@ class MetadataDict(dict):
 
     def __init__(self, file_path):
         self.file_path = file_path
-        ns_dict = libxmp.file_to_dict(file_path)
+        ns_dict = file_to_dict(file_path)
         self.clean(ns_dict)
 
     def clean(self, ns_dict):
