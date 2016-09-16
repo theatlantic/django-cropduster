@@ -50,7 +50,7 @@ class GifsicleImage(object):
         # Ignore method, PIL's algorithms don't match up
         self.resize_args = [
             "--resize-fit", "%dx%d" % size,
-            "--resize-method", "lanczos3",
+            "--resize-method", "mix",
             "--resize-colors", "128",
         ]
         return self
