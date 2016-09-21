@@ -635,6 +635,7 @@
             resizeWrapper.addClass('cke_cropduster_resizer_wrapper');
             resizeWrapper.append(widget.parts.image.clone());
             resizeWrapper.replace(widget.parts.image);
+            resizeWrapper.append(resizer);
             widget.parts.image = resizeWrapper.findOne('img');
 
             // Remove the old wrapper which could came from e.g. pasted HTML
