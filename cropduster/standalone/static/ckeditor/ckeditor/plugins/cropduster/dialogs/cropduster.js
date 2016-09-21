@@ -380,6 +380,10 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
             cropdusterIframe = {
                 setup: function (domId, baseUrl) {
                     this.iframeElement = CKEDITOR.document.getById(domId).getChild(0)
+                    this.iframeElement.$.src = 'about:blank';
+                    try {
+                        this.iframeElement.$.contentDocument.body.innerHTML = "";
+                    } catch(e) {}
                     this.baseUrl = baseUrl;
                     this.callback_fn = domId.replace(/_uiElement$/, '') + '_callback';
 
