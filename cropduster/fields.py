@@ -301,6 +301,9 @@ class ReverseForeignRelatedObjectsDescriptor(object):
                 get_query_set = get_queryset
 
             def get_prefetch_queryset(self, instances, queryset=None):
+                if isinstance(instances[0], CropDusterImageFieldFile):
+                    instances = [i.related_object for i in instances]
+
                 db = self._db or router.db_for_read(self.model, instance=instances[0])
                 query = {'%s__%s__in' % (rel_field.name, attname):
                              set(getattr(obj, attname) for obj in instances)}
@@ -310,11 +313,18 @@ class ReverseForeignRelatedObjectsDescriptor(object):
                 else:
                     qs = super(RelatedManager, self).get_queryset()
 
-                return (qs.using(db).complex_filter(limit_choices_to).filter(**query),
-                        attrgetter(rel_field.get_attname()),
-                        attrgetter(attname),
-                        False,
-                        rel_field.related_query_name())
+                rel_obj_attr = attrgetter(rel_field.get_attname())
+                instance_attr = attrgetter(attname)
+                instances_dict = {instance_attr(inst): inst for inst in instances}
+                queryset = qs.using(db).complex_filter(limit_choices_to).filter(**query)
+
+                # Since we just bypassed this class' get_queryset(), we must
+                # manage the reverse relation manually.
+                for rel_obj in queryset:
+                    instance = instances_dict[rel_obj_attr(rel_obj)]
+                    setattr(rel_obj, rel_field.name, instance)
+                cache_name = rel_field.related_query_name()
+                return queryset, rel_obj_attr, instance_attr, False, cache_name
 
             if django.VERSION < (1, 7):
                 get_prefetch_query_set = get_prefetch_queryset

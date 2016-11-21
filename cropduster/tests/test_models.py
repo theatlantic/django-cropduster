@@ -77,6 +77,19 @@ class TestImage(CropdusterTestCaseMediaMixin, test.TestCase):
             for article in articles.prefetch_related('lead_image__thumbs'):
                 list(article.lead_image.related_object.thumbs.all())
 
+    def test_prefetch_related_reverse_relation_cache(self):
+        for x in range(3):
+            imgpath = os.path.join(self.TEST_IMG_DIR, '%s.jpg' % uuid.uuid4().hex)
+            shutil.copyfile(os.path.join(self.TEST_IMG_DIR, 'img.jpg'), imgpath)
+            article = Article.objects.create(title="", author=self.author, lead_image=imgpath)
+            article.lead_image.generate_thumbs()
+
+        with self.assertNumQueries(3):
+            articles = Article.objects.filter(pk__in=[article.pk])
+            for article in articles.prefetch_related('lead_image__thumbs'):
+                for thumb in article.lead_image.related_object.thumbs.all():
+                    thumb.image
+
     def test_redundant_prefetch_related_args_with_images(self):
         for x in range(3):
             imgpath = os.path.join(self.TEST_IMG_DIR, '%s.jpg' % uuid.uuid4().hex)
