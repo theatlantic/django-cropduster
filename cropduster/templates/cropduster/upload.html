@@ -56,24 +56,26 @@
 
         {% if standalone %}
         <form id="size" action="" onsubmit="return false">
-                <div class="row grp-row cells-1 width">
-                    <div class="column span-4">
+            <div class="row form-row grp-row cells-1 grp-cells-1 width">
+                <div class="field-box l-2c-fluid l-d-4">
+                    <div class="column span-4 c-1">
                         <label for="id_size-width">Width</label>
                     </div>
-                    <div class="column span-flexible">
+                    <div class="column span-flexible c-2">
                         <input type="text" name="size-width" id="id_size-width" />
                     </div>
-                    <div class="float-clear-div" style="clear:both;height:0;width:0"></div>
                 </div>
-                <div class="row grp-row cells-1 height">
-                    <div class="column span-4">
+            </div>
+            <div class="row form-row grp-row cells-1 grp-cells-1 height">
+                <div class="field-box l-2c-fluid l-d-4">
+                    <div class="column span-4 c-1">
                         <label for="id_size-height">Height</label>
                     </div>
-                    <div class="column span-flexible">
+                    <div class="column span-flexible c-2">
                         <input type="text" name="size-height" id="id_size-height" />
                     </div>
-                    <div class="float-clear-div" style="clear:both;height:0;height:0"></div>
                 </div>
+            </div>
         </form>
         {% endif %}
 

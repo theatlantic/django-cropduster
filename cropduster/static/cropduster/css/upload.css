@@ -207,6 +207,7 @@ body.cropduster-upload-form form#size .row {
     width: 50%;
     float: left;
     padding: 8px 0;
+    clear: none;
 }
 body.cropduster-upload-form form#size .row,
 body.cropduster-upload-form form#size .row:first-child,
