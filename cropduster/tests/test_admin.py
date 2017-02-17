@@ -87,7 +87,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
         self.admin_login("mtwain", "p@ssw0rd", login_url=reverse('admin:cropduster_author_add'))
         browser = self.selenium
         browser.find_element_by_id('id_name').send_keys('Mark Twain')
-        browser.find_element_by_css_selector('#headshot-group .rounded-button').click()
+        browser.find_element_by_css_selector('#headshot-group .cropduster-button').click()
 
         with self.switch_to_popup_window():
             with self.visible_selector('#id_image') as el:
@@ -143,7 +143,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
         browser.find_element_by_id('id_title').send_keys("A Connecticut Yankee in King Arthur's Court")
 
         # Upload and crop first Image
-        browser.find_element_by_css_selector('#lead_image-group .rounded-button').click()
+        browser.find_element_by_css_selector('#lead_image-group .cropduster-button').click()
 
         with self.switch_to_popup_window():
             with self.visible_selector('#id_image') as el:
@@ -156,7 +156,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
                 el.click()
 
         # Upload and crop second Image
-        with self.clickable_selector('#alt_image-group .rounded-button') as el:
+        with self.clickable_selector('#alt_image-group .cropduster-button') as el:
             # With the Chrome driver, using Grappelli, this button can be covered
             # by the fixed footer. So we scroll the button into view.
             browser.execute_script('window.scrollTo(0, %d)' % el.location['y'])
@@ -231,7 +231,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
         self.wait_page_loaded()
 
         # Upload and crop image
-        with self.clickable_selector('#image-group .rounded-button') as el:
+        with self.clickable_selector('#image-group .cropduster-button') as el:
             # With the Chrome driver, using Grappelli, this button can be covered
             # by the fixed footer. So we scroll the button into view.
             self.selenium.execute_script('window.scrollTo(0, %d)' % el.location['y'])
@@ -261,7 +261,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
         self.wait_page_loaded()
 
         # Upload and crop image
-        with self.clickable_selector('#image-group .rounded-button') as el:
+        with self.clickable_selector('#image-group .cropduster-button') as el:
             # With the Chrome driver, using Grappelli, this button can be covered
             # by the fixed footer. So we scroll the button into view.
             self.selenium.execute_script('window.scrollTo(0, %d)' % el.location['y'])
@@ -291,7 +291,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
         self.wait_page_loaded()
 
         # Upload and crop image
-        with self.clickable_selector('#image-group .rounded-button') as el:
+        with self.clickable_selector('#image-group .cropduster-button') as el:
             # With the Chrome driver, using Grappelli, this button can be covered
             # by the fixed footer. So we scroll the button into view.
             self.selenium.execute_script('window.scrollTo(0, %d)' % el.location['y'])
