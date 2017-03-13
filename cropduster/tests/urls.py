@@ -24,10 +24,3 @@ except ImportError:
     pass
 else:
     urlpatterns += [url(r"^grappelli/", include("grappelli.urls"))]
-
-if settings.DEBUG:
-    urlpatterns += [
-        url(r'^media/(?P<path>.*)$', 'django.views.static.serve', {
-            'document_root': settings.MEDIA_ROOT,
-        }),
-    ]

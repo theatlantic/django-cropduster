@@ -7,14 +7,6 @@ from django.contrib import admin
 from cropduster.models import CropDusterField, Size
 
 
-if 'test' in sys.argv or 'runtests.py' in sys.argv:
-    class DisableMigrations(object):
-        def __contains__(self, item): return True
-        def __getitem__(self, item): return "notmigrations"
-
-    settings.MIGRATION_MODULES = DisableMigrations()
-
-
 class Author(models.Model):
     name = models.CharField(max_length=255)
     HEADSHOT_SIZES = [
@@ -24,9 +16,6 @@ class Author(models.Model):
     ]
     headshot = CropDusterField(upload_to="author/headshots/%Y/%m", sizes=HEADSHOT_SIZES,
         related_name="author_headshotset")
-
-    class Meta:
-        app_label = 'cropduster'
 
 
 class Article(models.Model):
@@ -51,9 +40,6 @@ class Article(models.Model):
                                 sizes=ALT_IMAGE_SIZES,
                                 field_identifier="alt")
 
-    class Meta:
-        app_label = 'cropduster'
-
 
 class TestForOptionalSizes(models.Model):
 
@@ -64,9 +50,6 @@ class TestForOptionalSizes(models.Model):
 
     slug = models.SlugField()
     image = CropDusterField(upload_to="test", sizes=TEST_SIZES)
-
-    class Meta:
-        app_label = 'cropduster'
 
 
 class TestForOrphanedThumbs(models.Model):
@@ -82,23 +65,14 @@ class TestForOrphanedThumbs(models.Model):
     slug = models.SlugField()
     image = CropDusterField(upload_to="test", sizes=TEST_SIZES)
 
-    class Meta:
-        app_label = 'cropduster'
-
 
 class TestMultipleFieldsInheritanceParent(models.Model):
 
     slug = models.SlugField()
     image = CropDusterField(upload_to="test", sizes=[Size(u'main', w=600, h=480)])
 
-    class Meta:
-        app_label = 'cropduster'
-
 
 class TestMultipleFieldsInheritanceChild(TestMultipleFieldsInheritanceParent):
 
     image2 = CropDusterField(upload_to="test", sizes=[Size(u'main', w=600, h=480)],
         field_identifier="2")
-
-    class Meta:
-        app_label = 'cropduster'

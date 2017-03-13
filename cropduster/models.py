@@ -1,24 +1,17 @@
 from __future__ import division
 
-import six
-
-from six.moves import xrange
-
 import hashlib
 import random
 import os
 from datetime import datetime
 
-import django
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.core.files.storage import FileSystemStorage
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
-from django.db import models
-
-try:
-    from django.contrib.contenttypes.fields import GenericForeignKey
-except ImportError:
-    from django.contrib.contenttypes.generic import GenericForeignKey
+from django.db import connection, models
+from django.utils import six
+from django.utils.six.moves import xrange
 
 import PIL.Image
 
@@ -56,7 +49,7 @@ class Thumb(models.Model):
     # For a given thumbnail, it either has crop data or it references
     # another thumbnail with crop data
     reference_thumb = models.ForeignKey('Thumb', blank=True, null=True,
-            related_name='auto_set')
+            related_name='auto_set', on_delete=models.CASCADE)
 
     crop_x = models.PositiveIntegerField(blank=True, null=True)
     crop_y = models.PositiveIntegerField(blank=True, null=True)
@@ -65,7 +58,8 @@ class Thumb(models.Model):
 
     date_modified = models.DateTimeField(auto_now=True)
 
-    image = models.ForeignKey('Image', related_name='+', null=True, blank=True)
+    image = models.ForeignKey('Image', related_name='+', null=True, blank=True,
+        on_delete=models.CASCADE)
 
     class Meta:
         app_label = cropduster_settings.CROPDUSTER_APP_LABEL
@@ -88,8 +82,11 @@ class Thumb(models.Model):
 
     def save(self, *args, **kwargs):
         if self.pk:
+            qset = Thumb.objects
+            if not connection.get_autocommit():
+                qset = qset.select_for_update()
             try:
-                orig_thumb = Thumb.objects.select_for_update().get(pk=self.pk)
+                orig_thumb = qset.get(pk=self.pk)
             except Thumb.DoesNotExist:
                 pass
             else:
@@ -205,7 +202,7 @@ def generate_filename(instance, filename):
 
 class Image(models.Model):
 
-    content_type = models.ForeignKey(ContentType)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField(null=True, blank=True)
     content_object = GenericForeignKey('content_type', 'object_id')
     field_identifier = models.SlugField(null=False, blank=True, default="")
@@ -348,16 +345,12 @@ class Image(models.Model):
         # model class has also been updated
         model_class = self.content_type.model_class()
 
-        if django.VERSION >= (1, 8):
-            fields_with_models = [
-                (f, f.model if f.model != model_class else None)
-                for f in model_class._meta.get_fields()
-                if not f.is_relation
-                    or f.one_to_one
-                    or (f.many_to_one and f.related_model)
-            ]
-        else:
-            fields_with_models = model_class._meta.get_fields_with_model()
+        fields_with_models = [
+            (f, f.model if f.model != model_class else None)
+            for f in model_class._meta.get_fields()
+            if not f.is_relation
+            or f.one_to_one
+            or (f.many_to_one and f.related_model)]
 
         for field, field_model_class in fields_with_models:
             field_model_class = field_model_class or model_class
@@ -507,41 +500,3 @@ except:
     @six.add_metaclass(FalseMeta)
     class StandaloneImage(object):
         DoesNotExist = type('DoesNotExist', (ObjectDoesNotExist,), {})
-
-
-try:
-    from south.modelsinspector import add_introspection_rules, add_ignored_fields
-except ImportError:
-    pass
-else:
-    add_ignored_fields(["^cropduster\.fields\.ReverseForeignRelation"])
-
-    def converter(value):
-        """Custom south converter so that Size objects serialize properly"""
-        if isinstance(value, Size):
-            return value.__serialize__()
-        try:
-            is_sizes_list = all([isinstance(sz, Size) for sz in value])
-        except TypeError:
-            pass
-        else:
-            if is_sizes_list:
-                return [sz.__serialize__() for sz in value]
-        return repr(value)
-
-    add_introspection_rules(rules=[
-        (
-            (CropDusterField,),
-            [],
-            {
-                "to": ["rel.to", {}],
-                "symmetrical": ["rel.symmetrical", {"default": True}],
-                "object_id_field": ["object_id_field_name", {"default": "object_id"}],
-                "content_type_field": ["content_type_field_name", {"default": "content_type"}],
-                "blank": ["blank", {"default": True}],
-                "sizes": ["sizes", {"converter": converter}],
-            },
-        ),
-    ], patterns=["^cropduster\.fields\.CropDusterField"])
-
-    add_introspection_rules([], ["^cropduster\.fields\.CropDusterSimpleImageField"])

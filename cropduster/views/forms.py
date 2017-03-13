@@ -1,7 +1,5 @@
 from __future__ import division
 
-import six
-
 import os
 import hashlib
 
@@ -12,19 +10,11 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 from django.forms.forms import NON_FIELD_ERRORS
 from django.forms.models import BaseModelFormSet
+from django.forms.utils import ErrorDict as _ErrorDict
+from django.utils.encoding import force_text
 from django.utils.html import conditional_escape
 from django.utils.safestring import mark_safe
-
-try:
-    # Django 1.8+
-    from django.forms.utils import ErrorDict as _ErrorDict
-except ImportError:
-    from django.forms.util import ErrorDict as _ErrorDict
-
-try:
-    from django.utils.encoding import force_unicode
-except ImportError:
-    from django.utils.encoding import force_text as force_unicode
+from django.utils import six
 
 from cropduster.models import Thumb
 from cropduster.utils import (json, get_upload_foldername, get_min_size,
@@ -39,7 +29,7 @@ class ErrorDict(_ErrorDict):
         for k, v in self.items():
             if k == NON_FIELD_ERRORS:
                 k = ''
-            error_list.append(u'%s%s' % (k, conditional_escape(force_unicode(v))))
+            error_list.append(u'%s%s' % (k, conditional_escape(force_text(v))))
 
         return mark_safe(u'<ul class="errorlist">%s</ul>'
                 % ''.join([u'<li>%s</li>' % e for e in error_list]))
@@ -52,7 +42,7 @@ def clean_upload_data(data):
         pil_image = PIL.Image.open(image)
     except IOError as e:
         if e.errno:
-            error_msg = force_unicode(e)
+            error_msg = force_text(e)
         else:
             error_msg = u"Invalid or unsupported image file"
         raise forms.ValidationError({"image": [error_msg]})

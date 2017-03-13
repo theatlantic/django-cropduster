@@ -1,23 +1,11 @@
-import six
-
-import django
 from django import forms
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.forms.models import ModelChoiceIterator
 from django.forms.models import ChoiceField, ModelMultipleChoiceField
+from django.forms.utils import flatatt
+from django.utils.encoding import force_text
 from django.utils.html import escape, conditional_escape
-
-try:
-    # Django 1.8+
-    from django.forms.utils import flatatt
-except ImportError:
-    from django.forms.util import flatatt
-
-try:
-    from django.utils.encoding import force_unicode
-except ImportError:
-    from django.utils.encoding import force_text as force_unicode
+from django.utils import six
 
 from generic_plus.forms import BaseGenericFileInlineFormSet, GenericForeignFileWidget
 
@@ -34,10 +22,10 @@ class CropDusterWidget(GenericForeignFileWidget):
     template = "cropduster/custom_field.html"
 
     class Media:
-        css = {'all': (u'%scropduster/css/cropduster.css?v=6' % settings.STATIC_URL,)}
+        css = {'all': ('cropduster/css/cropduster.css',)}
         js = (
-            u'%scropduster/js/jsrender.js' % settings.STATIC_URL,
-            u'%scropduster/js/cropduster.js?v=8' % settings.STATIC_URL,
+            'cropduster/js/jsrender.js',
+            'cropduster/js/cropduster.js',
         )
 
     def get_context_data(self, name, value, attrs=None, bound_field=None):
@@ -103,7 +91,7 @@ class CropDusterThumbWidget(forms.SelectMultiple):
                 'data-height': thumb.height,
                 'data-tmp-file': json.dumps(use_tmp_file),
             }
-        option_value = force_unicode(option_value)
+        option_value = force_text(option_value)
         if option_value in selected_choices:
             selected_html = u' selected="selected"'
             if not self.allow_multiple_selected:
@@ -116,7 +104,7 @@ class CropDusterThumbWidget(forms.SelectMultiple):
                 'value': escape(option_value),
                 'selected': selected_html,
                 'attrs': flatatt(attrs),
-                'label': conditional_escape(force_unicode(option_label)),
+                'label': conditional_escape(force_text(option_label)),
         }
 
 
@@ -150,12 +138,14 @@ def get_cropduster_field_on_model(model, field_identifier):
     from cropduster.fields import CropDusterField
 
     opts = model._meta
-    if hasattr(opts, 'get_fields'):
-        # Django 1.8+
-        m2m_fields = [f for f in opts.get_fields() if f.many_to_many and not f.auto_created]
+    m2m_fields = [f for f in opts.get_fields() if f.many_to_many and not f.auto_created]
+    if hasattr(opts, 'private_fields'):
+        # Django 1.10+
+        private_fields = opts.private_fields
     else:
-        m2m_fields = opts.many_to_many
-    m2m_related_fields = set(m2m_fields + opts.virtual_fields)
+        # Django < 1.10
+        private_fields = opts.virtual_fields
+    m2m_related_fields = set(m2m_fields + private_fields)
 
     field_match = lambda f: (isinstance(f, CropDusterField)
         and f.field_identifier == field_identifier)
@@ -199,10 +189,7 @@ class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
 
         if form.instance and form.instance.pk:
             # Set the queryset to the current list of thumbs on the image
-            if django.VERSION < (1, 7):
-                thumbs_field.queryset = form.instance.thumbs.get_query_set()
-            else:
-                thumbs_field.queryset = form.instance.thumbs.get_queryset()
+            thumbs_field.queryset = form.instance.thumbs.get_queryset()
         else:
             # Start with an empty queryset
             thumbs_field.queryset = Thumb.objects.none()

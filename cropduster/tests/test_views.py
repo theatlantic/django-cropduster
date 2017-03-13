@@ -1,7 +1,10 @@
 import os
 
 from django import test
-from django.core.urlresolvers import reverse
+try:
+    from django.urls import reverse
+except ImportError:
+    from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User
 from django.http import HttpRequest
 

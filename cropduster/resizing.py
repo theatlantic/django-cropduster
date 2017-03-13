@@ -1,8 +1,5 @@
 from __future__ import division
 
-import six
-from six.moves import filter
-
 import os
 import re
 import math
@@ -13,6 +10,8 @@ import PIL.Image
 from PIL.ImageFile import ImageFile
 from django.db.models.fields.files import FieldFile
 from django.core.exceptions import ImproperlyConfigured
+from django.utils import six
+from django.utils.six.moves import filter
 
 from .settings import CROPDUSTER_RETAIN_METADATA
 

@@ -1,12 +1,11 @@
 from __future__ import unicode_literals
 
-import six
-
 import os
 import re
 
 from django.conf import settings
 from django.db.models.fields.files import FileField
+from django.utils import six
 
 
 __all__ = ('get_upload_foldername')

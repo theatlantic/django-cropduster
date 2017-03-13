@@ -64,12 +64,11 @@ Useful links
 """
 from __future__ import division
 
-import six
-
-from six.moves import zip, range
-
 import os
 import logging
+
+from django.utils import six
+from django.utils.six.moves import zip, range
 
 try:
     import PIL

@@ -1,93 +1,43 @@
+from __future__ import absolute_import
+
 import os
-import contextlib
 
-from django.contrib.auth.models import User
-from django.contrib.admin.tests import AdminSeleniumWebDriverTestCase
-from django.core.urlresolvers import reverse
-from django.test.utils import override_settings
-
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.expected_conditions import (
-    visibility_of_element_located, element_to_be_clickable)
-
-try:
-    import grappelli
-except ImportError:
-    grappelli = None
+from django_admin_testutils import AdminSeleniumTestCase
 
 from .helpers import CropdusterTestCaseMediaMixin
 from .models import Article, Author, TestForOptionalSizes, TestForOrphanedThumbs
 from ..models import Size, Thumb
 
 
-@override_settings(ROOT_URLCONF='cropduster.tests.urls')
-class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
+class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumTestCase):
 
-    available_apps = [
-        'django.contrib.auth',
-        'django.contrib.contenttypes',
-        'django.contrib.messages',
-        'django.contrib.sessions',
-        'django.contrib.sites',
-        'django.contrib.staticfiles',
-        'django.contrib.admin',
-        'generic_plus',
-        'cropduster',
-    ]
+    root_urlconf = 'cropduster.tests.urls'
 
-    if grappelli:
-        available_apps.insert(0, 'grappelli')
-
-    webdriver_class = 'selenium.webdriver.phantomjs.webdriver.WebDriver'
-
-    def setUp(self):
-        super(TestAdmin, self).setUp()
-        self.selenium.set_window_size(1120, 550)
-        self.selenium.set_page_load_timeout(10)
-        User.objects.create_superuser('mtwain', 'me@example.com', 'p@ssw0rd')
-
-    def wait_until_visible_selector(self, selector, timeout=10):
-        self.wait_until(
-            visibility_of_element_located((By.CSS_SELECTOR, selector)),
-            timeout=timeout)
-
-    def wait_until_clickable_xpath(self, xpath, timeout=10):
-        self.wait_until(
-            element_to_be_clickable((By.XPATH, xpath)), timeout=timeout)
-
-    def wait_until_clickable_selector(self, selector, timeout=10):
-        self.wait_until(
-            element_to_be_clickable((By.CSS_SELECTOR, selector)),
-            timeout=timeout)
-
-    @contextlib.contextmanager
-    def visible_selector(self, selector, timeout=10):
-        self.wait_until_visible_selector(selector, timeout)
-        yield self.selenium.find_element_by_css_selector(selector)
-
-    @contextlib.contextmanager
-    def clickable_selector(self, selector, timeout=10):
-        self.wait_until_clickable_selector(selector, timeout)
-        yield self.selenium.find_element_by_css_selector(selector)
-
-    @contextlib.contextmanager
-    def clickable_xpath(self, xpath, timeout=10):
-        self.wait_until_clickable_xpath(xpath, timeout)
-        yield self.selenium.find_element_by_xpath(xpath)
-
-    @contextlib.contextmanager
-    def switch_to_popup_window(self):
-        self.wait_until(lambda d: len(d.window_handles) == 2)
-        self.selenium.switch_to.window(self.selenium.window_handles[1])
-        yield
-        self.wait_until(lambda d: len(d.window_handles) == 1)
-        self.selenium.switch_to.window(self.selenium.window_handles[0])
+    @property
+    def available_apps(self):
+        apps = [
+            'django.contrib.auth',
+            'django.contrib.contenttypes',
+            'django.contrib.messages',
+            'django.contrib.sessions',
+            'django.contrib.sites',
+            'django.contrib.staticfiles',
+            'django.contrib.admin',
+            'generic_plus',
+            'cropduster',
+            'cropduster.tests',
+        ]
+        if self.has_grappelli:
+            apps.insert(0, 'grappelli')
+        return apps
 
     def test_addform_single_image(self):
-        self.admin_login("mtwain", "p@ssw0rd", login_url=reverse('admin:cropduster_author_add'))
+        self.load_admin(Author)
+
         browser = self.selenium
         browser.find_element_by_id('id_name').send_keys('Mark Twain')
-        browser.find_element_by_css_selector('#headshot-group .cropduster-button').click()
+        with self.clickable_selector('#headshot-group .cropduster-button') as el:
+            el.click()
 
         with self.switch_to_popup_window():
             with self.visible_selector('#id_image') as el:
@@ -97,8 +47,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
             with self.clickable_selector('#crop-button') as el:
                 el.click()
 
-        with self.clickable_xpath('//input[@value="Save and continue editing"]') as el:
-            el.click()
+        self.save_form()
 
         author = Author.objects.all()[0]
         sizes = list(Size.flatten(Author.HEADSHOT_SIZES))
@@ -136,9 +85,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
 
     def test_addform_multiple_image(self):
         author = Author.objects.create(name="Mark Twain")
-
-        self.admin_login("mtwain", "p@ssw0rd", login_url=reverse('admin:cropduster_article_add'))
-
+        self.load_admin(Article)
         browser = self.selenium
         browser.find_element_by_id('id_title').send_keys("A Connecticut Yankee in King Arthur's Court")
 
@@ -172,7 +119,8 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
 
         # Add required FK
         browser.find_element_by_xpath('//select[@id="id_author"]/option[@value=%d]' % author.pk).click()
-        browser.find_element_by_xpath('//input[@value="Save and continue editing"]').click()
+
+        self.save_form()
 
         # Test that crops saved correctly
         article = Article.objects.all()[0]
@@ -189,17 +137,14 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
             headshot=os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.jpg'))
         author.headshot.generate_thumbs()
 
-        url = reverse('admin:cropduster_author_change', args=(author.pk, ))
-        browser = self.selenium
+        self.load_admin(author)
 
-        self.admin_login("mtwain", "p@ssw0rd", login_url=url)
-
-        elem = browser.find_element_by_id('id_name')
+        elem = self.selenium.find_element_by_id('id_name')
         elem.clear()
         elem.send_keys("Mark Twain")
-        old_page_id = browser.find_element_by_tag_name('html').id
-        browser.find_element_by_xpath('//input[@value="Save and continue editing"]').click()
-        self.wait_until(lambda b: b.find_element_by_tag_name('html').id != old_page_id)
+
+        self.save_form()
+
         self.assertEqual(Author.objects.get(pk=author.pk).name, 'Mark Twain')
 
     def test_changeform_multiple_images(self):
@@ -210,25 +155,20 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
         article.lead_image.generate_thumbs()
         article.alt_image.generate_thumbs()
 
-        url = reverse('admin:cropduster_article_change', args=(article.pk, ))
-        browser = self.selenium
+        self.load_admin(article)
 
-        self.admin_login("mtwain", "p@ssw0rd", login_url=url)
-
-        elem = browser.find_element_by_id('id_title')
+        elem = self.selenium.find_element_by_id('id_title')
         elem.clear()
         elem.send_keys("Updated Title")
-        old_page_id = browser.find_element_by_tag_name('html').id
-        browser.find_element_by_xpath('//input[@value="Save and continue editing"]').click()
-        self.wait_until(lambda b: b.find_element_by_tag_name('html').id != old_page_id)
+
+        self.save_form()
+
         self.assertEqual(Article.objects.get(pk=article.pk).title, 'Updated Title')
 
     def test_changeform_with_optional_sizes_small_image(self):
         test_a = TestForOptionalSizes.objects.create(slug='a')
 
-        self.admin_login("mtwain", "p@ssw0rd",
-            login_url=reverse('admin:cropduster_testforoptionalsizes_change', args=[test_a.pk]))
-        self.wait_page_loaded()
+        self.load_admin(test_a)
 
         # Upload and crop image
         with self.clickable_selector('#image-group .cropduster-button') as el:
@@ -245,8 +185,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
             with self.clickable_selector('#crop-button') as el:
                 el.click()
 
-        self.selenium.find_element_by_xpath('//input[@name="_continue"]').click()
-        self.wait_page_loaded()
+        self.save_form()
 
         test_a = TestForOptionalSizes.objects.get(slug='a')
         image = test_a.image.related_object
@@ -255,10 +194,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
 
     def test_changeform_with_optional_sizes_large_image(self):
         test_a = TestForOptionalSizes.objects.create(slug='a')
-
-        self.admin_login("mtwain", "p@ssw0rd",
-            login_url=reverse('admin:cropduster_testforoptionalsizes_change', args=[test_a.pk]))
-        self.wait_page_loaded()
+        self.load_admin(test_a)
 
         # Upload and crop image
         with self.clickable_selector('#image-group .cropduster-button') as el:
@@ -275,8 +211,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
             with self.clickable_selector('#crop-button') as el:
                 el.click()
 
-        self.selenium.find_element_by_xpath('//input[@name="_continue"]').click()
-        self.wait_page_loaded()
+        self.save_form()
 
         test_a = TestForOptionalSizes.objects.get(slug='a')
         image = test_a.image.related_object
@@ -286,9 +221,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
     def test_orphaned_thumbs_after_delete(self):
         test_a = TestForOrphanedThumbs.objects.create(slug='a')
 
-        self.admin_login("mtwain", "p@ssw0rd",
-            login_url=reverse('admin:cropduster_testfororphanedthumbs_change', args=[test_a.pk]))
-        self.wait_page_loaded()
+        self.load_admin(test_a)
 
         # Upload and crop image
         with self.clickable_selector('#image-group .cropduster-button') as el:
@@ -307,8 +240,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumWebDriverTestCase):
             with self.clickable_selector('#crop-button:not(.disabled)') as el:
                 el.click()
 
-        self.selenium.find_element_by_xpath('//input[@name="_continue"]').click()
-        self.wait_page_loaded()
+        self.save_form()
 
         test_a = TestForOrphanedThumbs.objects.get(slug='a')
         test_a.delete()

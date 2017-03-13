@@ -1,6 +1,6 @@
-import six
-from six.moves import filter
 import json
+from django.utils import six
+from django.utils.six.moves import filter
 
 from cropduster.resizing import Size
 
