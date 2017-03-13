@@ -1,11 +1,10 @@
-import six
-
 import os
 import re
 import ctypes
 import PIL.Image
 
 from django.core.exceptions import ImproperlyConfigured
+from django.utils import six
 
 from cropduster.files import ImageFile
 from cropduster.utils import json

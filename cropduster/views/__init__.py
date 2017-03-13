@@ -26,10 +26,6 @@ back onto fields on the index page's forms / formsets.
 """
 from __future__ import division
 
-import six
-
-from six.moves import filter, map, zip
-
 import os
 import copy
 import shutil
@@ -44,13 +40,11 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.template import RequestContext
 from django.utils.decorators import method_decorator
+from django.utils.encoding import force_text
 from django.utils.functional import cached_property
+from django.utils import six
+from django.utils.six.moves import filter, map, zip
 from django.views.decorators.csrf import csrf_exempt
-
-try:
-    from django.utils.encoding import force_unicode
-except ImportError:
-    from django.utils.encoding import force_text as force_unicode
 
 import PIL.Image
 
@@ -187,7 +181,7 @@ class CropDusterIndex(View):
             })
 
         return render(self.request, 'cropduster/upload.html', {
-            'django_is_19': (django.VERSION[:2] == (1, 9)),
+            'django_is_gte_19': (django.VERSION[:2] >= (1, 9)),
             'is_popup': True,
             'orig_image': '',
             'parent_template': get_admin_base_template(),
@@ -225,7 +219,7 @@ def upload(request):
     if not form.is_valid():
         errors = form['image'].errors or form.errors
         return json_error(request, 'upload', action="uploading file",
-                errors=[force_unicode(errors)])
+                errors=[force_text(errors)])
 
     form_data = form.cleaned_data
     is_standalone = bool(form_data.get('standalone'))
@@ -388,7 +382,7 @@ def crop(request):
                 new_thumbs = db_image.save_size(size, thumb, tmp=True, standalone=standalone_mode)
             except CropDusterResizeException as e:
                 return json_error(request, 'crop',
-                                  action="saving size", errors=[force_unicode(e)])
+                                  action="saving size", errors=[force_text(e)])
 
             if not new_thumbs:
                 continue

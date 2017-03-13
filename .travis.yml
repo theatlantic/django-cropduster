@@ -1,25 +1,6 @@
 language: python
 
-python:
-    - 2.7
-
 sudo: false
-
-env:
-    - TOXENV=py27-django14-grp
-    - TOXENV=py27-django15
-    - TOXENV=py27-django15-grp
-    - TOXENV=py27-django16
-    - TOXENV=py27-django16-grp
-    - TOXENV=py27-django17
-    - TOXENV=py27-django17-grp
-    - TOXENV=py27-django18
-    - TOXENV=py27-django18-grp
-    - TOXENV=py27-django19
-    - TOXENV=py34-django15
-    - TOXENV=py34-django16
-    - TOXENV=py34-django17
-    - TOXENV=py34-django18
 
 addons:
   apt:
@@ -27,7 +8,33 @@ addons:
     - libexempi3
 
 install:
-    - pip install tox 
+  - pip install tox 
 
 script:
-    - travis_retry tox
+  - travis_retry travis_retry travis_retry tox -- --failfast
+
+matrix:
+  include:
+    - { python: 2.7, env: TOXENV=py27-dj18 }
+    - { python: 3.6, env: TOXENV=py36-dj18 }
+    - { python: 2.7, env: TOXENV=py27-dj18-grp }
+    - { python: 2.7, env: TOXENV=py27-dj19 }
+    - { python: 3.6, env: TOXENV=py36-dj19 }
+    - { python: 2.7, env: TOXENV=py27-dj19-grp }
+    - { python: 2.7, env: TOXENV=py27-dj110 }
+    - { python: 3.6, env: TOXENV=py36-dj110 }
+    - { python: 2.7, env: TOXENV=py27-dj110-grp }
+    - { python: 2.7, env: TOXENV=py27-dj111 }
+    - { python: 3.6, env: TOXENV=py36-dj111 }
+    - python: 3.6
+      env: TOXENV=py36-dj20 DATABASE_URL='postgres://postgres@127.0.0.1/cropduster_test'
+  allow_failures:
+    - env: TOXENV=py27-dj111
+    - env: TOXENV=py36-dj111
+    - env: TOXENV=py36-dj20 DATABASE_URL='postgres://postgres@127.0.0.1/cropduster_test'
+
+cache: pip
+
+before_script:
+  - if [ "$DATABASE_URL" == "postgres://postgres@127.0.0.1/cropduster_test" ]; then psql -c "DROP DATABASE IF EXISTS cropduster_test;" -U postgres; fi
+  - if [ "$DATABASE_URL" == "postgres://postgres@127.0.0.1/cropduster_test" ]; then psql -c "create database cropduster_test;" -U postgres; fi

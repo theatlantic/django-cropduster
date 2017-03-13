@@ -1,8 +1,6 @@
 import time
 import warnings
 
-import six
-
 import django
 from django import template
 from cropduster.models import Image

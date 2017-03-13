@@ -10,7 +10,7 @@ except ImportError:
 
 setup(
     name='django-cropduster',
-    version='4.10.4',
+    version='4.11.0a1',
     author='The Atlantic',
     author_email='programmers@theatlantic.com',
     url='https://github.com/theatlantic/django-cropduster',
@@ -23,8 +23,7 @@ setup(
     install_requires=[
         'Pillow',
         'python-xmp-toolkit',
-        'django-generic-plus>=1.2.16',
-        'six>=1.7.0',
+        'django-generic-plus>=2.0.3',
     ],
     include_package_data=True,
     classifiers=[
@@ -40,4 +39,5 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
     ])

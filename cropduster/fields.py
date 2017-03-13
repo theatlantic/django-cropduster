@@ -1,15 +1,13 @@
 import contextlib
-import six
-from operator import attrgetter
-import inspect
 
 import django
 from django import forms
-from django.db import router, models, DEFAULT_DB_ALIAS
+from django.db import models, DEFAULT_DB_ALIAS
 from django.db.models.fields import Field
 from django.db.models.fields.files import ImageFileDescriptor, ImageFieldFile
 from django.db.models.fields.related import ManyToManyRel, ManyToManyField
 from django.utils.functional import cached_property
+from django.utils import six
 from django.contrib.contenttypes.models import ContentType
 
 from generic_plus.fields import GenericForeignFileField
@@ -22,44 +20,28 @@ from .forms import CropDusterInlineFormSet, CropDusterWidget, CropDusterThumbFor
 from .utils import json
 from .resizing import Box, Crop
 
+try:
+    from django.db.models.fields.related import (
+        create_foreign_related_manager)
+except ImportError:
+    from django.db.models.fields.related_descriptors import (
+        create_reverse_many_to_one_manager)
+
+    class ReverseForeignRelatedObjectsRel(object):
+
+        def __init__(self, field, related_model):
+            self.field = field
+            self.related_model = related_model
+
+    def create_foreign_related_manager(superclass, rel_field, rel_model):
+        return create_reverse_many_to_one_manager(
+            superclass, ReverseForeignRelatedObjectsRel(rel_field, rel_model))
+
 
 compat_rel = lambda f: getattr(f, 'remote_field' if django.VERSION >= (1, 9) else 'rel')
 compat_rel_to = lambda f: getattr(compat_rel(f), 'model' if django.VERSION >= (1, 9) else 'to')
 
 
-class BaseCropDusterImageFieldFile(type):
-    """
-    A metaclass to fix a pre-Django 1.6 bug. If the following queryset is
-    attempted::
-
-        qset.prefetch_related('image_field', 'image_field__thumbs')
-
-    This will raise the error:
-
-        AttributeError: Cannot find 'thumbs' on CropDusterImageFieldFile object,
-        'field_name__thumbs' is an invalid parameter to prefetch_related()
-
-    In order to have this work in Django 1.4 and 1.5, we need
-    CropDusterImageFieldFile.thumbs to return a descriptor, which we proxy
-    from cropduster.models.Image.thumbs.
-    """
-
-    if django.VERSION < (1, 6):
-        def __getattr__(self, attr):
-            if not hasattr(self, '_image_m2m_cache'):
-                from cropduster.models import Image
-                self._image_m2m_cache = {}
-                for f in Image._meta.many_to_many:
-                    self._image_m2m_cache[f.name] = getattr(Image, f.name)
-
-            if attr in self._image_m2m_cache:
-                return self._image_m2m_cache[attr]
-
-            raise AttributeError("'%s' object has no attribute '%s'" % (
-                type(self).__name__, attr))
-
-
-@six.add_metaclass(BaseCropDusterImageFieldFile)
 class CropDusterImageFieldFile(ImageFieldFile):
 
     @property
@@ -98,10 +80,8 @@ class CropDusterImageFieldFile(ImageFieldFile):
         has_existing_image = self.related_object is not None
 
         if not has_existing_image:
-            ct_kwargs = {}
-            if 'for_concrete_model' in inspect.getargspec(ContentType.objects.get_for_model).args:
-                ct_kwargs['for_concrete_model'] = False
-            obj_ct = ContentType.objects.get_for_model(self.instance, **ct_kwargs)
+            obj_ct = ContentType.objects.get_for_model(
+                self.instance, for_concrete_model=False)
             image = Image(**{
                 'content_type': obj_ct,
                 'object_id': self.instance.pk,
@@ -125,30 +105,14 @@ class CropDusterImageFieldFile(ImageFieldFile):
                 thumb.image = self.related_object
                 thumb.save()
 
-    if django.VERSION < (1, 6):
-        # Fixes a pre-Django 1.6 bug (see the docstring of
-        # BaseCropDusterImageFieldFile). We proxy attributes of the
-        # related_object through the CropDusterImageFieldFile instance in
-        # order to fix prefetch_related('field_name', 'field_name__thumbs')
-        def __getattr__(self, attr):
-            if 'related_object' in self.__dict__ and attr != 'prepare_database_save':
-                try:
-                    return getattr(self.__dict__['related_object'], attr)
-                except AttributeError:
-                    pass
-            raise AttributeError("'%s' object has no attribute '%s'" % (
-                type(self).__name__, attr))
-
-        def __setattr__(self, attr, val):
-            if attr == '_prefetched_objects_cache' and getattr(self, 'related_object', None):
-                setattr(self.related_object, attr, val)
-            else:
-                super(CropDusterImageFieldFile, self).__setattr__(attr, val)
-
 
 class CropDusterImageField(models.ImageField):
 
     attr_class = CropDusterImageFieldFile
+
+    def formfield(self, *args, **kwargs):
+        kwargs.pop('sizes', None)
+        return super(CropDusterImageField, self).formfield(*args, **kwargs)
 
 
 class CropDusterImageFileDescriptor(ImageFileDescriptor):
@@ -188,20 +152,15 @@ class CropDusterField(GenericForeignFileField):
         self.sizes = sizes
         to = kwargs.pop('to', '%s.Image' % cropduster.settings.CROPDUSTER_APP_LABEL)
         kwargs.update({
-            'upload_to': kwargs.pop('upload_to', None) or cropduster.settings.CROPDUSTER_MEDIA_ROOT,
+            'upload_to': kwargs.pop('upload_to', None) or '',
         })
         super(CropDusterField, self).__init__(to, verbose_name=verbose_name, **kwargs)
 
     def formfield(self, **kwargs):
         factory_kwargs = {
             'sizes': kwargs.pop('sizes', None) or self.sizes,
+            'related': compat_rel(self),
         }
-        if django.VERSION > (1, 9):
-            factory_kwargs['related'] = getattr(self, 'remote_field', None)
-        elif django.VERSION > (1, 8):
-            factory_kwargs['related'] = getattr(self, 'rel', None)
-        else:
-            factory_kwargs['related'] = getattr(self, 'related', None)
 
         widget = generic_fk_file_widget_factory(CropDusterWidget, **factory_kwargs)
         formfield = generic_fk_file_formfield_factory(widget=widget, **factory_kwargs)
@@ -268,107 +227,10 @@ class ReverseForeignRelatedObjectsDescriptor(object):
 
     @cached_property
     def related_manager_cls(self):
-        # Dynamically create a class that subclasses the related model's default
-        # manager.
         rel_model = compat_rel_to(self.field)
         rel_field = rel_model._meta.get_field(self.field.field_name)
         superclass = rel_model._default_manager.__class__
-        attname = compat_rel(rel_field).get_related_field().attname
-        limit_choices_to = compat_rel(self.field).limit_choices_to
-
-        class RelatedManager(superclass):
-            def __init__(self, instance):
-                super(RelatedManager, self).__init__()
-                self.instance = instance
-                self.core_filters = {
-                    '%s__%s' % (rel_field.name, attname): getattr(instance, attname)
-                }
-                self.model = rel_model
-
-            def get_queryset(self):
-                try:
-                    return self.instance._prefetched_objects_cache[rel_field.related_query_name()]
-                except (AttributeError, KeyError):
-                    db = self._db or router.db_for_read(self.model, instance=self.instance)
-                    if django.VERSION < (1, 6):
-                        qset = super(RelatedManager, self).get_query_set()
-                    else:
-                        qset = super(RelatedManager, self).get_queryset()
-                    return (qset.using(db).complex_filter(limit_choices_to)
-                                .filter(**self.core_filters))
-
-            if django.VERSION < (1, 6):
-                get_query_set = get_queryset
-
-            def get_prefetch_queryset(self, instances, queryset=None):
-                if isinstance(instances[0], CropDusterImageFieldFile):
-                    instances = [i.related_object for i in instances]
-
-                db = self._db or router.db_for_read(self.model, instance=instances[0])
-                query = {'%s__%s__in' % (rel_field.name, attname):
-                             set(getattr(obj, attname) for obj in instances)}
-
-                if django.VERSION < (1, 6):
-                    qs = super(RelatedManager, self).get_query_set()
-                else:
-                    qs = super(RelatedManager, self).get_queryset()
-
-                rel_obj_attr = attrgetter(rel_field.get_attname())
-                instance_attr = attrgetter(attname)
-                instances_dict = {instance_attr(inst): inst for inst in instances}
-                queryset = qs.using(db).complex_filter(limit_choices_to).filter(**query)
-
-                # Since we just bypassed this class' get_queryset(), we must
-                # manage the reverse relation manually.
-                for rel_obj in queryset:
-                    instance = instances_dict[rel_obj_attr(rel_obj)]
-                    setattr(rel_obj, rel_field.name, instance)
-                cache_name = rel_field.related_query_name()
-                return queryset, rel_obj_attr, instance_attr, False, cache_name
-
-            if django.VERSION < (1, 7):
-                get_prefetch_query_set = get_prefetch_queryset
-
-            def add(self, *objs):
-                for obj in objs:
-                    if not isinstance(obj, self.model):
-                        raise TypeError("'%s' instance expected, got %r" % (self.model._meta.object_name, obj))
-                    setattr(obj, rel_field.name, self.instance)
-                    obj.save()
-            add.alters_data = True
-
-            def create(self, **kwargs):
-                kwargs[rel_field.name] = self.instance
-                db = router.db_for_write(self.model, instance=self.instance)
-                return super(RelatedManager, self.db_manager(db)).create(**kwargs)
-            create.alters_data = True
-
-            def get_or_create(self, **kwargs):
-                # Update kwargs with the related object that this
-                # ReverseForeignRelatedObjectsDescriptor knows about.
-                kwargs[rel_field.name] = self.instance
-                db = router.db_for_write(self.model, instance=self.instance)
-                return super(RelatedManager, self.db_manager(db)).get_or_create(**kwargs)
-            get_or_create.alters_data = True
-
-            # remove() and clear() are only provided if the ForeignKey can have a value of null.
-            if rel_field.null:
-                def remove(self, *objs):
-                    val = getattr(self.instance, attname)
-                    for obj in objs:
-                        # Is obj actually part of this descriptor set?
-                        if getattr(obj, rel_field.attname) == val:
-                            setattr(obj, rel_field.name, None)
-                            obj.save()
-                        else:
-                            raise compat_rel_to(rel_field).DoesNotExist("%r is not related to %r." % (obj, self.instance))
-                remove.alters_data = True
-
-                def clear(self):
-                    self.update(**{rel_field.name: None})
-                clear.alters_data = True
-
-        return RelatedManager
+        return create_foreign_related_manager(superclass, rel_field, rel_model)
 
 
 class FalseThrough(object):
@@ -385,6 +247,8 @@ class FalseThrough(object):
 
     _meta = type('Options', (object,), {
         'auto_created': False,
+        'managed': False,
+        'local_fields': [],
     })
 
 
@@ -395,7 +259,9 @@ def rel_through_none(instance):
     object.
     """
     through, compat_rel(instance).through = compat_rel(instance).through, None
+    instance.many_to_many = False
     yield
+    instance.many_to_many = True
     compat_rel(instance).through = through
 
 
@@ -405,15 +271,17 @@ class ReverseForeignRelation(ManyToManyField):
     # Field flags
     auto_created = False
 
-    many_to_many = False
+    many_to_many = True
     many_to_one = False
     one_to_many = True
     one_to_one = False
 
     db_table = None
     swappable = False
+    has_null_arg = False
 
     def __init__(self, to, field_name, **kwargs):
+        is_migration = kwargs.pop('is_migration', False)
         kwargs['verbose_name'] = kwargs.get('verbose_name', None)
         m2m_rel_kwargs = {
             'related_name': None,
@@ -422,13 +290,13 @@ class ReverseForeignRelation(ManyToManyField):
             'through': None,
         }
 
-        if django.VERSION[:2] >= (1, 7):
+        if is_migration:
+            m2m_rel_kwargs['through'] = None
+            self.many_to_many = False
+        else:
             m2m_rel_kwargs['through'] = FalseThrough()
 
-        if django.VERSION < (1, 8):
-            kwargs['rel'] = ManyToManyRel(to, **m2m_rel_kwargs)
-        else:
-            kwargs['rel'] = ManyToManyRel(self, to, **m2m_rel_kwargs)
+        kwargs['rel'] = ManyToManyRel(self, to, **m2m_rel_kwargs)
 
         self.field_name = field_name
 
@@ -455,8 +323,12 @@ class ReverseForeignRelation(ManyToManyField):
     def m2m_reverse_target_field_name(self):
         return compat_rel_to(self)._meta.pk.name
 
+    def get_attname_column(self):
+        attname, column = super(ReverseForeignRelation, self).get_attname_column()
+        return attname, None
+
     def contribute_to_class(self, cls, name, **kwargs):
-        if django.VERSION >= (1, 8):
+        if django.VERSION < (1, 10):
             kwargs['virtual_only'] = True
         self.model = cls
         super(ManyToManyField, self).contribute_to_class(cls, name, **kwargs)
@@ -505,4 +377,10 @@ class ReverseForeignRelation(ManyToManyField):
         with rel_through_none(self):
             name, path, args, kwargs = super(ReverseForeignRelation, self).deconstruct()
         kwargs['field_name'] = self.field_name
+        kwargs['is_migration'] = True
         return name, path, args, kwargs
+
+    def clone(self):
+        new_field = super(ReverseForeignRelation, self).clone()
+        new_field.many_to_many = False
+        return new_field

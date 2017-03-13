@@ -26,3 +26,19 @@ class CropdusterTestCaseMediaMixin(object):
 
         # Remove all generated images
         shutil.rmtree(self.TEST_IMG_ROOT, ignore_errors=True)
+
+    def create_unique_image(self, image):
+        image_uuid = uuid.uuid4().hex
+        image_dir = os.path.join(self.TEST_IMG_DIR, image_uuid)
+
+        if not os.path.exists(image_dir):
+            os.makedirs(image_dir)
+
+        ext = os.path.splitext(image)[1]
+        image_name = os.path.join(
+            self.TEST_IMG_DIR_RELATIVE, image_uuid, "original%s" % ext)
+
+        shutil.copyfile(
+            os.path.join(self.TEST_IMG_DIR, image),
+            os.path.join(settings.MEDIA_ROOT, image_name))
+        return image_name

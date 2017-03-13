@@ -2,10 +2,9 @@
 
 <!-- LOADING -->
 {% load i18n %}
-{% load url from cropduster_compat %}
 
 {% block extrahead %}
-    {% if django_is_19 %}
+    {% if django_is_gte_19 %}
     <script type="text/javascript" src="{{ STATIC_URL }}admin/js/vendor/jquery/jquery.min.js"></script>
     {% else %}
     <script type="text/javascript" src="{{ STATIC_URL }}admin/js/jquery.min.js"></script>

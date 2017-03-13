@@ -1,9 +1,5 @@
 from __future__ import division
 
-import six
-
-from six.moves import xrange
-
 import os
 import tempfile
 import warnings
@@ -21,6 +17,9 @@ try:
     import scipy
 except ImportError:
     scipy = None
+
+from django.utils import six
+from django.utils.six.moves import xrange
 
 from cropduster.settings import (
     get_jpeg_quality, JPEG_SAVE_ICC_SUPPORTED, CROPDUSTER_GIFSICLE_PATH)

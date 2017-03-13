@@ -1,6 +1,10 @@
 Changelog
 =========
 
+**4.11.0 (Mar 12, 2017)**
+
+* Add support for Django 1.10, drop support for Django < 1.8
+
 **4.10.0 (July 26, 2015)**
 
 * New: Add Image.alt_text field (requires a migration), which also gets returned now in the {% get_crop %} templatetag.
