@@ -30,6 +30,7 @@ def object_hook(dct):
     if dct.get('__type__') in ['Size', 'cropduster.resizing.Size']:
         return Size(
             name=dct.get('name'),
+            label=dct.get('label'),
             w=dct.get('w'),
             h=dct.get('h'),
             min_w=dct.get('min_w'),
