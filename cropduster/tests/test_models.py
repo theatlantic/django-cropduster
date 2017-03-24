@@ -2,19 +2,21 @@ from __future__ import absolute_import, division
 
 import os
 import PIL
-import uuid
-import shutil
 
-from django import test
+from django.test import TestCase
 from django.contrib.contenttypes.models import ContentType
+from django.utils.six.moves import range
 
 from .helpers import CropdusterTestCaseMediaMixin
-from .models import Article, Author, TestForOptionalSizes, TestMultipleFieldsInheritanceChild
-from ..models import Size, Image
-from ..exceptions import CropDusterResizeException
+from .models import (
+    Article, Author, TestForOptionalSizes, TestMultipleFieldsInheritanceChild,
+    TestReverseForeignRelA, TestReverseForeignRelB, TestReverseForeignRelC,
+    TestReverseForeignRelM2M)
+from cropduster.models import Size, Image
+from cropduster.exceptions import CropDusterResizeException
 
 
-class TestImage(CropdusterTestCaseMediaMixin, test.TestCase):
+class TestImage(CropdusterTestCaseMediaMixin, TestCase):
 
     def setUp(self):
         super(TestImage, self).setUp()
@@ -111,8 +113,8 @@ class TestImage(CropdusterTestCaseMediaMixin, test.TestCase):
             img_map[article.pk] = (lead_image_path, alt_image_path)
 
         with self.assertNumQueries(5):
-            articles = Article.objects.filter(id__in=img_map.keys()).prefetch_related(
-               'lead_image__thumbs', 'alt_image__thumbs')
+            articles = (Article.objects.filter(id__in=img_map.keys())
+                .prefetch_related('lead_image__thumbs', 'alt_image__thumbs'))
             for article in articles:
                 lead_name, alt_name = img_map[article.pk]
                 self.assertEqual(lead_name, article.lead_image.related_object.image.name)
@@ -159,7 +161,7 @@ class TestImage(CropdusterTestCaseMediaMixin, test.TestCase):
                         self.assertIn(thumb.name, alt_sizes)
 
 
-class TestModelSaving(CropdusterTestCaseMediaMixin, test.TestCase):
+class TestModelSaving(CropdusterTestCaseMediaMixin, TestCase):
 
     def test_save_image_updates_model(self):
         img_path = self.create_unique_image('img.png')
@@ -303,3 +305,60 @@ class TestModelSaving(CropdusterTestCaseMediaMixin, test.TestCase):
         child_fields = [f.name for f in TestMultipleFieldsInheritanceChild._meta.local_fields]
         self.assertNotIn('image', child_fields,
             "Field 'image' from parent model should not be in the child model's local_fields")
+
+
+class TestReverseForeignRelation(TestCase):
+
+    def test_standard_manager(self):
+        c = TestReverseForeignRelC.objects.create(slug='c-1')
+        for i in range(0, 3):
+            TestReverseForeignRelB.objects.create(slug="b-%d" % i, c=c)
+
+        c.refresh_from_db()
+        self.assertEqual(len(c.rel_b.all()), 3)
+
+    def test_standard_prefetch_related(self):
+        for i in range(0, 2):
+            m2m = TestReverseForeignRelM2M.objects.create(slug='standard-m2m-%d' % i)
+            for j in range(0, 2):
+                c = TestReverseForeignRelC.objects.create(slug='c-%d-%d' % (i, j))
+                m2m.m2m.add(c)
+                for k in range(0, 3):
+                    TestReverseForeignRelB.objects.create(slug="b-%d-%d-%d" % (i, j, k), c=c)
+        objs = TestReverseForeignRelM2M.objects.prefetch_related('m2m__rel_b')
+        with self.assertNumQueries(3):
+            for obj in objs:
+                for m2m_obj in obj.m2m.all():
+                    self.assertEqual(len(m2m_obj.rel_b.all()), 3)
+
+    def test_manager_with_limit_choices_to(self):
+        """
+        A ReverseForeignRelation with limit_choices_to applies the filter to the manager
+        """
+        c = TestReverseForeignRelC.objects.create(slug='c-1')
+        for i in range(0, 3):
+            TestReverseForeignRelA.objects.create(slug="a-%d" % i, c=c, a_type="x")
+        TestReverseForeignRelA.objects.create(slug="a-4", c=c, a_type="y")
+
+        c.refresh_from_db()
+        a_len = len(c.rel_a.all())
+        self.assertNotEqual(a_len, 4, "limit_choices_to filter not applied")
+        self.assertNotEqual(a_len, 0, "manager returned no objects, expected 3")
+        self.assertEqual(a_len, 3)
+
+    def test_prefetch_related_with_limit_choices_to(self):
+        for i in range(0, 2):
+            m2m = TestReverseForeignRelM2M.objects.create(slug='standard-m2m-%d' % i)
+            for j in range(0, 2):
+                c = TestReverseForeignRelC.objects.create(slug='c-%d-%d' % (i, j))
+                m2m.m2m.add(c)
+                for k in range(0, 3):
+                    TestReverseForeignRelA.objects.create(
+                        slug="a-%d-%d-%d" % (i, j, k), c=c, a_type='x')
+                TestReverseForeignRelA.objects.create(
+                    slug="a-%d-%d-%d" % (i, j, 4), c=c, a_type='y')
+        objs = TestReverseForeignRelM2M.objects.prefetch_related('m2m__rel_a')
+        with self.assertNumQueries(3):
+            for obj in objs:
+                for m2m_obj in obj.m2m.all():
+                    self.assertEqual(len(m2m_obj.rel_a.all()), 3)

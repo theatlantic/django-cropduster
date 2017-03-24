@@ -1,9 +1,7 @@
-import sys
-
 from django.db import models
-from django.conf import settings
-from django.contrib import admin
+from django.utils.encoding import python_2_unicode_compatible
 
+from cropduster.fields import ReverseForeignRelation
 from cropduster.models import CropDusterField, Size
 
 
@@ -76,3 +74,46 @@ class TestMultipleFieldsInheritanceChild(TestMultipleFieldsInheritanceParent):
 
     image2 = CropDusterField(upload_to="test", sizes=[Size(u'main', w=600, h=480)],
         field_identifier="2")
+
+
+@python_2_unicode_compatible
+class TestReverseForeignRelA(models.Model):
+    slug = models.SlugField()
+    c = models.ForeignKey('TestReverseForeignRelC', on_delete=models.CASCADE)
+    a_type = models.CharField(max_length=10, choices=(
+        ("x", "X"),
+        ("y", "Y"),
+        ("z", "Z"),
+    ))
+
+    def __str__(self):
+        return self.slug
+
+
+@python_2_unicode_compatible
+class TestReverseForeignRelB(models.Model):
+    slug = models.SlugField()
+    c = models.ForeignKey('TestReverseForeignRelC', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.slug
+
+
+@python_2_unicode_compatible
+class TestReverseForeignRelC(models.Model):
+    slug = models.SlugField()
+    rel_a = ReverseForeignRelation(
+        TestReverseForeignRelA, field_name='c', limit_choices_to={'a_type': 'x'})
+    rel_b = ReverseForeignRelation(TestReverseForeignRelB, field_name='c')
+
+    def __str__(self):
+        return self.slug
+
+
+@python_2_unicode_compatible
+class TestReverseForeignRelM2M(models.Model):
+    slug = models.SlugField()
+    m2m = models.ManyToManyField(TestReverseForeignRelC)
+
+    def __str__(self):
+        return self.slug

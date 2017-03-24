@@ -1,4 +1,5 @@
 import contextlib
+from operator import attrgetter
 
 import django
 from django import forms
@@ -185,8 +186,7 @@ class CropDusterField(GenericForeignFileField):
                     "caption": forms.CharField(required=False),
                     "alt_text": forms.CharField(required=False),
                 },
-                for_concrete_model=for_concrete_model,
-                )
+                for_concrete_model=for_concrete_model)
 
         return super(CropDusterField, self).get_inline_admin_formset(
             formset_cls=CropDusterInlineFormSet,
@@ -200,6 +200,58 @@ class CropDusterField(GenericForeignFileField):
 
 class CropDusterThumbField(ManyToManyField):
     pass
+
+
+def create_reverse_foreign_related_manager(
+        superclass, rel_field, rel_model, limit_choices_to):
+    attname = compat_rel(rel_field).get_related_field().attname
+    new_superclass = create_foreign_related_manager(superclass, rel_field, rel_model)
+
+    class RelatedManager(new_superclass):
+        def __init__(self, instance):
+            super(RelatedManager, self).__init__(instance)
+            self.core_filters = {
+                "%s__%s" % (rel_field.name, attname): getattr(instance, attname),
+            }
+
+        def __call__(self, **kwargs):
+            manager = getattr(self.model, kwargs.pop('manager'))
+            manager_class = create_reverse_foreign_related_manager(
+                    manager.__class__, rel_field, rel_model, limit_choices_to)
+            return manager_class(self.instance)
+
+        def get_queryset(self):
+            try:
+                return self.instance._prefetched_objects_cache[rel_field.related_query_name()]
+            except (AttributeError, KeyError):
+                qset = super(RelatedManager, self).get_queryset()
+                return qset.complex_filter(limit_choices_to)
+
+        def get_prefetch_queryset(self, instances, queryset=None):
+            if isinstance(instances[0], CropDusterImageFieldFile):
+                instances = [i.related_object for i in instances]
+
+            if queryset is None:
+                queryset = super(new_superclass, self).get_queryset()
+
+            queryset._add_hints(instance=instances[0])
+            queryset = queryset.using(queryset._db or self._db)
+
+            rel_obj_attr = attrgetter(rel_field.get_attname())
+            instance_attr = attrgetter(attname)
+            instances_dict = {instance_attr(inst): inst for inst in instances}
+            query = {
+                '%s__%s__in' % (rel_field.name, attname): set(map(instance_attr, instances)),
+            }
+            queryset = queryset.complex_filter(limit_choices_to).filter(**query)
+
+            for rel_obj in queryset:
+                instance = instances_dict[rel_obj_attr(rel_obj)]
+                setattr(rel_obj, rel_field.name, instance)
+            cache_name = rel_field.related_query_name()
+            return queryset, rel_obj_attr, instance_attr, False, cache_name
+
+    return RelatedManager
 
 
 class ReverseForeignRelatedObjectsDescriptor(object):
@@ -230,7 +282,9 @@ class ReverseForeignRelatedObjectsDescriptor(object):
         rel_model = compat_rel_to(self.field)
         rel_field = rel_model._meta.get_field(self.field.field_name)
         superclass = rel_model._default_manager.__class__
-        return create_foreign_related_manager(superclass, rel_field, rel_model)
+        limit_choices_to = compat_rel(self.field).limit_choices_to
+        return create_reverse_foreign_related_manager(
+            superclass, rel_field, rel_model, limit_choices_to)
 
 
 class FalseThrough(object):
