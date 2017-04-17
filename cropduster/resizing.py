@@ -235,7 +235,7 @@ class Crop(object):
         else:
             aspect_ratio = self.box.aspect_ratio
 
-        scale = math.sqrt(aspect_ratio / self.box.aspect_ratio)
+        scale = math.sqrt(math.fabs(aspect_ratio / self.box.aspect_ratio))
 
         w = self.box.w * scale
         h = w / aspect_ratio
