@@ -10,7 +10,7 @@ except ImportError:
 
 setup(
     name='django-cropduster',
-    version='4.11.2a1',
+    version='4.11.3a1',
     author='The Atlantic',
     author_email='programmers@theatlantic.com',
     url='https://github.com/theatlantic/django-cropduster',
