@@ -70,7 +70,9 @@ class Thumb(models.Model):
 
     @property
     def image_file(self):
-        return Image.get_file_for_size(image=self.image, size_name=self.name)
+        return Image.get_file_for_size(
+            image=self.image, size_name=self.name,
+            tmp=not(getattr(self.image, 'pk', None)))
 
     @property
     def url(self):
