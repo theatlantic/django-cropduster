@@ -3,6 +3,7 @@ from __future__ import division
 import hashlib
 import random
 import os
+import time
 from datetime import datetime
 
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
@@ -77,6 +78,12 @@ class Thumb(models.Model):
     @property
     def url(self):
         return self.image_file.url if self.image_file else ''
+
+    @property
+    def cache_safe_url(self):
+        """A URL that includes a GET parameter that changes upon modification"""
+        cache_buster = time.mktime(self.date_modified.timetuple())
+        return "%s?mod=%d" % (self.url, cache_buster)
 
     @property
     def path(self):
