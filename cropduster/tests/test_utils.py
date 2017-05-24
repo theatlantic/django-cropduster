@@ -74,6 +74,17 @@ class TestUtilsPaths(CropdusterTestCaseMediaMixin, test.TestCase):
                          os.path.join(path, 'my_img-1'))
         shutil.rmtree(path)
 
+    def test_get_upload_foldername_with_hyphens_and_underscores(self):
+        import uuid
+        from ..utils import get_upload_foldername
+
+        random = uuid.uuid4().hex
+        random = '--__-'.join((random[0:5], random[5:]))
+        path = os.path.join(settings.MEDIA_ROOT, random)
+        self.assertEqual(get_upload_foldername('my img.jpg', upload_to=random),
+                         os.path.join(path, 'my_img'))
+        shutil.rmtree(path)
+
     def test_get_min_size(self):
         from ..utils import get_min_size
         from ..resizing import Size
