@@ -224,7 +224,7 @@ class Image(models.Model):
 
     image = CropDusterSimpleImageField(db_index=True,
         upload_to=generate_filename, db_column='path',
-        storage=image_storage, width_field='width', height_field='height')
+        width_field='width', height_field='height')
 
     thumbs = ReverseForeignRelation(Thumb, field_name='image')
 
@@ -244,8 +244,13 @@ class Image(models.Model):
     def __unicode__(self):
         return self.get_image_url()
 
+    # TODO: deprecated
     @property
     def path(self):
+        return self.name
+
+    @property
+    def name(self):
         return self.image.name if self.image else None
 
     @property
@@ -265,7 +270,7 @@ class Image(models.Model):
             image = VirtualFieldFile(image)
         if not image:
             return None
-        path, basename = os.path.split(safe_str_path(image.path))
+        path, basename = os.path.split(safe_str_path(image.name))
         filename, extension = os.path.splitext(basename)
         if size_name == 'preview':
             size_name = '_preview'
@@ -273,7 +278,7 @@ class Image(models.Model):
             size_name = '%s_tmp' % size_name
         return VirtualFieldFile(
             '/'.join([
-                get_relative_media_url(path),
+                path,
                 safe_str_path(size_name) + extension]))
 
     @classmethod
