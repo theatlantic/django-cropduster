@@ -79,6 +79,8 @@ Admin Integration
 
 Adding the cropduster widget to the django admin requires no extra work. Simply ensure that the field is included in the ``ModelAdmin`` class.
 
+If you are using the cropduster widget inside a Django admin inline and find that cropduster data is not being round-tripped correctly on save, you may need to convert the relevant `ModelAdmin` and the related inline to use `django-nested-admin <https://github.com/theatlantic/django-nested-admin>`_.
+
 Template usage
 ..............
 
