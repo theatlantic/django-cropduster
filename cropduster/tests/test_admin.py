@@ -4,9 +4,9 @@ import os
 
 from django_admin_testutils import AdminSeleniumTestCase
 
+from cropduster.models import Size
 from .helpers import CropdusterTestCaseMediaMixin
-from .models import Article, Author, TestForOptionalSizes, TestForOrphanedThumbs
-from ..models import Size, Thumb
+from .models import Article, Author, TestForOptionalSizes
 
 
 class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumTestCase):
@@ -217,33 +217,3 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumTestCase):
         image = test_a.image.related_object
         num_thumbs = len(image.thumbs.all())
         self.assertEqual(num_thumbs, 2, "Expected one thumb; instead got %d" % num_thumbs)
-
-    def test_orphaned_thumbs_after_delete(self):
-        test_a = TestForOrphanedThumbs.objects.create(slug='a')
-
-        self.load_admin(test_a)
-
-        # Upload and crop image
-        with self.clickable_selector('#image-group .cropduster-button') as el:
-            # With the Chrome driver, using Grappelli, this button can be covered
-            # by the fixed footer. So we scroll the button into view.
-            self.selenium.execute_script('window.scrollTo(0, %d)' % el.location['y'])
-            el.click()
-
-        with self.switch_to_popup_window():
-            with self.visible_selector('#id_image') as el:
-                el.send_keys(os.path.join(self.TEST_IMG_DIR, 'img2.jpg'))
-            with self.clickable_selector('#upload-button') as el:
-                el.click()
-            with self.clickable_selector('#crop-button') as el:
-                el.click()
-            with self.clickable_selector('#crop-button:not(.disabled)') as el:
-                el.click()
-
-        self.save_form()
-
-        test_a = TestForOrphanedThumbs.objects.get(slug='a')
-        test_a.delete()
-
-        num_thumbs = len(Thumb.objects.all())
-        self.assertEqual(num_thumbs, 0, "%d orphaned thumbs left behind after deletion")

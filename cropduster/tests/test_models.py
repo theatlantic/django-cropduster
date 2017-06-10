@@ -11,8 +11,8 @@ from .helpers import CropdusterTestCaseMediaMixin
 from .models import (
     Article, Author, TestForOptionalSizes, TestMultipleFieldsInheritanceChild,
     TestReverseForeignRelA, TestReverseForeignRelB, TestReverseForeignRelC,
-    TestReverseForeignRelM2M)
-from cropduster.models import Size, Image
+    TestReverseForeignRelM2M, TestForOrphanedThumbs)
+from cropduster.models import Size, Image, Thumb
 from cropduster.exceptions import CropDusterResizeException
 
 
@@ -20,24 +20,22 @@ class TestImage(CropdusterTestCaseMediaMixin, TestCase):
 
     def setUp(self):
         super(TestImage, self).setUp()
-        author = Author.objects.create(name="Samuel Langhorne Clemens")
-        article = Article.objects.create(title="Pudd'nhead Wilson",
-            author=author, lead_image=self.create_unique_image('img.jpg'))
-        article.lead_image.generate_thumbs()
-
-        self.article_ct = ContentType.objects.get_for_model(
-            Article, for_concrete_model=False)
-        self.article = Article.objects.get(pk=article.pk)
-        self.author = author
+        self.author = Author.objects.create(name="Samuel Langhorne Clemens")
 
     def test_original_image(self):
-        article = self.article
+        article = Article.objects.create(title="Pudd'nhead Wilson",
+            author=self.author, lead_image=self.create_unique_image('img.jpg'))
+        article.lead_image.generate_thumbs()
+        article = Article.objects.get(pk=article.pk)
         self.assertEqual(article.lead_image.width, 674)
         self.assertEqual(article.lead_image.height, 800)
         self.assertIs(article.lead_image.sizes, Article.LEAD_IMAGE_SIZES)
 
     def test_generate_thumbs(self):
-        article = self.article
+        article = Article.objects.create(title="Pudd'nhead Wilson",
+            author=self.author, lead_image=self.create_unique_image('img.jpg'))
+        article.lead_image.generate_thumbs()
+        article = Article.objects.get(pk=article.pk)
         sizes = sorted(list(Size.flatten(Article.LEAD_IMAGE_SIZES)), key=lambda x: x.name)
         thumbs = sorted(list(article.lead_image.related_object.thumbs.all()), key=lambda x: x.name)
         self.assertEqual(len(thumbs), len(sizes))
@@ -305,6 +303,16 @@ class TestModelSaving(CropdusterTestCaseMediaMixin, TestCase):
         child_fields = [f.name for f in TestMultipleFieldsInheritanceChild._meta.local_fields]
         self.assertNotIn('image', child_fields,
             "Field 'image' from parent model should not be in the child model's local_fields")
+
+    def test_orphaned_thumbs_after_delete(self):
+        test_a = TestForOrphanedThumbs.objects.create(
+            slug='a', image=self.create_unique_image('img2.jpg'))
+        test_a.image.generate_thumbs()
+        test_a = TestForOrphanedThumbs.objects.get(slug='a')
+        test_a.delete()
+
+        num_thumbs = len(Thumb.objects.all())
+        self.assertEqual(num_thumbs, 0, "%d orphaned thumbs left behind after deletion")
 
 
 class TestReverseForeignRelation(TestCase):
