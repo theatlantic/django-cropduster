@@ -1,11 +1,21 @@
+import django
 from django import forms
 from django.core.exceptions import ValidationError
 from django.forms.models import ModelChoiceIterator
 from django.forms.models import ChoiceField, ModelMultipleChoiceField
-from django.forms.utils import flatatt
-from django.utils.encoding import force_text
 from django.utils.html import escape, conditional_escape
 from django.utils import six
+
+try:
+    # Django 1.8+
+    from django.forms.utils import flatatt
+except ImportError:
+    from django.forms.util import flatatt
+
+try:
+    from django.utils.encoding import force_text
+except ImportError:
+    from django.utils.encoding import force_unicode as force_text
 
 from generic_plus.forms import BaseGenericFileInlineFormSet, GenericForeignFileWidget
 
@@ -138,13 +148,19 @@ def get_cropduster_field_on_model(model, field_identifier):
     from cropduster.fields import CropDusterField
 
     opts = model._meta
-    m2m_fields = [f for f in opts.get_fields() if f.many_to_many and not f.auto_created]
+    if hasattr(opts, 'get_fields'):
+        # Django 1.8+
+        m2m_fields = [f for f in opts.get_fields() if f.many_to_many and not f.auto_created]
+    else:
+        m2m_fields = opts.many_to_many
+
     if hasattr(opts, 'private_fields'):
         # Django 1.10+
         private_fields = opts.private_fields
     else:
         # Django < 1.10
         private_fields = opts.virtual_fields
+
     m2m_related_fields = set(m2m_fields + private_fields)
 
     field_match = lambda f: (isinstance(f, CropDusterField)
@@ -189,7 +205,10 @@ class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
 
         if form.instance and form.instance.pk:
             # Set the queryset to the current list of thumbs on the image
-            thumbs_field.queryset = form.instance.thumbs.get_queryset()
+            if django.VERSION < (1, 6):
+                thumbs_field.queryset = form.instance.thumbs.get_query_set()
+            else:
+                thumbs_field.queryset = form.instance.thumbs.get_queryset()
         else:
             # Start with an empty queryset
             thumbs_field.queryset = Thumb.objects.none()

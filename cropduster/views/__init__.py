@@ -40,11 +40,15 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.template import RequestContext
 from django.utils.decorators import method_decorator
-from django.utils.encoding import force_text
 from django.utils.functional import cached_property
 from django.utils import six
 from django.utils.six.moves import filter, map, zip
 from django.views.decorators.csrf import csrf_exempt
+
+try:
+    from django.utils.encoding import force_text
+except ImportError:
+    from django.utils.encoding import force_unicode as force_text
 
 import PIL.Image
 

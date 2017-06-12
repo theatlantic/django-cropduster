@@ -3,12 +3,14 @@ from __future__ import absolute_import
 import os
 
 from django_admin_testutils import AdminSeleniumTestCase
+from django.test.utils import override_settings
 
 from cropduster.models import Size
 from .helpers import CropdusterTestCaseMediaMixin
 from .models import Article, Author, TestForOptionalSizes
 
 
+@override_settings(ROOT_URLCONF='cropduster.tests.urls')
 class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumTestCase):
 
     root_urlconf = 'cropduster.tests.urls'

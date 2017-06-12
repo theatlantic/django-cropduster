@@ -15,6 +15,14 @@ script:
 
 matrix:
   include:
+    - { python: 2.7, env: TOXENV=py27-dj14 }
+    - { python: 2.7, env: TOXENV=py27-dj14-grp }
+    - { python: 2.7, env: TOXENV=py27-dj15 }
+    - { python: 2.7, env: TOXENV=py27-dj15-grp }
+    - { python: 2.7, env: TOXENV=py27-dj16 }
+    - { python: 2.7, env: TOXENV=py27-dj16-grp }
+    - { python: 2.7, env: TOXENV=py27-dj17 }
+    - { python: 2.7, env: TOXENV=py27-dj17-grp }
     - { python: 2.7, env: TOXENV=py27-dj18 }
     - { python: 2.7, env: TOXENV=py27-dj18-grp }
     - { python: 3.4, env: TOXENV=py34-dj18 }

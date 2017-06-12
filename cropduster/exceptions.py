@@ -13,7 +13,10 @@ from django.utils.safestring import mark_safe
 from django.utils import six
 from django.utils.six.moves import xrange
 
-from django.utils.encoding import force_text
+try:
+    from django.utils.encoding import force_text
+except ImportError:
+    from django.utils.encoding import force_unicode as force_text
 
 
 logger = logging.getLogger('cropduster')

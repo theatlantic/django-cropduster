@@ -55,7 +55,8 @@ class StandaloneImage(models.Model):
     objects = StandaloneImageManager()
 
     md5 = models.CharField(max_length=32)
-    image = CropDusterField(sizes=[Size("crop")], upload_to='')
+    image = CropDusterField(sizes=[Size("crop")],
+        upload_to=cropduster_settings.CROPDUSTER_STANDALONE_UPLOAD_TO)
 
     class Meta:
         app_label = cropduster_settings.CROPDUSTER_APP_LABEL

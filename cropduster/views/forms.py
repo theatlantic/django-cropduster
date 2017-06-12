@@ -5,16 +5,26 @@ import hashlib
 
 import PIL.Image
 
+import django
 from django import forms
 from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 from django.forms.forms import NON_FIELD_ERRORS
 from django.forms.models import BaseModelFormSet
-from django.forms.utils import ErrorDict as _ErrorDict
-from django.utils.encoding import force_text
 from django.utils.html import conditional_escape
 from django.utils.safestring import mark_safe
 from django.utils import six
+
+try:
+    # Django 1.8+
+    from django.forms.utils import ErrorDict as _ErrorDict
+except ImportError:
+    from django.forms.util import ErrorDict as _ErrorDict
+
+try:
+    from django.utils.encoding import force_text
+except ImportError:
+    from django.utils.encoding import force_unicode as force_text
 
 from cropduster.models import Thumb
 from cropduster.utils import (json, get_upload_foldername, get_min_size,
@@ -214,7 +224,10 @@ class ThumbFormSet(BaseModelFormSet):
         if not pk:
             return None
         try:
-            obj = self.get_queryset().get(pk=pk)
+            if hasattr(self, 'get_queryset'):
+                obj = self.get_queryset().get(pk=pk)
+            else:
+                obj = self.get_query_set().get(pk=pk)
         except ObjectDoesNotExist:
             return None
         else:

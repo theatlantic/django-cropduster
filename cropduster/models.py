@@ -3,16 +3,21 @@ from __future__ import division
 import hashlib
 import random
 import os
-import time
 from datetime import datetime
 
+import django
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.core.files.storage import FileSystemStorage
-from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection, models
 from django.utils import six
 from django.utils.six.moves import xrange
+from django.db import models
+
+try:
+    from django.contrib.contenttypes.fields import GenericForeignKey
+except ImportError:
+    from django.contrib.contenttypes.generic import GenericForeignKey
 
 import PIL.Image
 
@@ -80,19 +85,13 @@ class Thumb(models.Model):
         return self.image_file.url if self.image_file else ''
 
     @property
-    def cache_safe_url(self):
-        """A URL that includes a GET parameter that changes upon modification"""
-        cache_buster = time.mktime(self.date_modified.timetuple())
-        return "%s?mod=%d" % (self.url, cache_buster)
-
-    @property
     def path(self):
         return self.image_file.path if self.image_file else ''
 
     def save(self, *args, **kwargs):
         if self.pk:
             qset = Thumb.objects
-            if not connection.get_autocommit():
+            if not hasattr(connection, 'get_autocommit') or not connection.get_autocommit():
                 qset = qset.select_for_update()
             try:
                 orig_thumb = qset.get(pk=self.pk)
@@ -224,7 +223,7 @@ class Image(models.Model):
 
     image = CropDusterSimpleImageField(db_index=True,
         upload_to=generate_filename, db_column='path',
-        width_field='width', height_field='height')
+        storage=image_storage, width_field='width', height_field='height')
 
     thumbs = ReverseForeignRelation(Thumb, field_name='image')
 
@@ -244,13 +243,8 @@ class Image(models.Model):
     def __unicode__(self):
         return self.get_image_url()
 
-    # TODO: deprecated
     @property
     def path(self):
-        return self.name
-
-    @property
-    def name(self):
         return self.image.name if self.image else None
 
     @property
@@ -270,7 +264,7 @@ class Image(models.Model):
             image = VirtualFieldFile(image)
         if not image:
             return None
-        path, basename = os.path.split(safe_str_path(image.name))
+        path, basename = os.path.split(safe_str_path(image.path))
         filename, extension = os.path.splitext(basename)
         if size_name == 'preview':
             size_name = '_preview'
@@ -278,7 +272,7 @@ class Image(models.Model):
             size_name = '%s_tmp' % size_name
         return VirtualFieldFile(
             '/'.join([
-                path,
+                get_relative_media_url(path),
                 safe_str_path(size_name) + extension]))
 
     @classmethod
@@ -359,12 +353,16 @@ class Image(models.Model):
         # model class has also been updated
         model_class = self.content_type.model_class()
 
-        fields_with_models = [
-            (f, f.model if f.model != model_class else None)
-            for f in model_class._meta.get_fields()
-            if not f.is_relation
-            or f.one_to_one
-            or (f.many_to_one and f.related_model)]
+        if django.VERSION >= (1, 8):
+            fields_with_models = [
+                (f, f.model if f.model != model_class else None)
+                for f in model_class._meta.get_fields()
+                if not f.is_relation
+                    or f.one_to_one
+                    or (f.many_to_one and f.related_model)
+            ]
+        else:
+            fields_with_models = model_class._meta.get_fields_with_model()
 
         for field, field_model_class in fields_with_models:
             field_model_class = field_model_class or model_class
@@ -514,3 +512,41 @@ except:
     @six.add_metaclass(FalseMeta)
     class StandaloneImage(object):
         DoesNotExist = type('DoesNotExist', (ObjectDoesNotExist,), {})
+
+
+try:
+    from south.modelsinspector import add_introspection_rules, add_ignored_fields
+except ImportError:
+    pass
+else:
+    add_ignored_fields(["^cropduster\.fields\.ReverseForeignRelation"])
+
+    def converter(value):
+        """Custom south converter so that Size objects serialize properly"""
+        if isinstance(value, Size):
+            return value.__serialize__()
+        try:
+            is_sizes_list = all([isinstance(sz, Size) for sz in value])
+        except TypeError:
+            pass
+        else:
+            if is_sizes_list:
+                return [sz.__serialize__() for sz in value]
+        return repr(value)
+
+    add_introspection_rules(rules=[
+        (
+            (CropDusterField,),
+            [],
+            {
+                "to": ["rel.to", {}],
+                "symmetrical": ["rel.symmetrical", {"default": True}],
+                "object_id_field": ["object_id_field_name", {"default": "object_id"}],
+                "content_type_field": ["content_type_field_name", {"default": "content_type"}],
+                "blank": ["blank", {"default": True}],
+                "sizes": ["sizes", {"converter": converter}],
+            },
+        ),
+    ], patterns=["^cropduster\.fields\.CropDusterField"])
+
+    add_introspection_rules([], ["^cropduster\.fields\.CropDusterSimpleImageField"])

@@ -1,4 +1,7 @@
-from django.conf.urls import url
+try:
+    from django.conf.urls import url
+except ImportError:
+    from django.conf.urls.defaults import url
 
 import cropduster.views
 import cropduster.standalone.views

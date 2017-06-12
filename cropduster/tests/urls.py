@@ -3,11 +3,13 @@ from django.conf import settings
 from django.conf.urls import include, url, static
 from django.contrib import admin
 
+import cropduster.tests.admin  # noqa
+import cropduster.urls
 
 admin.autodiscover()
 
 urlpatterns = [
-    url(r"^cropduster/", include("cropduster.urls")),
+    url(r"^cropduster/", include(cropduster.urls)),
 ]
 
 if django.VERSION < (1, 9):

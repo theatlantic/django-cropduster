@@ -8,6 +8,8 @@ from django.utils import six
 
 
 CROPDUSTER_MEDIA_ROOT = getattr(settings, 'CROPDUSTER_MEDIA_ROOT', settings.MEDIA_ROOT)
+CROPDUSTER_STANDALONE_UPLOAD_TO = getattr(
+    settings, 'CROPDUSTER_STANDALONE_UPLOAD_TO', 'cropduster')
 
 try:
     CROPDUSTER_APP_LABEL = getattr(settings, 'CROPDUSTER_V4_APP_LABEL')

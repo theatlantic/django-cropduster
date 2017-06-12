@@ -164,7 +164,7 @@ class TestModelSaving(CropdusterTestCaseMediaMixin, TestCase):
     def test_save_image_updates_model(self):
         img_path = self.create_unique_image('img.png')
         article = Article.objects.create(title="test", author=Author.objects.create(name='test'))
-        article_ct = ContentType.objects.get_for_model(Article, for_concrete_model=False)
+        article_ct = ContentType.objects.get_for_model(Article)
         Image.objects.create(
             content_type=article_ct,
             object_id=article.pk,
@@ -172,7 +172,7 @@ class TestModelSaving(CropdusterTestCaseMediaMixin, TestCase):
         self.assertFalse(article.lead_image)
 
         # Refresh the article from the database
-        article.refresh_from_db()
+        article = Article.objects.get(pk=article.pk)
         self.assertTrue(article.lead_image)
         self.assertEqual(article.lead_image.name, img_path)
 
@@ -322,7 +322,7 @@ class TestReverseForeignRelation(TestCase):
         for i in range(0, 3):
             TestReverseForeignRelB.objects.create(slug="b-%d" % i, c=c)
 
-        c.refresh_from_db()
+        c = TestReverseForeignRelC.objects.get(pk=c.pk)
         self.assertEqual(len(c.rel_b.all()), 3)
 
     def test_standard_prefetch_related(self):
@@ -348,7 +348,7 @@ class TestReverseForeignRelation(TestCase):
             TestReverseForeignRelA.objects.create(slug="a-%d" % i, c=c, a_type="x")
         TestReverseForeignRelA.objects.create(slug="a-4", c=c, a_type="y")
 
-        c.refresh_from_db()
+        c = TestReverseForeignRelC.objects.get(pk=c.pk)
         a_len = len(c.rel_a.all())
         self.assertNotEqual(a_len, 4, "limit_choices_to filter not applied")
         self.assertNotEqual(a_len, 0, "manager returned no objects, expected 3")
