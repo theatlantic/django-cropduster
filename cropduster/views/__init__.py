@@ -130,7 +130,8 @@ class CropDusterIndex(View):
         else:
             thumbs = Thumb.objects.filter(pk__in=thumb_ids)
         thumb_dict = dict([(t.name, t) for t in thumbs])
-        ordered_thumbs = [thumb_dict.get(s.name, Thumb(name=s.name)) for s in self.sizes]
+        ordered_thumbs = [
+            thumb_dict.get(s.name, Thumb(name=s.name)) for s in self.sizes if not s.is_alias]
         return FakeQuerySet(ordered_thumbs, thumbs)
 
     @cached_property

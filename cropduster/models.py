@@ -23,7 +23,7 @@ from .fields import (
     CropDusterField, ReverseForeignRelation, CropDusterImageField,
     CropDusterSimpleImageField)
 from .files import VirtualFieldFile
-from .resizing import Size, Box, Crop
+from .resizing import Size, Box, Crop, SizeAlias
 from .utils import process_image
 from . import settings as cropduster_settings
 
