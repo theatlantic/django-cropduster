@@ -3,10 +3,15 @@ import warnings
 import django_admin_testutils
 
 
+class RunTests(django_admin_testutils.RunTests):
+
+    def __call__(self, *args, **kwargs):
+        warnings.simplefilter("error", Warning)
+        super(RunTests, self).__call__(*args, **kwargs)
+
+
 def main():
-    warnings.simplefilter("error", Warning)
-    runtests = django_admin_testutils.RunTests(
-        "cropduster.tests.settings", "cropduster")
+    runtests = RunTests("cropduster.tests.settings", "cropduster")
     runtests()
 
 
