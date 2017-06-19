@@ -28,9 +28,8 @@ except ImportError:
     try:
         from raven.contrib.django.models import get_client
     except ImportError:
-        pass
-    else:
-        raven_client = get_client()
+        def get_client(*args, **kwargs):
+            return None
 
 
 if SentryHandler:
@@ -161,6 +160,7 @@ def log_error(request, view, action, errors, exc_info=None):
 
     raven_kwargs = {'request': request, 'extra': extra_data, 'data': {'message': error_msg}}
 
+    raven_client = get_client()
     if raven_client:
         if exc_info:
             return raven_client.get_ident(
