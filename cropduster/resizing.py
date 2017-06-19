@@ -11,6 +11,7 @@ from PIL.ImageFile import ImageFile
 from django.db.models.fields.files import FieldFile
 from django.core.exceptions import ImproperlyConfigured
 from django.utils import six
+from django.utils.encoding import python_2_unicode_compatible
 from django.utils.six.moves import filter
 
 from .settings import CROPDUSTER_RETAIN_METADATA
@@ -28,8 +29,33 @@ __all__ = ('Size', 'Box', 'Crop')
 INFINITY = float('inf')
 
 
+@python_2_unicode_compatible
+class SizeAlias(object):
+    is_alias = True
+
+    def __init__(self, alias, to):
+        self.alias = alias
+        self.to = to
+
+    def __str__(self):
+        name = u'Size %s => %s' % (self.alias, self.to)
+
+    def add_to_sizes_dict(self, sizes):
+        keys = re.split(r'(?<!\\)\.', self.alias)
+        size_to = sizes.get(self.to)
+        if not size_to:
+            return
+        ctx = sizes
+        for key in keys:
+            ctx.setdefault(key, {})
+            ctx = ctx[key]
+        ctx.update(size_to)
+
+
+@python_2_unicode_compatible
 class Size(object):
 
+    is_alias = False
     parent = None
 
     def __init__(self, name, label=None, w=None, h=None, retina=False, auto=None, min_w=None, min_h=None,
@@ -74,7 +100,7 @@ class Size(object):
         if self.h and self.max_w:
             self.max_aspect = min(self.max_aspect, self.max_w / self.h)
 
-    def __unicode__(self):
+    def __str__(self):
         name = u'Size %s (%s):' % (self.label, self.name)
         if self.auto:
             name = u'%s[auto]' % name
@@ -102,8 +128,10 @@ class Size(object):
         return self.parent is not None
 
     @staticmethod
-    def flatten(sizes):
+    def flatten(sizes, include_aliases=False):
         for size in sizes:
+            if isinstance(size, SizeAlias) and not include_aliases:
+                continue
             yield size
             if size.auto:
                 for auto_size in size.auto:

@@ -95,6 +95,8 @@ class CropDusterImageFieldFile(ImageFieldFile):
             self.related_object = image
 
         for size in self.sizes:
+            if getattr(size, 'is_alias', False):
+                continue
             try:
                 crop_thumb = self.related_object.thumbs.get(name=size.name)
             except Thumb.DoesNotExist:
