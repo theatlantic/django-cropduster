@@ -36,6 +36,7 @@ class CropDusterWidget(GenericForeignFileWidget):
             related_object = ctx['instance']
             sizes_callable = getattr(sizes, 'im_func', sizes)
             sizes = sizes_callable(instance, related=related_object)
+        sizes = [s for s in sizes if not getattr(s, 'is_alias', False)]
         ctx.update({
             'sizes': json.dumps(sizes),
         })
