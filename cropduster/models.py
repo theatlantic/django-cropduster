@@ -27,8 +27,13 @@ from .resizing import Size, Box, Crop, SizeAlias
 from .utils import process_image
 from . import settings as cropduster_settings
 
+# from libthumbor import CryptoURL
+
 
 __all__ = ('Image', 'Thumb', 'StandaloneImage', 'CropDusterField', 'Size', 'Box', 'Crop')
+
+
+# thumbor_url = CryptoURL(key='MY_SECURE_KEY')
 
 
 def safe_str_path(file_path):
@@ -82,8 +87,19 @@ class Thumb(models.Model):
     @property
     def cache_safe_url(self):
         """A URL that includes a GET parameter that changes upon modification"""
-        cache_buster = time.mktime(self.date_modified.timetuple())
-        return "%s?mod=%d" % (self.url, cache_buster)
+        cachebust = time.mktime(self.date_modified.timetuple())
+        return "%s?mod=%s" % (self.image.image.url, cachebust)
+        # if self.reference_thumb:
+        #     ref_thumb = self.reference_thumb
+        # else:
+        #     ref_thumb = self
+        # x1, y1 = ref_thumb.crop_x, ref_thumb.crop_y
+        # x2, y2 = x1 + ref_thumb.crop_w, y1 + ref_thumb.crop_h
+        # return "https://thumbor.local.theatlantic.com%s" % thumbor_url.generate(
+        #     width=self.width,
+        #     height=self.height,x
+        #     crop=[[x1, y1], [x2, y2]],
+        #     image_url="%s%%3fmod=%d" % (self.image.image.url, cachebust))
 
     @property
     def path(self):
