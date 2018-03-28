@@ -73,7 +73,7 @@ class CropDusterImageFieldFile(ImageFieldFile):
         })
         return crop_thumb
 
-    def generate_thumbs(self, permissive=False):
+    def generate_thumbs(self, permissive=False, skip_existing=False):
         # "Imports"
         Image = compat_rel_to(self.field.db_field)
         Thumb = compat_rel_to(Image._meta.get_field("thumbs"))
@@ -102,7 +102,8 @@ class CropDusterImageFieldFile(ImageFieldFile):
             except Thumb.DoesNotExist:
                 crop_thumb = self._get_new_crop_thumb(size)
 
-            thumbs = self.related_object.save_size(size, thumb=crop_thumb, permissive=permissive)
+            thumbs = self.related_object.save_size(
+                size, thumb=crop_thumb, permissive=permissive, skip_existing=skip_existing)
 
             for slug, thumb in six.iteritems(thumbs):
                 thumb.image = self.related_object

@@ -427,7 +427,8 @@ class Image(models.Model):
             setattr(obj, cropduster_field.name, None)
             obj.save()
 
-    def save_size(self, size, thumb=None, image=None, tmp=False, standalone=False, permissive=False):
+    def save_size(self, size, thumb=None, image=None, tmp=False, standalone=False,
+                  permissive=False, skip_existing=False):
         thumbs = {}
         if not image and not self.image:
             raise Exception("Cannot save sizes without an image")
@@ -440,6 +441,14 @@ class Image(models.Model):
             return self._save_standalone_thumb(size, image, thumb)
 
         for sz in Size.flatten([size]):
+            if self.pk and skip_existing and os.path.exists(self.get_image_path(sz.name)):
+                try:
+                    existing_thumb = self.thumbs.get(name=sz.name)
+                except Thumb.DoesNotExist:
+                    pass
+                else:
+                    thumbs[sz.name] = existing_thumb
+                    continue
             try:
                 if thumb and sz.is_auto:
                     new_thumb = self._save_thumb(sz, image, ref_thumb=thumb, tmp=tmp)
