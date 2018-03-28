@@ -1,6 +1,10 @@
 Changelog
 =========
 
+**4.11.9 (Mar 28, 2018)**
+
+* Add ``skip_existing`` kwarg to ``generate_thumbs()`` method
+
 **4.11.0 (Mar 12, 2017)**
 
 * Add support for Django 1.10, drop support for Django < 1.8
