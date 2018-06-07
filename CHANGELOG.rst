@@ -1,6 +1,10 @@
 Changelog
 =========
 
+**4.11.10 (Jun 6, 2018)**
+
+* Fix Django 1.11 bug that prevented save of existing images
+
 **4.11.9 (Mar 28, 2018)**
 
 * Add ``skip_existing`` kwarg to ``generate_thumbs()`` method
