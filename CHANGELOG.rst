@@ -1,6 +1,10 @@
 Changelog
 =========
 
+**4.11.11 (Jun 6, 2018)**
+
+* Support Django 2.0 and Django 2.1 alpha
+
 **4.11.10 (Jun 6, 2018)**
 
 * Fix Django 1.11 bug that prevented save of existing images
