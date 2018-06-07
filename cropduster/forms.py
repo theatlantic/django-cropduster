@@ -60,7 +60,7 @@ class ThumbChoiceIterator(ModelChoiceIterator):
                 yield self.choice(obj)
 
     def choice(self, obj):
-        return (obj, self.field.label_from_instance(obj))
+        return (obj.pk, self.field.label_from_instance(obj))
 
 
 class CropDusterThumbWidget(forms.SelectMultiple):
@@ -71,33 +71,30 @@ class CropDusterThumbWidget(forms.SelectMultiple):
         super(CropDusterThumbWidget, self).__init__(*args, **kwargs)
         self.model = Thumb
 
-    def render_option(self, selected_choices, option_value, option_label):
-        attrs = {}
-        if isinstance(option_value, self.model):
-            thumb = option_value
-            option_value = thumb.pk
+    def get_option_attrs(self, value):
+        try:
+            thumb = self.model.objects.get(pk=value)
+        except (TypeError, self.model.DoesNotExist):
+            return {}
         else:
-            try:
-                thumb = self.model.objects.get(pk=option_value)
-            except (TypeError, self.model.DoesNotExist):
-                thumb = None
-
-        if thumb:
-            # If the thumb has no images associated with it then
-            # it has not yet been saved, and so its file path has
-            # '_tmp' appended before the extension.
-            use_tmp_file = not(thumb.image_id)
-            attrs = {
+            return {
                 'data-width': thumb.width,
                 'data-height': thumb.height,
-                'data-tmp-file': json.dumps(use_tmp_file),
+                'data-tmp-file': json.dumps(not(thumb.image_id)),
             }
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option_attrs = self.get_option_attrs(value)
+        option_data = super(CropDusterThumbWidget, self).create_option(
+            name, value, label, selected, index, subindex, attrs)
+        option_data['attrs'].update(option_attrs)
+        return option_data
+
+    def render_option(self, selected_choices, option_value, option_label):
+        attrs = self.get_option_attrs(option_value)
         option_value = force_text(option_value)
         if option_value in selected_choices:
             selected_html = u' selected="selected"'
-            if not self.allow_multiple_selected:
-                # Only allow for a single selection.
-                selected_choices.remove(option_value)
         else:
             selected_html = ''
         return (

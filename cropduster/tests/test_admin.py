@@ -4,7 +4,7 @@ import os
 
 from django_admin_testutils import AdminSeleniumTestCase
 
-from cropduster.models import Size
+from cropduster.models import Image, Size
 from .helpers import CropdusterTestCaseMediaMixin
 from .models import Article, Author, TestForOptionalSizes
 
@@ -26,6 +26,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumTestCase):
             'generic_plus',
             'cropduster',
             'cropduster.tests',
+            'django_admin_testutils',
         ]
         if self.has_grappelli:
             apps.insert(0, 'grappelli')
@@ -133,8 +134,11 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumTestCase):
         self.assertEqual(len(article.alt_image.related_object.thumbs.all()), len(alt_sizes))
 
     def test_changeform_single_image(self):
+        image_path = self.create_unique_image('img.jpg')
         author = Author.objects.create(name="Samuel Langhorne Clemens",
-            headshot=os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.jpg'))
+            headshot=image_path)
+        Image.objects.create(image=image_path, content_object=author)
+        author.refresh_from_db()
         author.headshot.generate_thumbs()
 
         self.load_admin(author)
@@ -145,13 +149,22 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumTestCase):
 
         self.save_form()
 
-        self.assertEqual(Author.objects.get(pk=author.pk).name, 'Mark Twain')
+        author = Author.objects.get(pk=author.pk)
+        self.assertEqual(author.name, 'Mark Twain')
+        self.assertEqual(author.headshot.name, image_path)
+        self.assertEqual(len(author.headshot.related_object.thumbs.all()), 2)
 
     def test_changeform_multiple_images(self):
         author = Author.objects.create(name="Samuel Langhorne Clemens")
+        lead_image_path = self.create_unique_image('img.jpg')
+        alt_image_path = self.create_unique_image('img.png')
         article = Article.objects.create(title="title", author=author,
-            lead_image=os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.jpg'),
-            alt_image=os.path.join(self.TEST_IMG_DIR_RELATIVE, 'img.png'))
+            lead_image=lead_image_path,
+            alt_image=alt_image_path)
+        Image.objects.create(image=lead_image_path, content_object=article)
+        Image.objects.create(
+            image=alt_image_path, content_object=article, field_identifier='alt')
+        article.refresh_from_db()
         article.lead_image.generate_thumbs()
         article.alt_image.generate_thumbs()
 
@@ -163,7 +176,12 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumTestCase):
 
         self.save_form()
 
-        self.assertEqual(Article.objects.get(pk=article.pk).title, 'Updated Title')
+        article.refresh_from_db()
+        self.assertEqual(article.title, 'Updated Title')
+        self.assertEqual(article.lead_image.name, lead_image_path)
+        self.assertEqual(article.alt_image.name, alt_image_path)
+        self.assertEqual(len(article.lead_image.related_object.thumbs.all()), 3)
+        self.assertEqual(len(article.alt_image.related_object.thumbs.all()), 1)
 
     def test_changeform_with_optional_sizes_small_image(self):
         test_a = TestForOptionalSizes.objects.create(slug='a')
