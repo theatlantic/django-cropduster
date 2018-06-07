@@ -1,7 +1,7 @@
 import django
 import dj_database_url
 
-from django_admin_testutils.settings import *
+from selenosis.settings import *
 
 
 if django.VERSION > (1, 11):

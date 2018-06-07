@@ -2,14 +2,14 @@ from __future__ import absolute_import
 
 import os
 
-from django_admin_testutils import AdminSeleniumTestCase
+from selenosis import AdminSelenosisTestCase
 
 from cropduster.models import Image, Size
 from .helpers import CropdusterTestCaseMediaMixin
 from .models import Article, Author, TestForOptionalSizes
 
 
-class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumTestCase):
+class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
     root_urlconf = 'cropduster.tests.urls'
 
@@ -26,7 +26,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSeleniumTestCase):
             'generic_plus',
             'cropduster',
             'cropduster.tests',
-            'django_admin_testutils',
+            'selenosis',
         ]
         if self.has_grappelli:
             apps.insert(0, 'grappelli')

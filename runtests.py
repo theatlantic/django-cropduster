@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import warnings
-import django_admin_testutils
+import selenosis
 
 
-class RunTests(django_admin_testutils.RunTests):
+class RunTests(selenosis.RunTests):
 
     def __call__(self, *args, **kwargs):
         warnings.simplefilter("error", Warning)

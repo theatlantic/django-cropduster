@@ -252,7 +252,9 @@ def create_reverse_foreign_related_manager(
                 instance = instances_dict[rel_obj_attr(rel_obj)]
                 setattr(rel_obj, rel_field.name, instance)
             cache_name = rel_field.related_query_name()
-            return queryset, rel_obj_attr, instance_attr, False, cache_name
+            return (
+                queryset, rel_obj_attr, instance_attr, False, cache_name,
+            ) + (() if django.VERSION < (2, 0) else (False,))
 
     return RelatedManager
 
