@@ -3,10 +3,14 @@ language: python
 sudo: false
 
 addons:
-  chrome: stable
   apt:
     packages:
     - libexempi3
+  chrome: stable
+
+env:
+  global:
+    - PATH=$HOME/bin:$PATH
 
 matrix:
   include:
@@ -22,29 +26,16 @@ matrix:
   allow_failures:
     - env: TOXENV=py36-dj21
 
-cache:
-  pip: true
-  directories:
-    - bin
-
-env:
-  global:
-    - PATH=$HOME/bin:$PATH
+cache: pip
 
 install:
   - pip install tox 
-
-before_script:
   - mkdir -p ~/bin
-  - |
-    if [ ! -e ~/bin/chromedriver ]; then
-      export CHROMEDRIVER_VERSION=$(curl -q http://chromedriver.storage.googleapis.com/LATEST_RELEASE)
-      wget -N http://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip -P ~/
-      unzip ~/chromedriver_linux64.zip -d ~/bin
-      rm ~/chromedriver_linux64.zip
-      chmod +x ~/bin/chromedriver
-    fi
-
+  - wget -N http://chromedriver.storage.googleapis.com/$(curl -s https://chromedriver.storage.googleapis.com/LATEST_RELEASE)/chromedriver_linux64.zip -P ~/
+  - unzip ~/chromedriver_linux64.zip -d ~/bin
+  - rm ~/chromedriver_linux64.zip
+  - chmod +x ~/bin/chromedriver
 
 script:
   - travis_retry travis_retry travis_retry tox -- --selenium=chrome-headless --failfast
+

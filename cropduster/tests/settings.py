@@ -1,5 +1,4 @@
 import django
-import dj_database_url
 
 from selenosis.settings import *
 
@@ -11,8 +10,6 @@ if django.VERSION > (1, 11):
         'sessions': None,
         'cropduster': None,
     }
-
-DATABASES['default'] = dj_database_url.parse(os.environ.get('DATABASE_URL', 'sqlite://:memory:'))
 
 INSTALLED_APPS += (
     'generic_plus',
