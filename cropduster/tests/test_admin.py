@@ -83,6 +83,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
             'image_id': image.pk,
             'id': auto_thumb.pk,
         })
+        self.assertTrue(os.path.exists(auto_thumb.path))
 
     def test_addform_multiple_image(self):
         author = Author.objects.create(name="Mark Twain")

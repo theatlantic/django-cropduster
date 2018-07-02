@@ -72,26 +72,32 @@ class CropDusterThumbWidget(forms.SelectMultiple):
         self.model = Thumb
 
     def get_option_attrs(self, value):
-        try:
-            thumb = self.model.objects.get(pk=value)
-        except (TypeError, self.model.DoesNotExist):
-            return {}
+        if isinstance(value, self.model):
+            thumb = value
         else:
-            return {
-                'data-width': thumb.width,
-                'data-height': thumb.height,
-                'data-tmp-file': json.dumps(not(thumb.image_id)),
-            }
+            try:
+                thumb = self.model.objects.get(pk=value)
+            except (TypeError, self.model.DoesNotExist):
+                return {}
 
-    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
-        option_attrs = self.get_option_attrs(value)
-        option_data = super(CropDusterThumbWidget, self).create_option(
-            name, value, label, selected, index, subindex, attrs)
-        option_data['attrs'].update(option_attrs)
-        return option_data
+        return {
+            'data-width': thumb.width,
+            'data-height': thumb.height,
+            'data-tmp-file': json.dumps(not(thumb.image_id)),
+        }
+
+    def create_option(self, *args, **kwargs):
+        option = super(CropDusterThumbWidget, self).create_option(*args, **kwargs)
+        option['attrs'].update(self.get_option_attrs(option['value']))
+        option['selected'] = True
+        if isinstance(option['value'], self.model):
+            option['value'] = option['value'].pk
+        return option
 
     def render_option(self, selected_choices, option_value, option_label):
         attrs = self.get_option_attrs(option_value)
+        if isinstance(option_value, self.model):
+            option_value = option_value.pk
         option_value = force_text(option_value)
         if option_value in selected_choices:
             selected_html = u' selected="selected"'

@@ -3,7 +3,7 @@ from operator import attrgetter
 
 import django
 from django import forms
-from django.db import models, DEFAULT_DB_ALIAS
+from django.db import models, transaction, router, DEFAULT_DB_ALIAS
 from django.db.models.fields import Field
 from django.db.models.fields.files import ImageFileDescriptor, ImageFieldFile
 from django.db.models.fields.related import ManyToManyRel, ManyToManyField
@@ -229,6 +229,15 @@ def create_reverse_foreign_related_manager(
             except (AttributeError, KeyError):
                 qset = super(RelatedManager, self).get_queryset()
                 return qset.complex_filter(limit_choices_to)
+
+        def set(self, objs, **kwargs):
+            db = router.db_for_write(self.model, instance=self.instance)
+            with transaction.atomic(using=db, savepoint=False):
+                super(RelatedManager, self).set(objs, **kwargs)
+                for obj in objs:
+                    obj.save()
+
+        set.alters_data = True
 
         def get_prefetch_queryset(self, instances, queryset=None):
             if isinstance(instances[0], CropDusterImageFieldFile):

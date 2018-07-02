@@ -90,22 +90,13 @@ class Thumb(models.Model):
         return self.image_file.path if self.image_file else ''
 
     def save(self, *args, **kwargs):
-        if self.pk:
-            qset = Thumb.objects
-            if not connection.get_autocommit():
-                qset = qset.select_for_update()
+        if self.pk and self.image_id:
             try:
-                orig_thumb = qset.get(pk=self.pk)
-            except Thumb.DoesNotExist:
+                os.rename(
+                    self.image.get_image_path(self.name, tmp=True),
+                    self.image.get_image_path(self.name))
+            except (IOError, OSError):
                 pass
-            else:
-                if self.image_id and not orig_thumb.image_id:
-                    try:
-                        os.rename(
-                            self.image.get_image_path(self.name, tmp=True),
-                            self.image.get_image_path(self.name))
-                    except (IOError, OSError):
-                        pass
         return super(Thumb, self).save(*args, **kwargs)
 
     def to_dict(self):
