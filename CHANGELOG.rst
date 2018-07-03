@@ -1,6 +1,10 @@
 Changelog
 =========
 
+**4.11.12 (Jul 3, 2018)**
+
+* Fix Django 1.11 bug where newly uploaded images weren't named correctly.
+
 **4.11.11 (Jun 6, 2018)**
 
 * Support Django 2.0 and Django 2.1 alpha
