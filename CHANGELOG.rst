@@ -1,6 +1,11 @@
 Changelog
 =========
 
+**4.11.13 (Aug 2, 2018)**
+
+* Fix Django 1.11 that prevented updating images in standalone mode
+* Fix bug that threw exempi exceptions when uploaded images had iPhone face-recognition region metadata
+
 **4.11.12 (Jul 3, 2018)**
 
 * Fix Django 1.11 bug where newly uploaded images weren't named correctly.
