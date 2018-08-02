@@ -447,6 +447,10 @@ class Crop(object):
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions', '', prop_value_is_struct=True)
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:w', six.text_type(self.image.size[0]))
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:h', six.text_type(self.image.size[1]))
+        # Clear out any existing <mwg-rs:RegionList> tags so they don't conflict
+        # (for instance, iPhone face regions are stored in this tag)
+        if md.does_property_exist(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList'):
+            md.delete_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList')
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList', '', prop_value_is_array=True)
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Name', 'Crop')
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area', '', prop_value_is_struct=True)
