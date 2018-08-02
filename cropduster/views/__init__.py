@@ -366,6 +366,13 @@ def crop(request):
 
     standalone_mode = crop_data['standalone']
 
+    # Address a standalone mode issue where, because the thumbs don't have a pk value,
+    # Django no longer returns them in Formset.save() if they are in initial_forms
+    if standalone_mode and not cropped_thumbs and len(thumb_formset.initial_forms):
+        thumb_form = thumb_formset.initial_forms[0]
+        obj = thumb_form.instance
+        cropped_thumbs = [thumb_formset.save_existing(thumb_form, obj, commit=False)]
+
     for i, (thumb, thumb_form) in enumerate(zip(cropped_thumbs, thumb_formset)):
         changed_fields = set(thumb_form.changed_data) - non_model_fields
         thumb_form._changed_data = list(changed_fields)
