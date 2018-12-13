@@ -1,22 +1,10 @@
 from __future__ import division
 
-import os
-import tempfile
 import warnings
 import math
 from distutils.version import LooseVersion
 
 import PIL.Image
-
-try:
-    import numpy
-except ImportError:
-    numpy = None
-
-try:
-    import scipy
-except ImportError:
-    scipy = None
 
 from django.utils import six
 from django.utils.six.moves import xrange
@@ -24,7 +12,6 @@ from django.utils.six.moves import xrange
 from cropduster.settings import (
     get_jpeg_quality, JPEG_SAVE_ICC_SUPPORTED, CROPDUSTER_GIFSICLE_PATH)
 
-from .images2gif import read_gif, write_gif
 from .gifsicle import GifsicleImage
 
 
@@ -124,37 +111,20 @@ def is_animated_gif(im):
 
 
 def has_animated_gif_support():
-    return bool(CROPDUSTER_GIFSICLE_PATH or (numpy and scipy))
+    return bool(CROPDUSTER_GIFSICLE_PATH)
 
 
 def process_image(im, save_filename=None, callback=lambda i: i, nq=0, save_params=None):
     is_animated = is_animated_gif(im)
     images = [im]
 
-    dispose = None
-
     if is_animated:
-        if not has_animated_gif_support():
+        if not CROPDUSTER_GIFSICLE_PATH:
             warnings.warn(
                 u"This server does not have animated gif support; your uploaded image "
                 u"has been made static.")
-        elif CROPDUSTER_GIFSICLE_PATH:
-            images = [GifsicleImage(im)]
         else:
-            warnings.warn("Using numpy algorithm to resize animated gif; "
-                "better results would be achieved with gifsicle")
-
-            filename = getattr(im, 'filename', None)
-            if not filename or not os.path.exists(filename):
-                temp_file = tempfile.NamedTemporaryFile(suffix='.gif')
-                filename = temp_file.name
-                im.save(filename)
-
-            contents = b''
-            with open(filename, mode='rb') as f:
-                contents += f.read()
-
-            images = read_gif(filename, as_numpy=False)
+            images = [GifsicleImage(im)]
 
     new_images = [callback(i) for i in images]
 
@@ -162,21 +132,12 @@ def process_image(im, save_filename=None, callback=lambda i: i, nq=0, save_param
         raise Exception("Animated gifs must be saved on each processing.")
 
     if save_filename:
-        # Only true if animated gif supported and multiple frames in image
-        if is_animated and len(images) > 1:
-            duration_ms = im.info.get('duration') or 100
-            duration = float(duration_ms) / 1000.0
-            repeat = True
-            if im.info.get('loop', 0) != 0:
-                repeat = im.info['loop']
-            write_gif(save_filename, new_images, duration=duration, repeat=repeat, nq=nq, dispose=dispose)
-        else:
-            save_params = save_params or {}
-            if im.format == 'JPEG':
-                save_params.setdefault('quality', get_jpeg_quality(new_images[0].size[0], new_images[0].size[1]))
-            if im.format in ('JPEG', 'PNG') and JPEG_SAVE_ICC_SUPPORTED:
-                save_params.setdefault('icc_profile', im.info.get('icc_profile'))
-            new_images[0].save(save_filename, **save_params)
+        save_params = save_params or {}
+        if im.format == 'JPEG':
+            save_params.setdefault('quality', get_jpeg_quality(new_images[0].size[0], new_images[0].size[1]))
+        if im.format in ('JPEG', 'PNG') and JPEG_SAVE_ICC_SUPPORTED:
+            save_params.setdefault('icc_profile', im.info.get('icc_profile'))
+        new_images[0].save(save_filename, **save_params)
 
         return PIL.Image.open(save_filename)
 
