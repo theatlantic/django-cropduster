@@ -5,6 +5,7 @@ import math
 from distutils.version import LooseVersion
 
 import PIL.Image
+from PIL import ImageFile, JpegImagePlugin
 
 from django.utils import six
 from django.utils.six.moves import xrange
@@ -19,6 +20,13 @@ __all__ = (
     'get_image_extension', 'is_transparent', 'exif_orientation',
     'correct_colorspace', 'is_animated_gif', 'has_animated_gif_support',
     'process_image', 'smart_resize')
+
+
+# workaround for https://github.com/python-pillow/Pillow/issues/1138
+# without this hack, pillow misidenfifies some jpeg files as "mpo" files
+JpegImagePlugin._getmp = lambda x: None  # noqa
+
+ImageFile.MAXBLOCK = 2 ** 25
 
 
 IMAGE_EXTENSIONS = {
