@@ -26,7 +26,7 @@ __all__ = (
 # without this hack, pillow misidenfifies some jpeg files as "mpo" files
 JpegImagePlugin._getmp = lambda x: None  # noqa
 
-ImageFile.MAXBLOCK = 2 ** 25
+ImageFile.MAXBLOCK = 4096 * 4096 * 8
 
 
 IMAGE_EXTENSIONS = {
