@@ -116,6 +116,16 @@ window.CropDuster = {};
         var css = '';
         src = encodeURI(src || '') + '?v=' + randomDigits(9);
         css += 'background-image:url("' + src + '");';
+
+        if (width > 750) {
+          var origWidth = width;
+          var origHeight = height;
+          var scale = origWidth / 750;
+          width = 750;
+          height = origHeight / scale;
+          css += 'background-size: contain;';
+        }
+
         css += 'width:' + width + 'px;';
         css += 'height:' + height + 'px;';
         if (is_ie) {
