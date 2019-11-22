@@ -12,6 +12,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection, models
 from django.utils import six
+from django.utils.encoding import python_2_unicode_compatible
 from django.utils.six.moves import xrange
 
 import PIL.Image
@@ -41,6 +42,7 @@ def safe_str_path(file_path):
     return file_path
 
 
+@python_2_unicode_compatible
 class Thumb(models.Model):
 
     name = models.CharField(max_length=255, db_index=True)
@@ -66,7 +68,7 @@ class Thumb(models.Model):
         app_label = cropduster_settings.CROPDUSTER_APP_LABEL
         db_table = '%s_thumb' % cropduster_settings.CROPDUSTER_DB_PREFIX
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
     @property
@@ -200,6 +202,7 @@ def generate_filename(instance, filename):
     return filename
 
 
+@python_2_unicode_compatible
 class Image(models.Model):
 
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
@@ -232,7 +235,7 @@ class Image(models.Model):
         db_table = '%s_image' % cropduster_settings.CROPDUSTER_DB_PREFIX
         unique_together = ("content_type", "object_id", "field_identifier")
 
-    def __unicode__(self):
+    def __str__(self):
         return self.get_image_url()
 
     # TODO: deprecated
