@@ -34,7 +34,10 @@ class CropDusterWidget(GenericForeignFileWidget):
         if six.callable(sizes):
             instance = getattr(getattr(bound_field, 'form', None), 'instance', None)
             related_object = ctx['instance']
-            sizes_callable = getattr(sizes, 'im_func', sizes)
+            try:
+                sizes_callable = six.get_method_function(sizes)
+            except AttributeError:
+                sizes_callable = sizes
             sizes = sizes_callable(instance, related=related_object)
         sizes = [s for s in sizes if not getattr(s, 'is_alias', False)]
         ctx.update({
