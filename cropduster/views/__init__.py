@@ -29,11 +29,13 @@ from __future__ import division
 import os
 import copy
 import shutil
+import time
 
 import django
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
+from django.core.files.storage import default_storage
 from django.db.models import Q
 from django.forms.models import modelformset_factory
 from django.http import HttpResponse
@@ -229,7 +231,11 @@ def upload(request):
     if six.PY2 and isinstance(orig_file_path, unicode):
         orig_file_path = orig_file_path.encode('utf-8')
     orig_image = get_relative_media_url(orig_file_path)
-    img = PIL.Image.open(orig_file_path)
+    f = default_storage.open(orig_file_path)
+    f.seek(0)
+    img = PIL.Image.open(f)
+    img.filename = orig_file_path
+
     (w, h) = (orig_w, orig_h) = img.size
 
     if is_animated_gif(img) and not has_animated_gif_support():
@@ -296,7 +302,7 @@ def upload(request):
 
     img = PIL.Image.open(cropduster_image.image.path)
     preview_file_path = cropduster_image.get_image_path('_preview')
-    if not os.path.exists(preview_file_path):
+    if not default_storage.exists(preview_file_path):
         process_image(img, preview_file_path, fit_preview)
 
     thumb = cropduster_image.save_size(size, standalone=True)
@@ -343,7 +349,9 @@ def crop(request):
     crop_data = copy.deepcopy(crop_form.cleaned_data)
     db_image = Image(image=crop_data['orig_image'])
     try:
-        pil_image = PIL.Image.open(db_image.image.path)
+        with default_storage.open(db_image.image.name) as f:
+            pil_image = PIL.Image.open(f)
+            pil_image.filename = db_image.image.path
     except IOError:
         pil_image = None
 
@@ -419,9 +427,12 @@ def crop(request):
         elif thumb.pk and thumb.name and thumb.crop_w and thumb.crop_h:
             thumb_path = db_image.get_image_path(thumb.name, tmp=False)
             tmp_thumb_path = db_image.get_image_path(thumb.name, tmp=True)
-            if os.path.exists(thumb_path):
-                if not thumb_form.cleaned_data.get('changed') or not os.path.exists(tmp_thumb_path):
-                    shutil.copy(thumb_path, tmp_thumb_path)
+
+            if default_storage.exists(thumb_path):
+                if not thumb_form.cleaned_data.get('changed') or not default_storage.exists(tmp_thumb_path):
+                    with default_storage.open(thumb_path) as f:
+                        with default_storage.open(tmp_thumb_path, 'wb') as tmp_file:
+                            tmp_file.write(f.read())
 
         if not thumb.pk and not thumb.crop_w and not thumb.crop_h:
             if not len(thumbs_with_crops):

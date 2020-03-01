@@ -7,6 +7,7 @@ import hashlib
 import PIL.Image
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.files.storage import default_storage
 from django.conf import settings
 from django.db.models.fields.files import FieldFile, FileField
 from django.utils.functional import cached_property
@@ -88,11 +89,10 @@ class ImageFile(VirtualFieldFile):
             # url on other server? download it.
             self._path = self.download_image_url(path)
         else:
-            abs_path = get_media_path(path)
-            if os.path.exists(abs_path):
-                self._path = get_relative_media_url(abs_path)
+            if default_storage.exists(path):
+                self._path = path
 
-        if not self._path or not os.path.exists(os.path.join(settings.MEDIA_ROOT, self._path)):
+        if not self._path:
             self.name = None
             return
 
@@ -135,6 +135,6 @@ class ImageFile(VirtualFieldFile):
 
         image = Image.get_file_for_size(self, size_slug)
         if size_slug == 'preview':
-            if not os.path.exists(image.path):
+            if not default_storage.exists(image.path):
                 Image.save_preview_file(self, preview_w=self.preview_width, preview_h=self.preview_height)
         return image

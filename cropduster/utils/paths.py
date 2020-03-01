@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import os
 import re
 
+from django.core.files.storage import default_storage, FileSystemStorage
 from django.conf import settings
 from django.db.models.fields.files import FileField
 from django.utils import six
@@ -25,14 +26,12 @@ def get_upload_foldername(file_name, upload_to='%Y/%m'):
     if six.PY2 and isinstance(filename, unicode):
         filename = filename.encode('utf-8')
 
-    root_dir = os.path.splitext(filename)[0]
-    root_dir = dir_name = os.path.join(settings.MEDIA_ROOT, root_dir)
-    i = 1
-    while os.path.exists(dir_name):
-        if six.PY2:
-            dir_name = b'%s-%d' % (root_dir, i)
-        else:
-            dir_name = '%s-%d' % (root_dir, i)
-        i += 1
-    os.makedirs(dir_name)
-    return dir_name
+    image_dir = os.path.splitext(filename)[0]
+
+    if default_storage.__class__ == FileSystemStorage:
+        root_dir = os.path.join(settings.MEDIA_ROOT, image_dir)
+        dir_name = default_storage.get_available_name(root_dir, max_length=255)
+        image_dir = dir_name.replace(settings.MEDIA_ROOT + '/', '')
+        os.makedirs(dir_name)
+
+    return image_dir

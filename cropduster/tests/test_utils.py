@@ -67,12 +67,12 @@ class TestUtilsPaths(CropdusterTestCaseMediaMixin, test.TestCase):
         from ..utils import get_upload_foldername
 
         random = uuid.uuid4().hex
-        path = os.path.join(settings.MEDIA_ROOT, random)
+        path = random
         self.assertEqual(get_upload_foldername('my img.jpg', upload_to=random),
                          os.path.join(path, 'my_img'))
-        self.assertEqual(get_upload_foldername('my img.jpg', upload_to=random),
-                         os.path.join(path, 'my_img-1'))
-        shutil.rmtree(path)
+        self.assertNotEqual(get_upload_foldername('my img.jpg', upload_to=random),
+                         os.path.join(path, 'my_img'))
+        shutil.rmtree(os.path.join(settings.MEDIA_ROOT, random))
 
     def test_get_min_size(self):
         from ..utils import get_min_size

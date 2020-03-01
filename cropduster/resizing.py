@@ -7,12 +7,14 @@ import hashlib
 import tempfile
 
 import PIL.Image
+
 from PIL.ImageFile import ImageFile
 from django.db.models.fields.files import FieldFile
 from django.core.exceptions import ImproperlyConfigured
 from django.utils import six
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils.six.moves import filter
+from django.core.files.storage import default_storage
 
 from .settings import CROPDUSTER_RETAIN_METADATA
 
@@ -240,12 +242,13 @@ class Crop(object):
         self.image = image
         self.bounds = Box(0, 0, *image.size)
 
+
     def create_image(self, output_filename, width, height):
         from cropduster.utils import process_image, get_image_extension
 
         temp_file = tempfile.NamedTemporaryFile(suffix=get_image_extension(self.image), delete=False)
         temp_filename = temp_file.name
-        with open(self.image.filename, mode='rb') as f:
+        with default_storage.open(self.image.filename, mode='rb') as f:
             temp_file.write(f.read())
         temp_file.seek(0)
         image = PIL.Image.open(temp_filename)
