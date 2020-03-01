@@ -7,6 +7,7 @@ import PIL.Image
 
 from django import forms
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.files.storage import default_storage
 from django.conf import settings
 from django.forms.forms import NON_FIELD_ERRORS
 from django.forms.models import BaseModelFormSet
@@ -50,6 +51,7 @@ def clean_upload_data(data):
         extension = get_image_extension(pil_image)
 
     upload_to = data['upload_to'] or None
+
     folder_path = get_upload_foldername(image.name, upload_to=upload_to)
 
     (w, h) = (orig_w, orig_h) = pil_image.size
@@ -76,13 +78,15 @@ def clean_upload_data(data):
     # File is good, get rid of the tmp file
     orig_file_path = os.path.join(folder_path, 'original' + extension)
     image.seek(0)
-    image_contents = image.read()
-    with open(os.path.join(settings.MEDIA_ROOT, orig_file_path), 'wb+') as f:
-        f.write(image_contents)
     md5_hash = hashlib.md5()
+    with default_storage.open(orig_file_path, 'wb') as f:
+        image_contents = image.read()
+        f.write(image_contents)
     md5_hash.update(image_contents)
+    with default_storage.open(orig_file_path) as f:
+        data['image'] = f
     data['md5'] = md5_hash.hexdigest()
-    data['image'] = open(os.path.join(settings.MEDIA_ROOT, orig_file_path), mode='rb')
+
     return data
 
 

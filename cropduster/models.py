@@ -14,6 +14,7 @@ from django.db import connection, models
 from django.utils import six
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils.six.moves import xrange
+from django.core.files.storage import default_storage
 
 import PIL.Image
 
@@ -94,9 +95,14 @@ class Thumb(models.Model):
     def save(self, *args, **kwargs):
         if self.pk and self.image_id:
             try:
-                os.rename(
-                    self.image.get_image_path(self.name, tmp=True),
-                    self.image.get_image_path(self.name))
+                # save new file without tmp suffix
+                tmp_image_path = self.image.get_image_path(self.name, tmp=True)
+                image_path = self.image.get_image_path(self.name)
+                with default_storage.open(tmp_image_path) as tmp_file:
+                    with default_storage.open(image_path, 'wb') as f:
+                        f.write(tmp_file.read())
+                # delete tmp file
+                default_storage.delete(tmp_image_path)
             except (IOError, OSError):
                 pass
         return super(Thumb, self).save(*args, **kwargs)
@@ -385,7 +391,7 @@ class Image(models.Model):
                 return (thumb.width, thumb.height)
 
         # Get the original size
-        if not self.image or not os.path.exists(safe_str_path(self.image.path)):
+        if not self.image or not default_storage.exists(safe_str_path(self.image.path)):
             return (0, 0)
         elif self.width and self.height:
             return (self.width, self.height)
@@ -427,7 +433,10 @@ class Image(models.Model):
         if not image and not self.image:
             raise Exception("Cannot save sizes without an image")
 
-        image = image or PIL.Image.open(safe_str_path(self.image.path))
+        if not image:
+            with default_storage.open(self.image.path) as f:
+                image = PIL.Image.open(f)
+                image.filename = self.image.path
 
         if standalone:
             if not StandaloneImage:
@@ -435,7 +444,7 @@ class Image(models.Model):
             return self._save_standalone_thumb(size, image, thumb)
 
         for sz in Size.flatten([size]):
-            if self.pk and skip_existing and os.path.exists(self.get_image_path(sz.name)):
+            if self.pk and skip_existing and default_storage.exists(self.get_image_path(sz.name)):
                 try:
                     existing_thumb = self.thumbs.get(name=sz.name)
                 except Thumb.DoesNotExist:
@@ -471,7 +480,8 @@ class Image(models.Model):
             w=(size.w or thumb.crop_w),
             h=(size.h or thumb.crop_h))
         thumb_image = thumb_crop.create_image(thumb_path, width=thumb.width, height=thumb.height)
-        thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
+        # TODO make add_xmp_to_crop S3 compatible
+        # thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
         md5 = hashlib.md5()
         with open(thumb_path, mode='rb') as f:
             md5.update(f.read())
@@ -499,7 +509,9 @@ class Image(models.Model):
         thumb_image = thumb_crop.create_image(thumb_path, width=thumb.width, height=thumb.height)
 
         if StandaloneImage:
-            thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
+            # TODO make add_xmp_to_crop S3 compatible 
+            # thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
+            pass
 
         if commit:
             thumb.save()

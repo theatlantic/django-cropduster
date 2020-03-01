@@ -1,5 +1,6 @@
 from __future__ import division
 
+import os
 import warnings
 import math
 from distutils.version import LooseVersion
@@ -7,6 +8,7 @@ from distutils.version import LooseVersion
 import PIL.Image
 from PIL import ImageFile, JpegImagePlugin
 
+from django.core.files.storage import default_storage
 from django.utils import six
 from django.utils.six.moves import xrange
 
@@ -145,9 +147,13 @@ def process_image(im, save_filename=None, callback=lambda i: i, nq=0, save_param
             save_params.setdefault('quality', get_jpeg_quality(new_images[0].size[0], new_images[0].size[1]))
         if im.format in ('JPEG', 'PNG') and JPEG_SAVE_ICC_SUPPORTED:
             save_params.setdefault('icc_profile', im.info.get('icc_profile'))
-        new_images[0].save(save_filename, **save_params)
-
-        return PIL.Image.open(save_filename)
+        img = new_images[0]
+        with default_storage.open(save_filename, 'wb') as f:
+            img.save(f, format=im.format, **save_params)
+        f = default_storage.open(save_filename)
+        pil_image = PIL.Image.open(f)
+        pil_image.filename = save_filename
+        return pil_image
 
     return new_images[0]
 
