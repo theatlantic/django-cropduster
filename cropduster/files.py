@@ -135,6 +135,6 @@ class ImageFile(VirtualFieldFile):
 
         image = Image.get_file_for_size(self, size_slug)
         if size_slug == 'preview':
-            if not default_storage.exists(image.path):
+            if not default_storage.exists(image.name):
                 Image.save_preview_file(self, preview_w=self.preview_width, preview_h=self.preview_height)
         return image
