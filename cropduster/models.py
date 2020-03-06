@@ -14,7 +14,7 @@ from django.db import connection, models
 from django.utils import six
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils.six.moves import xrange
-from django.core.files.storage import default_storage
+from django.core.files.storage import default_storage, FileSystemStorage
 
 import PIL.Image
 
@@ -434,7 +434,7 @@ class Image(models.Model):
             raise Exception("Cannot save sizes without an image")
 
         if not image:
-            with default_storage.open(self.image.path) as f:
+            with default_storage.open(self.image.name) as f:
                 image = PIL.Image.open(f)
                 image.filename = self.image.path
 
@@ -480,10 +480,9 @@ class Image(models.Model):
             w=(size.w or thumb.crop_w),
             h=(size.h or thumb.crop_h))
         thumb_image = thumb_crop.create_image(thumb_path, width=thumb.width, height=thumb.height)
-        # TODO make add_xmp_to_crop S3 compatible
-        # thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
+        thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
         md5 = hashlib.md5()
-        with open(thumb_path, mode='rb') as f:
+        with default_storage.open(thumb_path, mode='rb') as f:
             md5.update(f.read())
         thumb.name = md5.hexdigest()[0:9]
         os.rename(thumb_path, self.get_image_path(thumb.name))
@@ -509,9 +508,7 @@ class Image(models.Model):
         thumb_image = thumb_crop.create_image(thumb_path, width=thumb.width, height=thumb.height)
 
         if StandaloneImage:
-            # TODO make add_xmp_to_crop S3 compatible 
-            # thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
-            pass
+            thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
 
         if commit:
             thumb.save()

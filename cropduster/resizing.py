@@ -364,6 +364,7 @@ class Crop(object):
         return Crop(Box(x1, y1, x2, y2), self.image)
 
     def add_xmp_to_crop(self, cropped_image, size, original_image=None):
+        from cropduster.utils import get_image_extension
         try:
             from cropduster.standalone.metadata import libxmp, file_format_supported
         except ImproperlyConfigured:
@@ -399,14 +400,21 @@ class Crop(object):
         if not image_path:
             return
 
-        xmp_file = libxmp.XMPFiles(file_path=image_path, open_forupdate=True)
+        temp_file = tempfile.NamedTemporaryFile(suffix=get_image_extension(self.image), delete=False)
+        with default_storage.open(image_path, mode='rb') as f:
+            temp_file.write(f.read())
+        temp_file.seek(0)
+        xmp_file = libxmp.XMPFiles(file_path=temp_file.name, open_forupdate=True)
 
         original_metadata = None
         if original_image and CROPDUSTER_RETAIN_METADATA:
             original_image_path = get_image_path(original_image)
             if original_image_path:
+                original_temp_file = tempfile.NamedTemporaryFile(suffix=get_image_extension(original_image), delete=False)
+                with default_storage.open(original_image_path, mode='rb') as f:
+                    original_temp_file.write(f.read())
                 try:
-                    original_xmp_file = libxmp.XMPFiles(file_path=original_image_path)
+                    original_xmp_file = libxmp.XMPFiles(file_path=original_temp_file.name)
                     original_metadata = original_xmp_file.get_xmp()
                 except:
                     pass
@@ -423,6 +431,11 @@ class Crop(object):
 
         xmp_file.put_xmp(xmp_meta)
         xmp_file.close_file()
+        temp_file_path = temp_file.name
+        temp_file.close()
+        with open(temp_file_path, 'rb') as tmp_file:
+            with default_storage.open(image_path, 'wb') as f:
+                f.write(tmp_file.read())
 
     def generate_xmp(self, size, original_metadata=None):
         from cropduster.standalone.metadata import libxmp
@@ -433,7 +446,7 @@ class Crop(object):
         NS_CROP = "http://ns.thealtantic.com/cropduster/1.0/"
 
         md5 = hashlib.md5()
-        with open(self.image.filename, mode='rb') as f:
+        with default_storage.open(self.image.filename, mode='rb') as f:
             md5.update(f.read())
         digest = md5.hexdigest()
 
