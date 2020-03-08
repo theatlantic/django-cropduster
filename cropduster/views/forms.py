@@ -79,11 +79,10 @@ def clean_upload_data(data):
     orig_file_path = os.path.join(folder_path, 'original' + extension)
     image.seek(0)
     md5_hash = hashlib.md5()
-    with default_storage.open(orig_file_path, 'wb') as f:
-        image_contents = image.read()
-        f.write(image_contents)
-    md5_hash.update(image_contents)
+    default_storage.save(orig_file_path, image)
     with default_storage.open(orig_file_path) as f:
+        md5_hash.update(f.read())
+        f.seek(0)
         data['image'] = f
     data['md5'] = md5_hash.hexdigest()
 

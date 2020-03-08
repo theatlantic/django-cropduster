@@ -26,12 +26,20 @@ def get_upload_foldername(file_name, upload_to='%Y/%m'):
     if six.PY2 and isinstance(filename, unicode):
         filename = filename.encode('utf-8')
 
-    image_dir = os.path.splitext(filename)[0]
-
-    if default_storage.__class__ == FileSystemStorage:
-        root_dir = os.path.join(settings.MEDIA_ROOT, image_dir)
-        dir_name = default_storage.get_available_name(root_dir, max_length=255)
-        image_dir = dir_name.replace(settings.MEDIA_ROOT + '/', '')
-        os.makedirs(dir_name)
+    root_dir = os.path.splitext(filename)[0]
+    parent_dir, _, basename = root_dir.rpartition('/')
+    image_dir = ''
+    i = 1
+    dir_name = basename
+    while not image_dir:
+        try:
+            sub_dirs, _ = default_storage.listdir(parent_dir)
+            while dir_name in sub_dirs:
+                dir_name = "%s-%d" % (basename, i)
+                i += 1
+        except OSError:
+            os.makedirs(os.path.join(MEDIA_ROOT, parent_dir))
+        else:
+            image_dir = os.path.join(parent_dir, dir_name)
 
     return image_dir
