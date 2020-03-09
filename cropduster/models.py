@@ -482,7 +482,7 @@ class Image(models.Model):
         thumb_image = thumb_crop.create_image(thumb_path, width=thumb.width, height=thumb.height)
         thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
         md5 = hashlib.md5()
-        with open(thumb_path, mode='rb') as f:
+        with default_storage.open(thumb_path, mode='rb') as f:
             md5.update(f.read())
         thumb.name = md5.hexdigest()[0:9]
         os.rename(thumb_path, self.get_image_path(thumb.name))
