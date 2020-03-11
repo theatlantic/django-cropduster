@@ -58,9 +58,9 @@ class CropDusterImageFieldFile(ImageFieldFile):
         Thumb = compat_rel_to(Image._meta.get_field("thumbs"))
 
         box = Box(0, 0, self.width, self.height)
-        crop_box = Crop(box, self.path)
+        crop_box = Crop(box, self.name)
 
-        best_fit = size.fit_to_crop(crop_box, original_image=self.path)
+        best_fit = size.fit_to_crop(crop_box, original_image=self.name)
         fit_box = best_fit.box
         crop_thumb = Thumb(**{
             "name": size.name,

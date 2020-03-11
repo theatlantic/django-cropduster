@@ -92,6 +92,10 @@ class Thumb(models.Model):
     def path(self):
         return self.image_file.path if self.image_file else ''
 
+    @property
+    def image_name(self):
+        return self.image_file.name if self.image_file else ''
+
     def save(self, *args, **kwargs):
         if self.pk and self.image_id:
             try:
@@ -334,7 +338,7 @@ class Image(models.Model):
         if not converted:
             return u''
         else:
-            return converted.path
+            return converted.name
 
     def save(self, **kwargs):
         self.date_modified = datetime.now()
@@ -436,7 +440,7 @@ class Image(models.Model):
         if not image:
             with default_storage.open(self.image.name) as f:
                 image = PIL.Image.open(f)
-                image.filename = self.image.path
+                image.filename = self.image.name
 
         if standalone:
             if not StandaloneImage:
