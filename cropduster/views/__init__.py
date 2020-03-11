@@ -26,6 +26,7 @@ back onto fields on the index page's forms / formsets.
 """
 from __future__ import division
 
+from io import BytesIO
 import os
 import copy
 import shutil
@@ -231,10 +232,10 @@ def upload(request):
     if six.PY2 and isinstance(orig_file_path, six.text_type):
         orig_file_path = orig_file_path.encode('utf-8')
     orig_image = get_relative_media_url(orig_file_path)
-    f = default_storage.open(orig_file_path)
-    f.seek(0)
-    img = PIL.Image.open(f)
-    img.filename = orig_image
+
+    with default_storage.open(orig_image, mode='rb') as f:
+        img = PIL.Image.open(BytesIO(f.read()))
+        img.name = f.name
 
     (w, h) = (orig_w, orig_h) = img.size
 
@@ -300,7 +301,10 @@ def upload(request):
         data['crop']['orig_image'] = data['orig_image'] = cropduster_image.image.name
         data['url'] = cropduster_image.get_image_url('_preview')
 
-    img = PIL.Image.open(cropduster_image.image.path)
+    with cropduster_image.image as f:
+        f.open()
+        img = PIL.Image.open(BytesIO(f.read()))
+        img.filename = f.name
     preview_file_path = cropduster_image.get_image_path('_preview')
     if not default_storage.exists(preview_file_path):
         process_image(img, preview_file_path, fit_preview)
@@ -349,9 +353,10 @@ def crop(request):
     crop_data = copy.deepcopy(crop_form.cleaned_data)
     db_image = Image(image=crop_data['orig_image'])
     try:
-        with default_storage.open(db_image.image.name) as f:
-            pil_image = PIL.Image.open(f)
-            pil_image.filename = db_image.image.path
+        with db_image.image as f:
+            f.open()
+            pil_image = PIL.Image.open(BytesIO(f.read()))
+            pil_image.filename = f.name
     except IOError:
         pil_image = None
 
