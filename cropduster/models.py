@@ -434,7 +434,7 @@ class Image(models.Model):
             raise Exception("Cannot save sizes without an image")
 
         if not image:
-            with default_storage.open(self.image.path) as f:
+            with default_storage.open(self.image.name) as f:
                 image = PIL.Image.open(f)
                 image.filename = self.image.path
 
