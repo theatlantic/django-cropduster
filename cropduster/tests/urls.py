@@ -15,8 +15,6 @@ if django.VERSION < (1, 9):
 else:
     urlpatterns += [url(r'^admin/', admin.site.urls)]
 
-urlpatterns += static.static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
 try:
     import grappelli.urls
 except ImportError:
