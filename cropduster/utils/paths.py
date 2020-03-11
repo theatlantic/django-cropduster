@@ -12,9 +12,6 @@ from django.utils import six
 __all__ = ('get_upload_foldername')
 
 
-MEDIA_ROOT = os.path.abspath(settings.MEDIA_ROOT)
-
-
 def get_upload_foldername(file_name, upload_to='%Y/%m'):
     # Generate date based path to put uploaded file.
     file_field = FileField(upload_to=upload_to)
@@ -38,7 +35,7 @@ def get_upload_foldername(file_name, upload_to='%Y/%m'):
                 dir_name = "%s-%d" % (basename, i)
                 i += 1
         except OSError:
-            os.makedirs(os.path.join(MEDIA_ROOT, parent_dir))
+            os.makedirs(os.path.join(settings.MEDIA_ROOT, parent_dir))
         else:
             image_dir = os.path.join(parent_dir, dir_name)
 

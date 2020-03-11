@@ -20,7 +20,7 @@ from .settings import CROPDUSTER_RETAIN_METADATA
 
 
 if hasattr(six.moves.builtins, 'file'):
-    BUILTIN_FILE_TYPE = file
+    BUILTIN_FILE_TYPE = six.moves.builtins.file
 else:
     from io import IOBase as BUILTIN_FILE_TYPE
 
@@ -40,7 +40,7 @@ class SizeAlias(object):
         self.to = to
 
     def __str__(self):
-        name = u'Size %s => %s' % (self.alias, self.to)
+        return u'Size %s => %s' % (self.alias, self.to)
 
     def add_to_sizes_dict(self, sizes):
         keys = re.split(r'(?<!\\)\.', self.alias)
@@ -236,12 +236,19 @@ class Crop(object):
 
     def __init__(self, box, image):
         if isinstance(image, six.string_types):
-            image = PIL.Image.open(image)
+            self._fh = default_storage.open(image, mode='rb')
+            image = PIL.Image.open(self._fh)
 
         self.box = box
         self.image = image
         self.bounds = Box(0, 0, *image.size)
 
+    def close(self):
+        if hasattr(self, '_fh') and not self._fh.closed:
+            self._fh.close()
+
+    def __del__(self):
+        self.close()
 
     def create_image(self, output_filename, width, height):
         from cropduster.utils import process_image, get_image_extension

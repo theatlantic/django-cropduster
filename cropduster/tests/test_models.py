@@ -1,8 +1,10 @@
 from __future__ import absolute_import, division
 
+from io import BytesIO
 import os
 import PIL
 
+from django.core.files.storage import default_storage
 from django.test import TestCase
 from django.contrib.contenttypes.models import ContentType
 from django.utils.six.moves import range
@@ -49,15 +51,17 @@ class TestImage(CropdusterTestCaseMediaMixin, TestCase):
                 ratio = article.lead_image.height / article.lead_image.width
                 self.assertAlmostEqual(thumb.height, ratio * size.width, delta=1)
             self.assertEqual(thumb.image.image, article.lead_image.related_object.image)
-            self.assertTrue(os.path.exists(thumb.path))
-            self.assertEqual((thumb.width, thumb.height), PIL.Image.open(thumb.path).size)
+            self.assertTrue(default_storage.exists(thumb.image_name))
+            with default_storage.open(thumb.image_name, mode='rb') as f:
+                self.assertEqual((thumb.width, thumb.height), PIL.Image.open(f).size)
 
         image = PIL.Image.open(os.path.join(self.TEST_IMG_DIR, 'img.jpg'))
         image.thumbnail((50, 50))
-        image.save(os.path.join(self.TEST_IMG_DIR, 'new-img.jpg'))
-        new_image_path = self.create_unique_image('new-img.jpg')
+        buf = BytesIO()
+        image.save(buf, format=image.format)
+        default_storage.save('new-img.jpg', buf)
         article = Article.objects.create(
-            title="Img Too Small", author=self.author, lead_image=new_image_path)
+            title="Img Too Small", author=self.author, lead_image='new-img.jpg')
         self.assertRaises(CropDusterResizeException, article.lead_image.generate_thumbs)
 
     def test_prefetch_related_with_images(self):
@@ -151,8 +155,8 @@ class TestImage(CropdusterTestCaseMediaMixin, TestCase):
                 'article_set__alt_image__thumbs')
             for author in authors:
                 for article in author.article_set.all():
-                    self.assertTrue(article.lead_image.path.endswith('jpg'))
-                    self.assertTrue(article.alt_image.path.endswith('png'))
+                    self.assertTrue(article.lead_image.name.endswith('jpg'))
+                    self.assertTrue(article.alt_image.name.endswith('png'))
                     for thumb in article.lead_image.related_object.thumbs.all():
                         self.assertIn(thumb.name, lead_sizes)
                     for thumb in article.alt_image.related_object.thumbs.all():
