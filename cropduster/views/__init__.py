@@ -228,13 +228,13 @@ def upload(request):
     is_standalone = bool(form_data.get('standalone'))
 
     orig_file_path = form_data['image'].name
-    if six.PY2 and isinstance(orig_file_path, unicode):
+    if six.PY2 and isinstance(orig_file_path, six.text_type):
         orig_file_path = orig_file_path.encode('utf-8')
     orig_image = get_relative_media_url(orig_file_path)
     f = default_storage.open(orig_file_path)
     f.seek(0)
     img = PIL.Image.open(f)
-    img.filename = orig_file_path
+    img.filename = orig_image
 
     (w, h) = (orig_w, orig_h) = img.size
 

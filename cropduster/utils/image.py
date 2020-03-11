@@ -1,5 +1,6 @@
 from __future__ import division
 
+from io import BytesIO
 import os
 import warnings
 import math
@@ -148,10 +149,13 @@ def process_image(im, save_filename=None, callback=lambda i: i, nq=0, save_param
         if im.format in ('JPEG', 'PNG') and JPEG_SAVE_ICC_SUPPORTED:
             save_params.setdefault('icc_profile', im.info.get('icc_profile'))
         img = new_images[0]
+        buf = BytesIO()
+        img.save(buf, format=im.format, **save_params)
         with default_storage.open(save_filename, 'wb') as f:
-            img.save(f, format=im.format, **save_params)
-        f = default_storage.open(save_filename)
-        pil_image = PIL.Image.open(f)
+            f.write(buf.getvalue())
+        with default_storage.open(save_filename, mode='rb') as f:
+            content = f.read()
+            pil_image = PIL.Image.open(BytesIO(content))
         pil_image.filename = save_filename
         return pil_image
 
