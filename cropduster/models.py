@@ -2,6 +2,7 @@ from __future__ import division
 
 import hashlib
 import random
+from io import BytesIO
 import os
 import time
 from datetime import datetime
@@ -287,7 +288,10 @@ class Image(models.Model):
 
     @classmethod
     def save_preview_file(cls, image_file, preview_w=None, preview_h=None):
-        pil_img = PIL.Image.open(safe_str_path(image_file.path))
+        with image_file as f:
+            f.open()
+            pil_image = PIL.Image.open(BytesIO(f.read()))
+            pil_image.filename = f.name
         orig_w, orig_h = pil_img.size
 
         preview_w = preview_w or cropduster_settings.CROPDUSTER_PREVIEW_WIDTH
@@ -306,7 +310,7 @@ class Image(models.Model):
             return preview_img
 
         preview_file = cls.get_file_for_size(image_file, '_preview')
-        process_image(pil_img, safe_str_path(preview_file.path), fit_preview)
+        process_image(pil_img, safe_str_path(preview_file.name), fit_preview)
         return preview_file
 
     def save_preview(self, preview_w=None, preview_h=None):
