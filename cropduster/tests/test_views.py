@@ -1,14 +1,13 @@
 import os
 
 from django import test
+from django.core.files.storage import default_storage
 try:
     from django.urls import reverse
 except ImportError:
     from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User
 from django.http import HttpRequest
-
-from generic_plus.utils import get_media_path
 
 from cropduster import views
 from cropduster.utils import json
@@ -109,8 +108,6 @@ class TestUpload(CropdusterViewTestRunner):
         request = self.factory.post(reverse('cropduster-upload'), data)
         request.user = self.user
         response = views.upload(request)
-        data = json.loads(response.content)
-        uploaded_img_path = get_media_path(data['url'])
-
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(os.path.exists(uploaded_img_path))
+        data = json.loads(response.content)
+        self.assertTrue(default_storage.exists(data['orig_image']))

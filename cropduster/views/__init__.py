@@ -425,6 +425,7 @@ def crop(request):
 
             for name, new_thumb in six.iteritems(new_thumbs):
                 thumb_data = dict([(k, getattr(new_thumb, k)) for k in json_thumb_fields])
+                thumb_data['url'] = db_image.get_image_url(name, tmp=not(new_thumb.image_id))
                 crop_data['thumbs'].update({name: thumb_data})
                 if new_thumb.reference_thumb_id:
                     continue

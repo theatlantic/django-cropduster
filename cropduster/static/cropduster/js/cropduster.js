@@ -114,7 +114,12 @@ window.CropDuster = {};
 
     var image_css = function(src, width, height, opts, is_ie) {
         var css = '';
-        src = encodeURI(src || '') + '?v=' + randomDigits(9);
+        src = src || '';
+        if (src.indexOf('%') === -1) {
+          src = encodeURI(src);
+          var q = src.indexOf('?') > -1 ? '&' : '?';
+          src = encodeURI(src || '') + q + 'v=' + randomDigits(9);
+        }
         css += 'background-image:url("' + src + '");';
 
         if (width > 750) {
@@ -219,6 +224,7 @@ window.CropDuster = {};
                     'value': thumb.id,
                     'data-width': thumb.width,
                     'data-height': thumb.height,
+                    'data-url': thumb.url,
                     'data-tmp-file': 'true',
                     'selected': 'selected'
                 });
@@ -351,7 +357,7 @@ window.CropDuster = {};
                 // double slashes that don't follow a colon.
                 url = url.replace(/(:)?\/+/g, function($0, $1) { return $1 ? $0 : '/'; });
                 thumbData[slug] = {
-                    'image_url': url,
+                    'image_url': data.url,
                     'size_slug': slug,
                     'width': data.width,
                     'height': data.height
