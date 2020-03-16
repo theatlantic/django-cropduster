@@ -83,9 +83,15 @@ class CropDusterThumbWidget(forms.SelectMultiple):
             except (TypeError, self.model.DoesNotExist):
                 return {}
 
+        if thumb.image_id:
+            thumb_url = thumb.image.get_image_url(size_name=thumb.name)
+        else:
+            thumb_url = None
+
         return {
             'data-width': thumb.width,
             'data-height': thumb.height,
+            'data-url': thumb_url,
             'data-tmp-file': json.dumps(not(thumb.image_id)),
         }
 
