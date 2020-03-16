@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import os
 
+from django.core.files.storage import default_storage
 from selenosis import AdminSelenosisTestCase
 
 from cropduster.models import Image, Size
@@ -42,7 +43,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
         with self.switch_to_popup_window():
             with self.visible_selector('#id_image') as el:
-                el.send_keys(os.path.join(self.TEST_IMG_DIR, 'img.jpg'))
+                el.send_keys(os.path.join(self.TEST_IMG_DIR, 'img.png'))
             with self.clickable_selector('#upload-button') as el:
                 el.click()
             with self.clickable_selector('#crop-button') as el:
@@ -52,7 +53,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
         author = Author.objects.all()[0]
         sizes = list(Size.flatten(Author.HEADSHOT_SIZES))
-        self.assertTrue(bool(author.headshot.path))
+        self.assertTrue(bool(author.headshot.name))
 
         image = author.headshot.related_object
         thumbs = image.thumbs.all()
@@ -83,7 +84,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
             'image_id': image.pk,
             'id': auto_thumb.pk,
         })
-        self.assertTrue(os.path.exists(auto_thumb.path))
+        self.assertTrue(default_storage.exists(auto_thumb.image_name))
 
     def test_addform_multiple_image(self):
         author = Author.objects.create(name="Mark Twain")
@@ -129,13 +130,13 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
         lead_sizes = list(Size.flatten(Article.LEAD_IMAGE_SIZES))
         alt_sizes = list(Size.flatten(Article.ALT_IMAGE_SIZES))
 
-        self.assertTrue(article.lead_image.path.endswith('.jpg'))
+        self.assertTrue(article.lead_image.name.endswith('.jpg'))
         self.assertEqual(len(article.lead_image.related_object.thumbs.all()), len(lead_sizes))
-        self.assertTrue(article.alt_image.path.endswith('.png'))
+        self.assertTrue(article.alt_image.name.endswith('.png'))
         self.assertEqual(len(article.alt_image.related_object.thumbs.all()), len(alt_sizes))
 
     def test_changeform_single_image(self):
-        image_path = self.create_unique_image('img.jpg')
+        image_path = self.create_unique_image('img.png')
         author = Author.objects.create(name="Samuel Langhorne Clemens",
             headshot=image_path)
         Image.objects.create(image=image_path, content_object=author)
@@ -143,6 +144,10 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
         author.headshot.generate_thumbs()
 
         self.load_admin(author)
+
+        preview_image_el = self.selenium.find_element_by_css_selector('#headshot-group .cropduster-image span')
+        src_image_path = os.path.join(self.TEST_IMG_DIR, 'img.png')
+        self.assertImageColorEqual(preview_image_el, src_image_path)
 
         elem = self.selenium.find_element_by_id('id_name')
         elem.clear()

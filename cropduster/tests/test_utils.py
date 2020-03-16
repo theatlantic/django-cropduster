@@ -1,8 +1,12 @@
+from io import open, BytesIO
 import os
 import shutil
+import tempfile
+
 from PIL import Image
 
 from django import test
+from django.core.files.storage import default_storage
 from django.conf import settings
 
 from .helpers import CropdusterTestCaseMediaMixin
@@ -18,20 +22,24 @@ class TestUtilsImage(CropdusterTestCaseMediaMixin, test.TestCase):
 
     def test_get_image_extension(self):
         from ..utils import get_image_extension
-        shutil.copyfile(
-            os.path.join(self.TEST_IMG_DIR, 'img.jpg'),
-            os.path.join(self.TEST_IMG_DIR, 'jpg_bad_ext.pdf'))
 
-        shutil.copyfile(
-            os.path.join(self.TEST_IMG_DIR, 'img.png'),
-            os.path.join(self.TEST_IMG_DIR, 'png_bad_ext.jpg'))
+        tmp_jpg_bad_ext_pdf = tempfile.NamedTemporaryFile(suffix='.pdf')
+        tmp_png_bad_ext_jpg = tempfile.NamedTemporaryFile(suffix='.png')
+
+        with open(os.path.join(self.TEST_IMG_DIR, 'img.jpg'), mode='rb') as f:
+            tmp_jpg_bad_ext_pdf.write(f.read())
+            tmp_jpg_bad_ext_pdf.seek(0)
+
+        with open(os.path.join(self.TEST_IMG_DIR, 'img.png'), mode='rb') as f:
+            tmp_png_bad_ext_jpg.write(f.read())
+            tmp_png_bad_ext_jpg.seek(0)
 
         imgs = [
             (self._get_img('img.jpg'), '.jpg'),
             (self._get_img('img.png'), '.png'),
             (self._get_img('animated.gif'), '.gif'),
-            (self._get_img('jpg_bad_ext.pdf'), '.jpg'),
-            (self._get_img('png_bad_ext.jpg'), '.png'),
+            (Image.open(tmp_jpg_bad_ext_pdf.name), '.jpg'),
+            (Image.open(tmp_png_bad_ext_jpg.name), '.png'),
         ]
         for img, ext in imgs:
             self.assertEqual(get_image_extension(img), ext)
@@ -68,11 +76,10 @@ class TestUtilsPaths(CropdusterTestCaseMediaMixin, test.TestCase):
 
         path = random = uuid.uuid4().hex
         folder_path = get_upload_foldername('my img.jpg', upload_to=path)
-        self.assertEqual(folder_path, os.path.join(path, 'my_img'))
-        os.mkdir(os.path.join(settings.MEDIA_ROOT, folder_path))
+        self.assertEqual(folder_path, "%s/my_img" % (path))
+        default_storage.save("%s/original.jpg" % folder_path, BytesIO(b''))
         self.assertEqual(get_upload_foldername('my img.jpg', upload_to=path),
                          os.path.join(path, 'my_img-1'))
-        shutil.rmtree(os.path.join(settings.MEDIA_ROOT, path))
 
     def test_get_min_size(self):
         from ..utils import get_min_size

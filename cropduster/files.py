@@ -4,8 +4,7 @@ import os
 import re
 import hashlib
 
-import PIL.Image
-
+from django.core.files.images import get_image_dimensions
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.storage import default_storage
 from django.conf import settings
@@ -45,11 +44,11 @@ class VirtualFieldFile(FieldFile):
     @cached_property
     def dimensions(self):
         try:
-            pil_image = PIL.Image.open(self.path)
+            close = self.closed
+            self.open()
+            return get_image_dimensions(self, close=close)
         except:
             return (0, 0)
-        else:
-            return pil_image.size
 
     @cached_property
     def width(self):
