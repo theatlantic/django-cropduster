@@ -491,14 +491,13 @@ class Image(models.Model):
         thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
         md5 = hashlib.md5()
         with default_storage.open(thumb_path, mode='rb') as f:
-            md5.update(f.read())
+            image_contents = f.read()
+        md5.update(image_contents)
         thumb.name = md5.hexdigest()[0:9]
-        old_image_path = thumb_path
         new_path = self.get_image_path(thumb.name)
-        with default_storage.open(old_image_path) as old_file:
-            with default_storage.open(new_path, 'wb') as f:
-                f.write(old_file.read())
-        default_storage.delete(old_image_path)
+        with default_storage.open(new_path, 'wb') as f:
+            f.write(image_contents)
+        default_storage.delete(thumb_path)
         return thumb
 
     def _save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False, commit=True):

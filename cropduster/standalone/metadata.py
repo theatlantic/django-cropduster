@@ -2,8 +2,10 @@ import os
 import re
 import ctypes
 import PIL.Image
+import tempfile
 
 from django.core.exceptions import ImproperlyConfigured
+from django.core.files.storage import default_storage
 from django.utils import six
 
 from cropduster.files import ImageFile
@@ -176,8 +178,13 @@ class MetadataDict(dict):
     """
 
     def __init__(self, file_path):
-        self.file_path = file_path
-        ns_dict = file_to_dict(file_path)
+        self.tmp_file = tempfile.NamedTemporaryFile()
+        with default_storage.open(file_path) as f:
+            self.tmp_file.write(f.read())
+            self.tmp_file.flush()
+            self.tmp_file.seek(0)
+        self.file_path = self.tmp_file.name
+        ns_dict = file_to_dict(self.file_path)
         self.clean(ns_dict)
 
     def clean(self, ns_dict):
@@ -301,4 +308,4 @@ class MetadataImageFile(ImageFile):
     def __init__(self, *args, **kwargs):
         super(MetadataImageFile, self).__init__(*args, **kwargs)
         if self:
-            self.metadata = MetadataDict(self.path)
+            self.metadata = MetadataDict(self.name)
