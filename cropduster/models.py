@@ -493,7 +493,12 @@ class Image(models.Model):
         with default_storage.open(thumb_path, mode='rb') as f:
             md5.update(f.read())
         thumb.name = md5.hexdigest()[0:9]
-        os.rename(thumb_path, self.get_image_path(thumb.name))
+        old_image_path = thumb_path
+        new_path = self.get_image_path(thumb.name)
+        with default_storage.open(old_image_path) as old_file:
+            with default_storage.open(new_path, 'wb') as f:
+                f.write(old_file.read())
+        default_storage.delete(old_image_path)
         return thumb
 
     def _save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False, commit=True):
