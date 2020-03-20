@@ -290,8 +290,8 @@ class Image(models.Model):
     def save_preview_file(cls, image_file, preview_w=None, preview_h=None):
         with image_file as f:
             f.open()
-            pil_image = PIL.Image.open(BytesIO(f.read()))
-            pil_image.filename = f.name
+            pil_img = PIL.Image.open(BytesIO(f.read()))
+            pil_img.filename = f.name
         orig_w, orig_h = pil_img.size
 
         preview_w = preview_w or cropduster_settings.CROPDUSTER_PREVIEW_WIDTH
