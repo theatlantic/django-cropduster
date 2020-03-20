@@ -3,7 +3,9 @@ import os
 import tempfile
 import subprocess
 
+from io import BytesIO
 from cropduster.settings import CROPDUSTER_GIFSICLE_PATH
+from PIL import ImageSequence
 
 
 logger = logging.getLogger(__name__)
@@ -19,14 +21,12 @@ class GifsicleImage(object):
         self.pil_image = im
         self.size = im.size
 
-        filename = getattr(im, 'filename', None)
-        if not filename or not os.path.exists(filename):
-            temp_file = tempfile.NamedTemporaryFile(suffix='.gif')
-            filename = temp_file.name
-            im.save(filename)
-
-        self._filename = filename
-
+        buf = BytesIO()
+        # pass list of durations to set the duration for each frame separately
+        duration = [frame.info['duration'] for frame in ImageSequence.Iterator(im)]
+        im.info['duration'] = duration
+        im.save(buf, save_all=True, format=im.format, duration=duration)
+        self.src_bytes = buf.getvalue()
         self.cmd_args = [CROPDUSTER_GIFSICLE_PATH, '-O3', '-I', '-I', '-w']
         self.crop_args = []
         self.resize_args = []
@@ -55,8 +55,9 @@ class GifsicleImage(object):
         ]
         return self
 
-    def save(self, output_filename, **kwargs):
-        args = self.args + ['-o', output_filename, self._filename]
-        proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, err = proc.communicate()
+    def save(self, buf, **kwargs):
+        proc = subprocess.Popen(self.args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = proc.communicate(input=self.src_bytes)
         logger.debug(err)
+        buf.write(out)
+        buf.seek(0)
