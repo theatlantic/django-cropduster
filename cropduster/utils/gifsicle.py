@@ -1,11 +1,9 @@
 import logging
 import os
-import tempfile
 import subprocess
 
-from io import BytesIO
 from cropduster.settings import CROPDUSTER_GIFSICLE_PATH
-from PIL import ImageSequence
+from django.core.files.storage import default_storage
 
 
 logger = logging.getLogger(__name__)
@@ -20,13 +18,6 @@ class GifsicleImage(object):
 
         self.pil_image = im
         self.size = im.size
-
-        buf = BytesIO()
-        # pass list of durations to set the duration for each frame separately
-        duration = [frame.info['duration'] for frame in ImageSequence.Iterator(im)]
-        im.info['duration'] = duration
-        im.save(buf, save_all=True, format=im.format, duration=duration)
-        self.src_bytes = buf.getvalue()
         self.cmd_args = [CROPDUSTER_GIFSICLE_PATH, '-O3', '-I', '-I', '-w']
         self.crop_args = []
         self.resize_args = []
@@ -57,7 +48,8 @@ class GifsicleImage(object):
 
     def save(self, buf, **kwargs):
         proc = subprocess.Popen(self.args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, err = proc.communicate(input=self.src_bytes)
+        with default_storage.open(self.pil_image.name, 'rb') as f:
+            out, err = proc.communicate(input=f.read())
         logger.debug(err)
         buf.write(out)
         buf.seek(0)
