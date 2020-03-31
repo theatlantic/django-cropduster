@@ -259,7 +259,7 @@ class Crop(object):
             temp_file.write(f.read())
         temp_file.seek(0)
         image = PIL.Image.open(temp_filename)
-        image.name = self.image.filename
+        image.filename = self.image.filename
 
         crop_args = self.box.as_tuple()
 
