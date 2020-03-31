@@ -235,7 +235,7 @@ def upload(request):
 
     with default_storage.open(orig_image, mode='rb') as f:
         img = PIL.Image.open(BytesIO(f.read()))
-        img.name = f.name
+        img.filename = f.name
 
     (w, h) = (orig_w, orig_h) = img.size
 

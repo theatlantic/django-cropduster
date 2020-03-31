@@ -48,7 +48,7 @@ class GifsicleImage(object):
 
     def save(self, buf, **kwargs):
         proc = subprocess.Popen(self.args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        with default_storage.open(self.pil_image.name, 'rb') as f:
+        with default_storage.open(self.pil_image.filename, 'rb') as f:
             out, err = proc.communicate(input=f.read())
         logger.debug(err)
         buf.write(out)
