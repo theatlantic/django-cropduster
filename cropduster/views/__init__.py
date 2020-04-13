@@ -146,11 +146,12 @@ class CropDusterIndex(View):
 
     def get(self, *args, **kwargs):
         orig_image = self.orig_image
-        if orig_image:
+        try:
             orig_w = getattr(orig_image, 'width', None) or 0
             orig_h = getattr(orig_image, 'height', None) or 0
             orig_image_name = getattr(orig_image, 'name', None)
-        else:
+        except Exception:
+            # If original image not found, allow it to be re-uploaded
             orig_w, orig_h = 0, 0
             orig_image_name = None
 
