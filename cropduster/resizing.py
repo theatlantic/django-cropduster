@@ -8,8 +8,6 @@ import tempfile
 
 import PIL.Image
 
-from PIL.ImageFile import ImageFile
-from django.db.models.fields.files import FieldFile
 from django.core.exceptions import ImproperlyConfigured
 from django.utils import six
 from django.utils.encoding import python_2_unicode_compatible
@@ -17,12 +15,6 @@ from django.utils.six.moves import filter
 from django.core.files.storage import default_storage
 
 from .settings import CROPDUSTER_RETAIN_METADATA
-
-
-if hasattr(six.moves.builtins, 'file'):
-    BUILTIN_FILE_TYPE = six.moves.builtins.file
-else:
-    from io import IOBase as BUILTIN_FILE_TYPE
 
 
 __all__ = ('Size', 'Box', 'Crop')
@@ -371,79 +363,24 @@ class Crop(object):
 
         return Crop(Box(x1, y1, x2, y2), self.image)
 
-    def add_xmp_to_crop(self, cropped_image, size, original_image=None):
-        from cropduster.utils import get_image_extension
+    def add_xmp_to_crop(self, cropped_image_path, size, original_image=None):
         try:
-            from cropduster.standalone.metadata import libxmp, file_format_supported
+            from cropduster.standalone.metadata import (libxmp,
+                get_xmp_from_storage, put_xmp_to_storage)
         except ImproperlyConfigured:
             libxmp = None
 
-        if not libxmp:
+        if not libxmp or not cropped_image_path:
             return
 
-        from cropduster.models import Image, Thumb
-
-        def get_image_path(img):
-            if isinstance(img, ImageFile):
-                path = img.filename
-            elif isinstance(img, BUILTIN_FILE_TYPE):
-                path = img.name
-            elif isinstance(img, FieldFile):
-                path = img.path
-            elif isinstance(img, Thumb):
-                image = img.image
-                if not img:
-                    return None
-                path = image.get_path(img.name)
-            elif isinstance(img, Image):
-                path = img.get_path('original')
-            elif isinstance(img, six.string_types):
-                path = img
-            else:
-                path = None
-            return path
-
-        image_path = get_image_path(cropped_image)
-
-        if not image_path:
-            return
-
-        temp_file = tempfile.NamedTemporaryFile(suffix=get_image_extension(self.image), delete=False)
-        with default_storage.open(image_path, mode='rb') as f:
-            temp_file.write(f.read())
-        temp_file.seek(0)
-        xmp_file = libxmp.XMPFiles(file_path=temp_file.name, open_forupdate=True)
-
-        original_metadata = None
         if original_image and CROPDUSTER_RETAIN_METADATA:
-            original_image_path = get_image_path(original_image)
-            if original_image_path:
-                original_temp_file = tempfile.NamedTemporaryFile(suffix=get_image_extension(original_image), delete=False)
-                with default_storage.open(original_image_path, mode='rb') as f:
-                    original_temp_file.write(f.read())
-                try:
-                    original_xmp_file = libxmp.XMPFiles(file_path=original_temp_file.name)
-                    original_metadata = original_xmp_file.get_xmp()
-                except:
-                    pass
+            original_metadata = get_xmp_from_storage(original_image.filename)
+        else:
+            original_metadata = None
 
         xmp_meta = self.generate_xmp(size, original_metadata=original_metadata)
 
-        if not xmp_file.can_put_xmp(xmp_meta):
-            if not file_format_supported(image_path):
-                raise Exception("Image format of %s does not allow metadata" % (
-                        os.path.basename(image_path)))
-            else:
-                raise Exception("Could not add metadata to image %s" % (
-                        os.path.basename(image_path)))
-
-        xmp_file.put_xmp(xmp_meta)
-        xmp_file.close_file()
-        temp_file_path = temp_file.name
-        temp_file.close()
-        with open(temp_file_path, 'rb') as tmp_file:
-            with default_storage.open(image_path, 'wb') as f:
-                f.write(tmp_file.read())
+        put_xmp_to_storage(xmp_meta, cropped_image_path)
 
     def generate_xmp(self, size, original_metadata=None):
         from cropduster.standalone.metadata import libxmp
