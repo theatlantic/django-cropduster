@@ -6,6 +6,7 @@ import tempfile
 
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import default_storage
+from django.utils.encoding import force_bytes
 from django.utils import six
 
 from cropduster.files import ImageFile
@@ -149,7 +150,7 @@ def file_format_supported(file_path):
         raise IOError("File %s could not be found" % file_path)
     if not check_file_format:
         return False
-    file_format = check_file_format(os.path.abspath(file_path))
+    file_format = check_file_format(force_bytes(os.path.abspath(file_path)))
     format_options = ctypes.c_int()
     if file_format != FileFormats.XMP_FT_UNKNOWN:
         format_options = get_format_info(
@@ -309,3 +310,50 @@ class MetadataImageFile(ImageFile):
         super(MetadataImageFile, self).__init__(*args, **kwargs)
         if self:
             self.metadata = MetadataDict(self.name)
+
+
+def get_xmp_from_file(file_path):
+    return libxmp.XMPFiles(file_path=file_path).get_xmp()
+
+
+def get_xmp_from_bytes(img_bytes):
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    tmp.write(img_bytes)
+    tmp.close()
+    try:
+        return get_xmp_from_file(tmp.name)
+    finally:
+        os.unlink(tmp.name)
+
+
+def get_xmp_from_storage(file_path, storage=default_storage):
+    with storage.open(file_path, mode='rb') as f:
+        return get_xmp_from_bytes(f.read())
+
+
+def put_xmp_to_file(xmp_meta, file_path):
+    xmp_file = libxmp.XMPFiles(file_path=file_path, open_forupdate=True)
+
+    if not xmp_file.can_put_xmp(xmp_meta):
+        if not file_format_supported(file_path):
+            raise Exception("Image format of %s does not allow metadata" % (file_path))
+        else:
+            raise Exception("Could not add metadata to image %s" % (file_path))
+
+    xmp_file.put_xmp(xmp_meta)
+    xmp_file.close_file()
+
+
+def put_xmp_to_storage(xmp_meta, file_path, storage=default_storage):
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    try:
+        with default_storage.open(file_path, mode='rb') as f:
+            tmp.write(f.read())
+        tmp.close()
+        put_xmp_to_file(xmp_meta, tmp.name)
+        with open(tmp.name, mode='rb') as f:
+            data = f.read()
+        with storage.open(file_path, mode='wb') as f:
+            f.write(data)
+    finally:
+        os.unlink(tmp.name)
