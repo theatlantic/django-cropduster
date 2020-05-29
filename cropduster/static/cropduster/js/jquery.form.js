@@ -88,7 +88,7 @@ $.fn.ajaxSubmit = function(options) {
 		url:  url,
 		success: $.ajaxSettings.success,
 		type: this[0].getAttribute('method') || 'GET', // IE7 massage (see issue 57)
-		iframeSrc: /^https/i.test(window.location.href || '') ? 'javascript:false' : 'about:blank'
+		iframeSrc: 'about:blank'
 	}, options);
 
 	// hook for manipulating the form data before it is extracted;
