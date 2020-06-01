@@ -15,6 +15,7 @@ from django.forms.utils import ErrorDict as _ErrorDict
 from django.utils.encoding import force_text
 from django.utils.html import conditional_escape
 from django.utils.safestring import mark_safe
+from django.templatetags.static import static
 from django.utils import six
 
 from cropduster.models import Thumb
@@ -140,17 +141,17 @@ class CropForm(forms.Form):
 
     class Media:
         css = {'all': (
-            u"%scropduster/css/cropduster.css?v=5" % settings.STATIC_URL,
-            u"%scropduster/css/jquery.jcrop.css?v=4" % settings.STATIC_URL,
-            u"%scropduster/css/upload.css?v=6" % settings.STATIC_URL,
+            u"cropduster/css/cropduster.css",
+            u"cropduster/css/jquery.jcrop.css",
+            u"cropduster/css/upload.css",
         )}
         js = (
-            u"%scropduster/js/json2.js" % settings.STATIC_URL,
-            u"%scropduster/js/jquery.class.js" % settings.STATIC_URL,
-            u"%scropduster/js/jquery.form.js?v=1" % settings.STATIC_URL,
-            u"%scropduster/js/jquery.jcrop.js?v=5" % settings.STATIC_URL,
-            u"%scropduster/js/cropduster.js?v=8" % settings.STATIC_URL,
-            u"%scropduster/js/upload.js?v=16" % settings.STATIC_URL,
+            "cropduster/js/json2.js",
+            "cropduster/js/jquery.class.js",
+            "cropduster/js/jquery.form.js",
+            "cropduster/js/jquery.jcrop.js",
+            "cropduster/js/cropduster.js",
+            "cropduster/js/upload.js",
         )
 
     image_id = forms.IntegerField(required=False)
