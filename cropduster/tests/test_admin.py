@@ -27,6 +27,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
             'generic_plus',
             'cropduster',
             'cropduster.tests',
+            'cropduster.tests.test_standalone',
             'selenosis',
         ]
         if self.has_grappelli:

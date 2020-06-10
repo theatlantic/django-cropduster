@@ -7,6 +7,7 @@ class RunTests(selenosis.RunTests):
 
     def __call__(self, *args, **kwargs):
         warnings.simplefilter("error", Warning)
+        warnings.filterwarnings('ignore', message='.*?ckeditor')
         super(RunTests, self).__call__(*args, **kwargs)
 
 

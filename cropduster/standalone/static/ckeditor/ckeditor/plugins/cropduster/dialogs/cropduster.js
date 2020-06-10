@@ -344,7 +344,10 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
 
     var okButton = CKEDITOR.dialog.okButton.override({
         onClick: function(evt) {
-            var $j = cropdusterIframe.iframeElement.$.contentWindow.$;
+            var contentWin = cropdusterIframe.iframeElement.$.contentWindow;
+            var $j = (typeof contentWin.django === 'object')
+              ? contentWin.django.jQuery
+              : contentWin.$;
             if ($j) {
                 var $cropButton = $j('#crop-button');
                 if ($j.length && !$cropButton.hasClass('disabled')) {

@@ -8,6 +8,7 @@ admin.autodiscover()
 
 urlpatterns = [
     url(r"^cropduster/", include("cropduster.urls")),
+    url(r'^ckeditor/', include('ckeditor.urls')),
 ]
 
 if django.VERSION < (1, 9):
