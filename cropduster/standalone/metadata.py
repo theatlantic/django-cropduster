@@ -3,6 +3,7 @@ import re
 import ctypes
 import PIL.Image
 import tempfile
+from io import open
 
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import default_storage
@@ -179,12 +180,17 @@ class MetadataDict(dict):
     """
 
     def __init__(self, file_path):
-        self.tmp_file = tempfile.NamedTemporaryFile()
-        with default_storage.open(file_path) as f:
-            self.tmp_file.write(f.read())
-            self.tmp_file.flush()
-            self.tmp_file.seek(0)
-        self.file_path = self.tmp_file.name
+        try:
+            # Don't use temporary files if we're using FileSystemStorage
+            with open(default_storage.path(file_path), mode='rb') as f:
+                self.file_path = f.name
+        except:
+            self.tmp_file = tempfile.NamedTemporaryFile()
+            with default_storage.open(file_path) as f:
+                self.tmp_file.write(f.read())
+                self.tmp_file.flush()
+                self.tmp_file.seek(0)
+            self.file_path = self.tmp_file.name
         ns_dict = file_to_dict(self.file_path)
         self.clean(ns_dict)
 
