@@ -7,8 +7,10 @@ from unittest import SkipTest
 import os
 
 import django
+from django.core.files.storage import default_storage
 from django.test import override_settings
 
+import PIL.Image
 from selenosis import AdminSelenosisTestCase
 
 from cropduster.models import Image
@@ -120,6 +122,53 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
             u"""
             <figure>
                 <img alt="" width="672" height="798" src="%s" />
+                <figcaption class="caption">Caption</figcaption>
+            </figure>
+            <p>&nbsp;</p>
+            """ % image_url)
+
+    def test_dialog_change_width(self):
+        """
+        Test that changing the width in the cropduster CKEDITOR dialog produces
+        an image and html with the correct dimensions
+        """
+        self.load_admin(Article)
+
+        with self.open_cropduster_ckeditor_dialog():
+            with self.visible_selector('#id_image') as el:
+                el.send_keys(os.path.join(self.TEST_IMG_DIR, 'img.png'))
+            with self.clickable_selector('#upload-button') as el:
+                el.click()
+            time.sleep(1)
+            with self.clickable_selector('#id_size-width') as el:
+                el.send_keys(300)
+
+        self.toggle_caption_checkbox()
+        self.cropduster_ckeditor_ok()
+
+        if self.is_s3:
+            time.sleep(5)
+
+        content_html = self.selenium.execute_script('return $("#id_content").val()')
+
+        img_src_matches = re.search(r' src="([^"]+)"', content_html)
+        self.assertIsNotNone(img_src_matches, "Image not found in content: %s" % content_html)
+        image_url = img_src_matches.group(1)
+        image_hash = re.search(r'img/([0-9a-f]+)\.png', image_url).group(1)
+
+        try:
+            Image.objects.get(image='ckeditor/img/original.png')
+        except Image.DoesNotExist:
+            raise AssertionError("Image not found in database")
+
+        with default_storage.open("ckeditor/img/%s.png" % image_hash, mode='rb') as f:
+            self.assertEqual(PIL.Image.open(f).size, (300, 356))
+
+        self.assertHTMLEqual(
+            content_html,
+            u"""
+            <figure>
+                <img alt="" width="300" height="356" src="%s" />
                 <figcaption class="caption">Caption</figcaption>
             </figure>
             <p>&nbsp;</p>

@@ -484,9 +484,17 @@ class Image(models.Model):
                 crop_x=0, crop_y=0, crop_w=self.width, crop_h=self.height)
         thumb.name = ''.join([random.choice('abcdefghijklmnopqrstuvwxyz0123456789') for i in xrange(0, 8)])
         thumb_path = self.get_image_path(thumb.name)
-        thumb_crop = thumb.crop(image, size,
-            w=(size.w or thumb.crop_w),
-            h=(size.h or thumb.crop_h))
+
+        # In standalone mode, if only one dimension is overridden by the user,
+        # ensure the other matches the crop-box aspect ratio
+        w, h = size.w, size.h
+        aspect_ratio = float(thumb.crop_w) / float(thumb.crop_h)
+        if w and not h:
+            h = int(round(w / aspect_ratio))
+        elif h and not w:
+            w = int(round(h * aspect_ratio))
+
+        thumb_crop = thumb.crop(image, size, w=w, h=h)
         thumb_image = thumb_crop.create_image(thumb_path, width=thumb.width, height=thumb.height)
         thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
         md5 = hashlib.md5()
