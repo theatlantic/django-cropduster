@@ -310,7 +310,7 @@ def upload(request):
     if not default_storage.exists(preview_file_path):
         process_image(img, preview_file_path, fit_preview)
 
-    thumb = cropduster_image.save_size(size, standalone=True)
+    thumb = cropduster_image.save_size(size, standalone=True, commit=False)
 
     sizes = form_data.get('sizes') or []
     if len(sizes) == 1:
@@ -352,7 +352,12 @@ def crop(request):
                 log=True, exc_info=full_exc_info())
 
     crop_data = copy.deepcopy(crop_form.cleaned_data)
-    db_image = Image(image=crop_data['orig_image'])
+
+    if crop_data.get('image_id'):
+        db_image = Image.objects.get(pk=crop_data['image_id'])
+    else:
+        db_image = Image(image=crop_data['orig_image'])
+
     try:
         with db_image.image as f:
             f.open()

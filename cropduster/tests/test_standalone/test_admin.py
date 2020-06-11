@@ -13,7 +13,7 @@ from django.test import override_settings
 import PIL.Image
 from selenosis import AdminSelenosisTestCase
 
-from cropduster.models import Image
+from cropduster.models import Image, Thumb
 from cropduster.tests.helpers import CropdusterTestCaseMediaMixin
 
 from .models import Article
@@ -111,11 +111,21 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
         img_src_matches = re.search(r' src="([^"]+)"', content_html)
         self.assertIsNotNone(img_src_matches, "Image not found in content: %s" % content_html)
         image_url = img_src_matches.group(1)
+        image_hash = re.search(r'img/([0-9a-f]+)\.png', image_url).group(1)
 
         try:
-            Image.objects.get(image='ckeditor/img/original.png')
+            image = Image.objects.get(image='ckeditor/img/original.png')
         except Image.DoesNotExist:
             raise AssertionError("Image not found in database")
+
+        try:
+            thumb = Thumb.objects.get(name=image_hash, image=image)
+        except Thumb.DoesNotExist:
+            raise AssertionError("Thumb not found in database")
+
+        self.assertEqual(
+            list(Thumb.objects.all()), [thumb],
+            "Exactly one Thumb object should have been created")
 
         self.assertHTMLEqual(
             content_html,
@@ -157,9 +167,18 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
         image_hash = re.search(r'img/([0-9a-f]+)\.png', image_url).group(1)
 
         try:
-            Image.objects.get(image='ckeditor/img/original.png')
+            image = Image.objects.get(image='ckeditor/img/original.png')
         except Image.DoesNotExist:
             raise AssertionError("Image not found in database")
+
+        try:
+            thumb = Thumb.objects.get(name=image_hash, image=image)
+        except Thumb.DoesNotExist:
+            raise AssertionError("Thumb not found in database")
+
+        self.assertEqual(
+            list(Thumb.objects.all()), [thumb],
+            "Exactly one Thumb object should have been created")
 
         with default_storage.open("ckeditor/img/%s.png" % image_hash, mode='rb') as f:
             self.assertEqual(PIL.Image.open(f).size, (300, 356))

@@ -436,7 +436,7 @@ class Image(models.Model):
             obj.save()
 
     def save_size(self, size, thumb=None, image=None, tmp=False, standalone=False,
-                  permissive=False, skip_existing=False):
+                  permissive=False, skip_existing=False, commit=True):
         thumbs = {}
         if not image and not self.image:
             raise Exception("Cannot save sizes without an image")
@@ -449,7 +449,7 @@ class Image(models.Model):
         if standalone:
             if not StandaloneImage:
                 raise ImproperlyConfigured(u"standalone mode used, but not installed.")
-            return self._save_standalone_thumb(size, image, thumb)
+            return self._save_standalone_thumb(size, image, thumb, commit=commit)
 
         for sz in Size.flatten([size]):
             if self.pk and skip_existing and default_storage.exists(self.get_image_path(sz.name)):
@@ -462,9 +462,10 @@ class Image(models.Model):
                     continue
             try:
                 if thumb and sz.is_auto:
-                    new_thumb = self._save_thumb(sz, image, ref_thumb=thumb, tmp=tmp)
+                    new_thumb = self._save_thumb(
+                        sz, image, ref_thumb=thumb, tmp=tmp, commit=commit)
                 else:
-                    thumb = new_thumb = self._save_thumb(sz, image, thumb, tmp=tmp)
+                    thumb = new_thumb = self._save_thumb(sz, image, thumb, tmp=tmp, commit=commit)
             except CropDusterResizeException:
                 if permissive or not sz.required:
                     if not sz.is_auto:
@@ -477,7 +478,7 @@ class Image(models.Model):
                 thumbs[sz.name] = new_thumb
         return thumbs
 
-    def _save_standalone_thumb(self, size, image=None, thumb=None):
+    def _save_standalone_thumb(self, size, image=None, thumb=None, commit=True):
         if not thumb:
             thumb = Thumb(
                 width=self.width, height=self.height,
@@ -506,6 +507,18 @@ class Image(models.Model):
         with default_storage.open(new_path, 'wb') as f:
             f.write(image_contents)
         default_storage.delete(thumb_path)
+
+        if not thumb.pk:
+            try:
+                thumb.id = Thumb.objects.get(image=self, name=thumb.name).pk
+            except Thumb.DoesNotExist:
+                pass
+
+        thumb.image = self
+
+        if commit:
+            thumb.save()
+
         return thumb
 
     def _save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False, commit=True):
