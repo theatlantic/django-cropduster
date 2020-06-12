@@ -178,7 +178,7 @@ def smart_resize(im, final_w, final_h):
 
     # Pillow 2.7.0 greatly improved the bicubic resize algorithm, which makes
     # our multiple-step resizing unnecessary
-    pillow_version = getattr(PIL, 'PILLOW_VERSION', None)
+    pillow_version = getattr(PIL, '__version__', None)
     if pillow_version and LooseVersion(pillow_version) >= LooseVersion('2.7.0'):
         return im.resize((final_w, final_h), PIL.Image.BICUBIC)
 

@@ -7,12 +7,12 @@ from selenosis import AdminSelenosisTestCase
 
 from cropduster.models import Image, Size
 from .helpers import CropdusterTestCaseMediaMixin
-from .models import Article, Author, TestForOptionalSizes
+from .models import Article, Author, OptionalSizes
 
 
 class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
-    root_urlconf = 'cropduster.tests.urls'
+    root_urlconf = 'tests.urls'
 
     @property
     def available_apps(self):
@@ -26,8 +26,8 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
             'django.contrib.admin',
             'generic_plus',
             'cropduster',
-            'cropduster.tests',
-            'cropduster.tests.test_standalone',
+            'tests',
+            'tests.standalone',
             'selenosis',
         ]
         if self.has_grappelli:
@@ -191,7 +191,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
         self.assertEqual(len(article.alt_image.related_object.thumbs.all()), 1)
 
     def test_changeform_with_optional_sizes_small_image(self):
-        test_a = TestForOptionalSizes.objects.create(slug='a')
+        test_a = OptionalSizes.objects.create(slug='a')
 
         self.load_admin(test_a)
 
@@ -212,13 +212,13 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
         self.save_form()
 
-        test_a = TestForOptionalSizes.objects.get(slug='a')
+        test_a = OptionalSizes.objects.get(slug='a')
         image = test_a.image.related_object
         num_thumbs = len(image.thumbs.all())
         self.assertEqual(num_thumbs, 1, "Expected one thumb; instead got %d" % num_thumbs)
 
     def test_changeform_with_optional_sizes_large_image(self):
-        test_a = TestForOptionalSizes.objects.create(slug='a')
+        test_a = OptionalSizes.objects.create(slug='a')
         self.load_admin(test_a)
 
         # Upload and crop image
@@ -238,7 +238,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
         self.save_form()
 
-        test_a = TestForOptionalSizes.objects.get(slug='a')
+        test_a = OptionalSizes.objects.get(slug='a')
         image = test_a.image.related_object
         num_thumbs = len(image.thumbs.all())
         self.assertEqual(num_thumbs, 2, "Expected one thumb; instead got %d" % num_thumbs)

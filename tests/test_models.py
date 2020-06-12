@@ -11,9 +11,9 @@ from django.utils.six.moves import range
 
 from .helpers import CropdusterTestCaseMediaMixin
 from .models import (
-    Article, Author, TestForOptionalSizes, TestMultipleFieldsInheritanceChild,
-    TestReverseForeignRelA, TestReverseForeignRelB, TestReverseForeignRelC,
-    TestReverseForeignRelM2M, TestForOrphanedThumbs)
+    Article, Author, OptionalSizes, MultipleFieldsInheritanceChild,
+    ReverseForeignRelA, ReverseForeignRelB, ReverseForeignRelC,
+    ReverseForeignRelM2M, OrphanedThumbs)
 from cropduster.models import Size, Image, Thumb
 from cropduster.exceptions import CropDusterResizeException
 from cropduster import settings as cropduster_settings
@@ -307,7 +307,7 @@ class TestModelSaving(CropdusterTestCaseMediaMixin, TestCase):
         self.assertEqual(article.alt_image.name, alt_image)
 
     def test_optional_sizes(self):
-        test_a = TestForOptionalSizes.objects.create(slug='a')
+        test_a = OptionalSizes.objects.create(slug='a')
         test_a.image = self.create_unique_image('img.jpg')
         test_a.save()
         test_a.image.generate_thumbs()
@@ -317,7 +317,7 @@ class TestModelSaving(CropdusterTestCaseMediaMixin, TestCase):
         num_thumbs = len(image.thumbs.all())
         self.assertEqual(num_thumbs, 1, "Expected one thumb; instead got %d" % num_thumbs)
 
-        test_b = TestForOptionalSizes.objects.create(slug='b')
+        test_b = OptionalSizes.objects.create(slug='b')
         test_b.image = self.create_unique_image('img2.jpg')
         test_b.save()
         test_b.image.generate_thumbs()
@@ -328,15 +328,15 @@ class TestModelSaving(CropdusterTestCaseMediaMixin, TestCase):
         self.assertEqual(num_thumbs, 2, "Expected one thumb; instead got %d" % num_thumbs)
 
     def test_multiple_fields_with_inheritance(self):
-        child_fields = [f.name for f in TestMultipleFieldsInheritanceChild._meta.local_fields]
+        child_fields = [f.name for f in MultipleFieldsInheritanceChild._meta.local_fields]
         self.assertNotIn('image', child_fields,
             "Field 'image' from parent model should not be in the child model's local_fields")
 
     def test_orphaned_thumbs_after_delete(self):
-        test_a = TestForOrphanedThumbs.objects.create(
+        test_a = OrphanedThumbs.objects.create(
             slug='a', image=self.create_unique_image('img2.jpg'))
         test_a.image.generate_thumbs()
-        test_a = TestForOrphanedThumbs.objects.get(slug='a')
+        test_a = OrphanedThumbs.objects.get(slug='a')
         test_a.delete()
 
         num_thumbs = len(Thumb.objects.all())
@@ -346,22 +346,22 @@ class TestModelSaving(CropdusterTestCaseMediaMixin, TestCase):
 class TestReverseForeignRelation(TestCase):
 
     def test_standard_manager(self):
-        c = TestReverseForeignRelC.objects.create(slug='c-1')
+        c = ReverseForeignRelC.objects.create(slug='c-1')
         for i in range(0, 3):
-            TestReverseForeignRelB.objects.create(slug="b-%d" % i, c=c)
+            ReverseForeignRelB.objects.create(slug="b-%d" % i, c=c)
 
         c.refresh_from_db()
         self.assertEqual(len(c.rel_b.all()), 3)
 
     def test_standard_prefetch_related(self):
         for i in range(0, 2):
-            m2m = TestReverseForeignRelM2M.objects.create(slug='standard-m2m-%d' % i)
+            m2m = ReverseForeignRelM2M.objects.create(slug='standard-m2m-%d' % i)
             for j in range(0, 2):
-                c = TestReverseForeignRelC.objects.create(slug='c-%d-%d' % (i, j))
+                c = ReverseForeignRelC.objects.create(slug='c-%d-%d' % (i, j))
                 m2m.m2m.add(c)
                 for k in range(0, 3):
-                    TestReverseForeignRelB.objects.create(slug="b-%d-%d-%d" % (i, j, k), c=c)
-        objs = TestReverseForeignRelM2M.objects.prefetch_related('m2m__rel_b')
+                    ReverseForeignRelB.objects.create(slug="b-%d-%d-%d" % (i, j, k), c=c)
+        objs = ReverseForeignRelM2M.objects.prefetch_related('m2m__rel_b')
         with self.assertNumQueries(3):
             for obj in objs:
                 for m2m_obj in obj.m2m.all():
@@ -371,10 +371,10 @@ class TestReverseForeignRelation(TestCase):
         """
         A ReverseForeignRelation with limit_choices_to applies the filter to the manager
         """
-        c = TestReverseForeignRelC.objects.create(slug='c-1')
+        c = ReverseForeignRelC.objects.create(slug='c-1')
         for i in range(0, 3):
-            TestReverseForeignRelA.objects.create(slug="a-%d" % i, c=c, a_type="x")
-        TestReverseForeignRelA.objects.create(slug="a-4", c=c, a_type="y")
+            ReverseForeignRelA.objects.create(slug="a-%d" % i, c=c, a_type="x")
+        ReverseForeignRelA.objects.create(slug="a-4", c=c, a_type="y")
 
         c.refresh_from_db()
         a_len = len(c.rel_a.all())
@@ -384,16 +384,16 @@ class TestReverseForeignRelation(TestCase):
 
     def test_prefetch_related_with_limit_choices_to(self):
         for i in range(0, 2):
-            m2m = TestReverseForeignRelM2M.objects.create(slug='standard-m2m-%d' % i)
+            m2m = ReverseForeignRelM2M.objects.create(slug='standard-m2m-%d' % i)
             for j in range(0, 2):
-                c = TestReverseForeignRelC.objects.create(slug='c-%d-%d' % (i, j))
+                c = ReverseForeignRelC.objects.create(slug='c-%d-%d' % (i, j))
                 m2m.m2m.add(c)
                 for k in range(0, 3):
-                    TestReverseForeignRelA.objects.create(
+                    ReverseForeignRelA.objects.create(
                         slug="a-%d-%d-%d" % (i, j, k), c=c, a_type='x')
-                TestReverseForeignRelA.objects.create(
+                ReverseForeignRelA.objects.create(
                     slug="a-%d-%d-%d" % (i, j, 4), c=c, a_type='y')
-        objs = TestReverseForeignRelM2M.objects.prefetch_related('m2m__rel_a')
+        objs = ReverseForeignRelM2M.objects.prefetch_related('m2m__rel_a')
         with self.assertNumQueries(3):
             for obj in objs:
                 for m2m_obj in obj.m2m.all():

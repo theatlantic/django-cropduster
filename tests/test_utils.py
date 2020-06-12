@@ -21,7 +21,7 @@ class TestUtilsImage(CropdusterTestCaseMediaMixin, test.TestCase):
         self.assertEqual(True, True)
 
     def test_get_image_extension(self):
-        from ..utils import get_image_extension
+        from cropduster.utils import get_image_extension
 
         tmp_jpg_bad_ext_pdf = tempfile.NamedTemporaryFile(suffix='.pdf')
         tmp_png_bad_ext_jpg = tempfile.NamedTemporaryFile(suffix='.png')
@@ -45,7 +45,7 @@ class TestUtilsImage(CropdusterTestCaseMediaMixin, test.TestCase):
             self.assertEqual(get_image_extension(img), ext)
 
     def test_is_transparent(self):
-        from ..utils import is_transparent
+        from cropduster.utils import is_transparent
         yes = self._get_img('transparent.png')
         no = self._get_img('img.png')
 
@@ -53,7 +53,7 @@ class TestUtilsImage(CropdusterTestCaseMediaMixin, test.TestCase):
         self.assertFalse(is_transparent(no))
 
     def test_correct_colorspace(self):
-        from ..utils import correct_colorspace
+        from cropduster.utils import correct_colorspace
         img = self._get_img('cmyk.jpg')
         self.assertEqual(img.mode, 'CMYK')
         converted = correct_colorspace(img)
@@ -61,7 +61,7 @@ class TestUtilsImage(CropdusterTestCaseMediaMixin, test.TestCase):
         self.assertEqual(converted.mode, 'RGB')
 
     def test_is_animated_gif(self):
-        from ..utils import is_animated_gif
+        from cropduster.utils import is_animated_gif
         yes = self._get_img('animated.gif')
         no = self._get_img('img.jpg')
         self.assertTrue(is_animated_gif(yes))
@@ -72,7 +72,7 @@ class TestUtilsPaths(CropdusterTestCaseMediaMixin, test.TestCase):
 
     def test_get_upload_foldername(self):
         import uuid
-        from ..utils import get_upload_foldername
+        from cropduster.utils import get_upload_foldername
 
         path = random = uuid.uuid4().hex
         folder_path = get_upload_foldername('my img.jpg', upload_to=path)
@@ -82,8 +82,8 @@ class TestUtilsPaths(CropdusterTestCaseMediaMixin, test.TestCase):
                          os.path.join(path, 'my_img-1'))
 
     def test_get_min_size(self):
-        from ..utils import get_min_size
-        from ..resizing import Size
+        from cropduster.utils import get_min_size
+        from cropduster.resizing import Size
 
         sizes = [
             Size('a', w=200, h=200),

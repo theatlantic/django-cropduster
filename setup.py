@@ -15,7 +15,7 @@ setup(
     author_email='programmers@theatlantic.com',
     url='https://github.com/theatlantic/django-cropduster',
     description='Django image uploader and cropping tool',
-    packages=find_packages(),
+    packages=find_packages(exclude=["tests"]),
     zip_safe=False,
     long_description=open('README.rst').read(),
     license='BSD',

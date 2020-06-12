@@ -6,3 +6,4 @@ build
 ghostdriver.log
 test/media
 dist/
+.coverage

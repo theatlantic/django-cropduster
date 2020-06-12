@@ -37,5 +37,5 @@ install:
   - chmod +x ~/bin/chromedriver
 
 script:
-  - travis_retry tox -- --selenium=chrome-headless
+  - travis_retry tox -- --selenosis-driver=chrome-headless
 

@@ -45,7 +45,7 @@ def get_jpeg_quality(width, height):
             "CROPDUSTER_JPEG_QUALITY setting must be either a callable "
             "or a numeric value, got type %s" % (type(CROPDUSTER_JPEG_QUALITY).__name__))
 
-JPEG_SAVE_ICC_SUPPORTED = (LooseVersion(getattr(PIL, 'PILLOW_VERSION', '0'))
+JPEG_SAVE_ICC_SUPPORTED = (LooseVersion(getattr(PIL, '__version__', '0'))
     >= LooseVersion('2.2.1'))
 
 CROPDUSTER_GIFSICLE_PATH = getattr(settings, 'CROPDUSTER_GIFSICLE_PATH', None)

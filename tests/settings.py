@@ -25,12 +25,12 @@ INSTALLED_APPS += (
     'generic_plus',
     'cropduster',
     'cropduster.standalone',
-    'cropduster.tests',
-    'cropduster.tests.test_standalone',
+    'tests',
+    'tests.standalone',
     'ckeditor',
 )
 
-ROOT_URLCONF = 'cropduster.tests.urls'
+ROOT_URLCONF = 'tests.urls'
 
 TEMPLATES[0]['OPTIONS']['debug'] = True
 
