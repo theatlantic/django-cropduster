@@ -14,14 +14,14 @@ import PIL.Image
 from selenosis import AdminSelenosisTestCase
 
 from cropduster.models import Image, Thumb
-from cropduster.tests.helpers import CropdusterTestCaseMediaMixin
+from tests.helpers import CropdusterTestCaseMediaMixin
 
 from .models import Article
 
 
 class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
-    root_urlconf = 'cropduster.tests.urls'
+    root_urlconf = 'tests.urls'
 
     @property
     def available_apps(self):
@@ -36,8 +36,8 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
             'generic_plus',
             'cropduster',
             'cropduster.standalone',
-            'cropduster.tests',
-            'cropduster.tests.test_standalone',
+            'tests',
+            'tests.standalone',
             'ckeditor',
             'selenosis',
         ]

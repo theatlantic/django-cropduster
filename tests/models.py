@@ -39,7 +39,7 @@ class Article(models.Model):
                                 field_identifier="alt")
 
 
-class TestForOptionalSizes(models.Model):
+class OptionalSizes(models.Model):
 
     TEST_SIZES = [
         Size('main', w=600, h=480, auto=[
@@ -50,7 +50,7 @@ class TestForOptionalSizes(models.Model):
     image = CropDusterField(upload_to="test", sizes=TEST_SIZES)
 
 
-class TestForOrphanedThumbs(models.Model):
+class OrphanedThumbs(models.Model):
 
     TEST_SIZES = [
         Size('main', w=600, h=480, auto=[
@@ -64,22 +64,22 @@ class TestForOrphanedThumbs(models.Model):
     image = CropDusterField(upload_to="test", sizes=TEST_SIZES)
 
 
-class TestMultipleFieldsInheritanceParent(models.Model):
+class MultipleFieldsInheritanceParent(models.Model):
 
     slug = models.SlugField()
     image = CropDusterField(upload_to="test", sizes=[Size(u'main', w=600, h=480)])
 
 
-class TestMultipleFieldsInheritanceChild(TestMultipleFieldsInheritanceParent):
+class MultipleFieldsInheritanceChild(MultipleFieldsInheritanceParent):
 
     image2 = CropDusterField(upload_to="test", sizes=[Size(u'main', w=600, h=480)],
         field_identifier="2")
 
 
 @python_2_unicode_compatible
-class TestReverseForeignRelA(models.Model):
+class ReverseForeignRelA(models.Model):
     slug = models.SlugField()
-    c = models.ForeignKey('TestReverseForeignRelC', on_delete=models.CASCADE)
+    c = models.ForeignKey('ReverseForeignRelC', on_delete=models.CASCADE)
     a_type = models.CharField(max_length=10, choices=(
         ("x", "X"),
         ("y", "Y"),
@@ -91,29 +91,29 @@ class TestReverseForeignRelA(models.Model):
 
 
 @python_2_unicode_compatible
-class TestReverseForeignRelB(models.Model):
+class ReverseForeignRelB(models.Model):
     slug = models.SlugField()
-    c = models.ForeignKey('TestReverseForeignRelC', on_delete=models.CASCADE)
+    c = models.ForeignKey('ReverseForeignRelC', on_delete=models.CASCADE)
 
     def __str__(self):
         return self.slug
 
 
 @python_2_unicode_compatible
-class TestReverseForeignRelC(models.Model):
+class ReverseForeignRelC(models.Model):
     slug = models.SlugField()
     rel_a = ReverseForeignRelation(
-        TestReverseForeignRelA, field_name='c', limit_choices_to={'a_type': 'x'})
-    rel_b = ReverseForeignRelation(TestReverseForeignRelB, field_name='c')
+        ReverseForeignRelA, field_name='c', limit_choices_to={'a_type': 'x'})
+    rel_b = ReverseForeignRelation(ReverseForeignRelB, field_name='c')
 
     def __str__(self):
         return self.slug
 
 
 @python_2_unicode_compatible
-class TestReverseForeignRelM2M(models.Model):
+class ReverseForeignRelM2M(models.Model):
     slug = models.SlugField()
-    m2m = models.ManyToManyField(TestReverseForeignRelC)
+    m2m = models.ManyToManyField(ReverseForeignRelC)
 
     def __str__(self):
         return self.slug

@@ -19,7 +19,7 @@ class TestUtilsImage(CropdusterTestCaseMediaMixin, test.TestCase):
         return Image.open(os.path.join(self.TEST_IMG_DIR, filename))
 
     def test_is_animated_gif(self):
-        from ..utils import is_animated_gif
+        from cropduster.utils import is_animated_gif
         yes = self._get_img('animated.gif')
         no = self._get_img('img.jpg')
         self.assertTrue(is_animated_gif(yes))
