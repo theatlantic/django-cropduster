@@ -55,3 +55,4 @@ if CROPDUSTER_GIFSICLE_PATH is None:
     CROPDUSTER_GIFSICLE_PATH = distutils.spawn.find_executable("gifsicle")
 
 CROPDUSTER_RETAIN_METADATA = getattr(settings, 'CROPDUSTER_RETAIN_METADATA', False)
+CROPDUSTER_CREATE_THUMBS = getattr(settings, 'CROPDUSTER_CREATE_THUMBS', True)
