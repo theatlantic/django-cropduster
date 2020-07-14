@@ -538,9 +538,11 @@ class Image(models.Model):
 
         thumb_crop = thumb.crop(image, size)
         thumb_path = self.get_image_path(size.name, tmp=tmp)
-        thumb_image = thumb_crop.create_image(thumb_path, width=thumb.width, height=thumb.height)
 
-        if StandaloneImage:
+        if cropduster_settings.CROPDUSTER_CREATE_THUMBS:
+            thumb_image = thumb_crop.create_image(thumb_path, width=thumb.width, height=thumb.height)
+
+        if StandaloneImage and cropduster_settings.CROPDUSTER_CREATE_THUMBS:
             thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
 
         if commit:
