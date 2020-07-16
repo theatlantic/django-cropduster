@@ -372,6 +372,18 @@ window.CropDuster = {};
                     $thumb.html($thumb.html() + $.render.cropdusterImage(thumbData[size.name]));
                 }
             });
+            var url = [CropDuster.mediaUrl, path, '_preview' + ext].join('/');
+            // This is in place of a negative lookbehind. It replaces all
+            // double slashes that don't follow a colon.
+            url = url.replace(/(:)?\/+/g, function($0, $1) { return $1 ? $0 : '/'; });
+            preview_img = {
+                'image_url': url,
+                'size_slug': '',
+                // use width and height of first thumb for admin preview
+                'width': data.sizes[0].w,
+                'height': data.sizes[0].h,
+            }
+            $thumb.html($.render.cropdusterImage(preview_img) + $thumb.html());
         },
 
         removeSize: function(prefix, sizeName) {
