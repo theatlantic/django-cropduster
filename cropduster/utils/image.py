@@ -6,15 +6,16 @@ import warnings
 import math
 from distutils.version import LooseVersion
 
+import six
+from six.moves import xrange
+
 import PIL.Image
 from PIL import ImageFile, JpegImagePlugin
 
 from django.core.files.storage import default_storage
-from django.utils import six
-from django.utils.six.moves import xrange
 
 from cropduster.settings import (
-    get_jpeg_quality, JPEG_SAVE_ICC_SUPPORTED, CROPDUSTER_GIFSICLE_PATH)
+    get_jpeg_quality, JPEG_SAVE_ICC_SUPPORTED, CROPDUSTER_GIFSICLE_PATH, PILLOW_VERSION)
 
 from .gifsicle import GifsicleImage
 
@@ -178,8 +179,7 @@ def smart_resize(im, final_w, final_h):
 
     # Pillow 2.7.0 greatly improved the bicubic resize algorithm, which makes
     # our multiple-step resizing unnecessary
-    pillow_version = getattr(PIL, 'PILLOW_VERSION', None)
-    if pillow_version and LooseVersion(pillow_version) >= LooseVersion('2.7.0'):
+    if PILLOW_VERSION and LooseVersion(PILLOW_VERSION) >= LooseVersion('2.7.0'):
         return im.resize((final_w, final_h), PIL.Image.BICUBIC)
 
     # Attempt to resize the image 1/8, 2/8, such that it is at least 1.5x bigger

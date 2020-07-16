@@ -7,14 +7,14 @@ import os
 import time
 from datetime import datetime
 
+import six
+from six.moves import xrange
+
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.core.files.storage import FileSystemStorage
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection, models
-from django.utils import six
-from django.utils.encoding import python_2_unicode_compatible
-from django.utils.six.moves import xrange
 from django.core.files.storage import default_storage, FileSystemStorage
 
 import PIL.Image
@@ -44,7 +44,7 @@ def safe_str_path(file_path):
     return file_path
 
 
-@python_2_unicode_compatible
+@six.python_2_unicode_compatible
 class Thumb(models.Model):
 
     name = models.CharField(max_length=255, db_index=True)
@@ -213,7 +213,7 @@ def generate_filename(instance, filename):
     return filename
 
 
-@python_2_unicode_compatible
+@six.python_2_unicode_compatible
 class Image(models.Model):
 
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)

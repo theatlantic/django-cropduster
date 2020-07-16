@@ -1,6 +1,7 @@
 import contextlib
 from operator import attrgetter
 
+import six
 import django
 from django import forms
 from django.db import models, transaction, router, DEFAULT_DB_ALIAS
@@ -8,7 +9,6 @@ from django.db.models.fields import Field
 from django.db.models.fields.files import ImageFileDescriptor, ImageFieldFile
 from django.db.models.fields.related import ManyToManyRel, ManyToManyField
 from django.utils.functional import cached_property
-from django.utils import six
 from django.contrib.contenttypes.models import ContentType
 
 from generic_plus.fields import GenericForeignFileField

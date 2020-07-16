@@ -4,15 +4,15 @@ import logging
 import copy
 import errno
 
+import six
+from six.moves import xrange
+
 try:
     from django.urls import get_urlconf, get_resolver
 except ImportError:
     from django.core.urlresolvers import get_urlconf, get_resolver
 from django.http import HttpResponse
 from django.utils.safestring import mark_safe
-from django.utils import six
-from django.utils.six.moves import xrange
-
 from django.utils.encoding import force_text
 
 

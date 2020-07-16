@@ -1,3 +1,4 @@
+import six
 from django import forms
 from django.core.exceptions import ValidationError
 from django.forms.models import ModelChoiceIterator
@@ -5,7 +6,6 @@ from django.forms.models import ChoiceField, ModelMultipleChoiceField
 from django.forms.utils import flatatt
 from django.utils.encoding import force_text
 from django.utils.html import escape, conditional_escape
-from django.utils import six
 
 from generic_plus.forms import BaseGenericFileInlineFormSet, GenericForeignFileWidget
 

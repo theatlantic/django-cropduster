@@ -1,5 +1,5 @@
+import six
 from django.db import models
-from django.utils.encoding import python_2_unicode_compatible
 
 from cropduster.fields import ReverseForeignRelation
 from cropduster.models import CropDusterField, Size
@@ -76,7 +76,7 @@ class TestMultipleFieldsInheritanceChild(TestMultipleFieldsInheritanceParent):
         field_identifier="2")
 
 
-@python_2_unicode_compatible
+@six.python_2_unicode_compatible
 class TestReverseForeignRelA(models.Model):
     slug = models.SlugField()
     c = models.ForeignKey('TestReverseForeignRelC', on_delete=models.CASCADE)
@@ -90,7 +90,7 @@ class TestReverseForeignRelA(models.Model):
         return self.slug
 
 
-@python_2_unicode_compatible
+@six.python_2_unicode_compatible
 class TestReverseForeignRelB(models.Model):
     slug = models.SlugField()
     c = models.ForeignKey('TestReverseForeignRelC', on_delete=models.CASCADE)
@@ -99,7 +99,7 @@ class TestReverseForeignRelB(models.Model):
         return self.slug
 
 
-@python_2_unicode_compatible
+@six.python_2_unicode_compatible
 class TestReverseForeignRelC(models.Model):
     slug = models.SlugField()
     rel_a = ReverseForeignRelation(
@@ -110,7 +110,7 @@ class TestReverseForeignRelC(models.Model):
         return self.slug
 
 
-@python_2_unicode_compatible
+@six.python_2_unicode_compatible
 class TestReverseForeignRelM2M(models.Model):
     slug = models.SlugField()
     m2m = models.ManyToManyField(TestReverseForeignRelC)

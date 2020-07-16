@@ -6,12 +6,11 @@ import math
 import hashlib
 import tempfile
 
+import six
+from six.moves import filter
 import PIL.Image
 
 from django.core.exceptions import ImproperlyConfigured
-from django.utils import six
-from django.utils.encoding import python_2_unicode_compatible
-from django.utils.six.moves import filter
 from django.core.files.storage import default_storage
 
 from .settings import CROPDUSTER_RETAIN_METADATA
@@ -23,7 +22,7 @@ __all__ = ('Size', 'Box', 'Crop')
 INFINITY = float('inf')
 
 
-@python_2_unicode_compatible
+@six.python_2_unicode_compatible
 class SizeAlias(object):
     is_alias = True
 
@@ -46,7 +45,7 @@ class SizeAlias(object):
         ctx.update(size_to)
 
 
-@python_2_unicode_compatible
+@six.python_2_unicode_compatible
 class Size(object):
 
     is_alias = False

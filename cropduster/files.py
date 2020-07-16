@@ -4,6 +4,9 @@ import os
 import re
 import hashlib
 
+from six.moves.urllib import parse as urlparse
+from six.moves.urllib.request import urlopen
+
 from django.core.files.images import get_image_dimensions
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.storage import default_storage
@@ -11,8 +14,6 @@ from django.conf import settings
 from django.db.models.fields.files import FieldFile, FileField
 from django.utils.functional import cached_property
 from django.utils.http import urlunquote_plus
-from django.utils.six.moves.urllib import parse as urlparse
-from django.utils.six.moves.urllib.request import urlopen
 
 from generic_plus.utils import get_relative_media_url, get_media_path
 

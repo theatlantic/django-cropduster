@@ -1,10 +1,9 @@
 from functools import update_wrapper
-
 from logging import getLogger
 
+import six
 from django import http
 from django.utils.decorators import classonlymethod
-from django.utils import six
 
 
 logger = getLogger('django.request')

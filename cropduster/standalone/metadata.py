@@ -5,10 +5,10 @@ import PIL.Image
 import tempfile
 from io import open
 
+import six
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import default_storage
 from django.utils.encoding import force_bytes
-from django.utils import six
 
 from cropduster.files import ImageFile
 from cropduster.utils import json
