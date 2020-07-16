@@ -6,12 +6,13 @@ import warnings
 import math
 from distutils.version import LooseVersion
 
+import six
+from six.moves import xrange
+
 import PIL.Image
 from PIL import ImageFile, JpegImagePlugin
 
 from django.core.files.storage import default_storage
-from django.utils import six
-from django.utils.six.moves import xrange
 
 from cropduster.settings import (
     get_jpeg_quality, JPEG_SAVE_ICC_SUPPORTED, CROPDUSTER_GIFSICLE_PATH)
