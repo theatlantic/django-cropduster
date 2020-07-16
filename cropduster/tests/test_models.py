@@ -5,7 +5,7 @@ import os
 import PIL
 
 from django.core.files.storage import default_storage
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.contrib.contenttypes.models import ContentType
 from django.utils.six.moves import range
 
@@ -16,6 +16,7 @@ from .models import (
     TestReverseForeignRelM2M, TestForOrphanedThumbs)
 from cropduster.models import Size, Image, Thumb
 from cropduster.exceptions import CropDusterResizeException
+from cropduster import settings as cropduster_settings
 
 
 class TestImage(CropdusterTestCaseMediaMixin, TestCase):
@@ -63,6 +64,29 @@ class TestImage(CropdusterTestCaseMediaMixin, TestCase):
         article = Article.objects.create(
             title="Img Too Small", author=self.author, lead_image='new-img.jpg')
         self.assertRaises(CropDusterResizeException, article.lead_image.generate_thumbs)
+
+    @override_settings(CROPDUSTER_CREATE_THUMBS=False)
+    def test_dont_generate_thumbs(self):
+        article = Article.objects.create(title="Pudd'nhead Wilson",
+            author=self.author, lead_image=self.create_unique_image('img.jpg'))
+        article.lead_image.generate_thumbs()
+        article = Article.objects.get(pk=article.pk)
+        sizes = sorted(list(Size.flatten(Article.LEAD_IMAGE_SIZES)), key=lambda x: x.name)
+        thumbs = sorted(list(article.lead_image.related_object.thumbs.all()), key=lambda x: x.name)
+        self.assertEqual(len(thumbs), len(sizes))
+        for size, thumb in zip(sizes, thumbs):
+            self.assertEqual(size.name, thumb.name)
+            if size.width:
+                self.assertEqual(size.width, thumb.width)
+            if size.height:
+                self.assertEqual(size.height, thumb.height)
+            else:
+                ratio = article.lead_image.height / article.lead_image.width
+                self.assertAlmostEqual(thumb.height, ratio * size.width, delta=1)
+            self.assertEqual(thumb.image.image, article.lead_image.related_object.image)
+            self.assertFalse(default_storage.exists(thumb.image_name))
+            with self.assertRaises(IOError):
+                default_storage.open(thumb.image_name, mode='rb')
 
     def test_prefetch_related_with_images(self):
         for x in range(3):
