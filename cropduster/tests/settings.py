@@ -2,6 +2,8 @@ import os
 import uuid
 
 import django
+from django.core.signals import setting_changed
+from django.dispatch import receiver
 from django.utils.functional import lazy
 from django.urls import reverse
 
@@ -56,5 +58,13 @@ CKEDITOR_CONFIGS = {
 }
 
 CKEDITOR_UPLOAD_PATH = "%s/upload" % MEDIA_ROOT
+CROPDUSTER_CREATE_THUMBS = True
+
+
+@receiver(setting_changed)
+def reload_settings(**kwargs):
+    if kwargs['setting'] == 'CROPDUSTER_CREATE_THUMBS':
+        from cropduster import settings as cropduster_settings
+        cropduster_settings.CROPDUSTER_CREATE_THUMBS = kwargs['value']
 
 os.makedirs(CKEDITOR_UPLOAD_PATH)

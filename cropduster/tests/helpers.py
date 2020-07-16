@@ -65,8 +65,13 @@ class CropdusterTestCaseMediaMixin(object):
         ext = os.path.splitext(image)[1]
         image_name = os.path.join(
             self.TEST_IMG_DIR_RELATIVE, image_uuid, "original%s" % ext)
+        preview_image_name = os.path.join(                                                                            
+            self.TEST_IMG_DIR_RELATIVE, image_uuid, "_preview%s" % ext) 
 
         with open("%s/%s" % (ORIG_IMG_PATH, image), mode='rb') as f:
             default_storage.save(image_name, ContentFile(f.read()))
+
+        with open("%s/%s" % (ORIG_IMG_PATH, image), mode='rb') as f:
+            default_storage.save(preview_image_name, ContentFile(f.read()))
 
         return image_name
