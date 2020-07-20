@@ -245,6 +245,9 @@ window.CropDuster = {};
                 return;
             }
             CropDuster.setThumbnails(prefix, data.crop.thumbs);
+
+            // add preview_url from context data onto input field for preview rendering
+            $("#id_" + prefix).data('previewUrl', data.preview_url);
             CropDuster.createThumbnails(prefix);
             $(document).trigger('cropduster:update', [prefix, data]);
         },
@@ -377,7 +380,7 @@ window.CropDuster = {};
             // double slashes that don't follow a colon.
             url = url.replace(/(:)?\/+/g, function($0, $1) { return $1 ? $0 : '/'; });
             preview_img = {
-                'image_url': url,
+                'image_url': data.previewUrl,
                 'size_slug': '',
                 // use width and height of first thumb for admin preview
                 'width': data.sizes[0].w,
