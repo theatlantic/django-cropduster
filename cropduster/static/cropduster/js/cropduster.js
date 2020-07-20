@@ -355,10 +355,6 @@ window.CropDuster = {};
                 if (data.tmpFile) {
                     name += "_tmp";
                 }
-                var url = [CropDuster.mediaUrl, path, name + ext].join('/');
-                // This is in place of a negative lookbehind. It replaces all
-                // double slashes that don't follow a colon.
-                url = url.replace(/(:)?\/+/g, function($0, $1) { return $1 ? $0 : '/'; });
                 thumbData[slug] = {
                     'image_url': data.url,
                     'size_slug': slug,
@@ -375,10 +371,6 @@ window.CropDuster = {};
                     $thumb.html($thumb.html() + $.render.cropdusterImage(thumbData[size.name]));
                 }
             });
-            var url = [CropDuster.mediaUrl, path, '_preview' + ext].join('/');
-            // This is in place of a negative lookbehind. It replaces all
-            // double slashes that don't follow a colon.
-            url = url.replace(/(:)?\/+/g, function($0, $1) { return $1 ? $0 : '/'; });
             preview_img = {
                 'image_url': data.previewUrl,
                 'size_slug': '',
