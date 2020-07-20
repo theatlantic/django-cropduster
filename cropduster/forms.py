@@ -31,9 +31,12 @@ class CropDusterWidget(GenericForeignFileWidget):
     def get_context_data(self, name, value, attrs=None, bound_field=None):
         ctx = super(CropDusterWidget, self).get_context_data(name, value, attrs, bound_field)
         sizes = self.sizes
+        related_object = ctx['instance']
+        preview_url = ''
+        if related_object:
+            preview_url = related_object.get_image_url(size_name='_preview')
         if six.callable(sizes):
             instance = getattr(getattr(bound_field, 'form', None), 'instance', None)
-            related_object = ctx['instance']
             try:
                 sizes_callable = six.get_method_function(sizes)
             except AttributeError:
@@ -42,6 +45,7 @@ class CropDusterWidget(GenericForeignFileWidget):
         sizes = [s for s in sizes if not getattr(s, 'is_alias', False)]
         ctx.update({
             'sizes': json.dumps(sizes),
+            'preview_url': preview_url,
         })
         return ctx
 

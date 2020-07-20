@@ -465,8 +465,10 @@ def crop(request):
         if isinstance(thumb_data['id'], Thumb):
             thumb_data['id'] = thumb_data['id'].pk
 
+    preview_url = db_image.get_image_url('_preview')
     return HttpResponse(json.dumps({
         'crop': crop_data,
         'thumbs': thumbs_data,
+        'preview_url': preview_url,
         'initial': True,
     }), content_type='application/json')
