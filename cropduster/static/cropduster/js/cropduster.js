@@ -365,20 +365,24 @@ window.CropDuster = {};
             var $thumb = $input.closest('.cropduster-form').find('.cropduster-images');
             $thumb.find('a').remove();
 
+            preview_img = {}
             $.each(data.sizes, function(i, size) {
                 if (!size || !size.name) return;
+
                 if (thumbData[size.name]) {
+                    if ($.isEmptyObject(preview_img)) {
+                        preview_img = {
+                            // use width and height of first suitable thumb for admin preview
+                            'image_url': data.previewUrl,
+                            'size_slug': 'preview',
+                            'width': thumbData[size.name].width,
+                            'height': thumbData[size.name].height
+                        }
+                        $thumb.html($.render.cropdusterImage(preview_img) + $thumb.html());
+                    }
                     $thumb.html($thumb.html() + $.render.cropdusterImage(thumbData[size.name]));
                 }
             });
-            preview_img = {
-                'image_url': data.previewUrl,
-                'size_slug': '',
-                // use width and height of first thumb for admin preview
-                'width': data.sizes[0].w,
-                'height': data.sizes[0].h,
-            }
-            $thumb.html($.render.cropdusterImage(preview_img) + $thumb.html());
         },
 
         removeSize: function(prefix, sizeName) {
