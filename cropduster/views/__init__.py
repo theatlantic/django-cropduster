@@ -466,9 +466,20 @@ def crop(request):
             thumb_data['id'] = thumb_data['id'].pk
 
     preview_url = db_image.get_image_url('_preview')
+    preview_w = PREVIEW_WIDTH
+    preview_h = PREVIEW_HEIGHT
+    orig_width, orig_height = db_image.get_image_size()
+    if (orig_width and orig_height):
+        resize_ratio = min(PREVIEW_WIDTH / orig_width, PREVIEW_HEIGHT / orig_height)
+        if resize_ratio < 1:
+            preview_w = int(round(orig_width * resize_ratio))
+            preview_h = int(round(orig_height * resize_ratio))
+
     return HttpResponse(json.dumps({
         'crop': crop_data,
         'thumbs': thumbs_data,
-        'preview_url': preview_url,
         'initial': True,
+        'preview_url': preview_url,
+        'preview_w': preview_w,
+        'preview_h': preview_h
     }), content_type='application/json')

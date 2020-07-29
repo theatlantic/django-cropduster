@@ -10,7 +10,9 @@ from django.utils import six
 from generic_plus.forms import BaseGenericFileInlineFormSet, GenericForeignFileWidget
 
 from .utils import json
-
+from cropduster.settings import (
+    CROPDUSTER_PREVIEW_WIDTH as PREVIEW_WIDTH,
+    CROPDUSTER_PREVIEW_HEIGHT as PREVIEW_HEIGHT)
 
 __all__ = ('CropDusterWidget', 'CropDusterThumbFormField', 'CropDusterInlineFormSet')
 
@@ -33,8 +35,17 @@ class CropDusterWidget(GenericForeignFileWidget):
         sizes = self.sizes
         related_object = ctx['instance']
         preview_url = ''
+        preview_w = PREVIEW_WIDTH
+        preview_h = PREVIEW_HEIGHT
         if related_object:
             preview_url = related_object.get_image_url(size_name='_preview')
+            orig_width, orig_height = related_object.get_image_size()
+            if (orig_width and orig_height):
+                resize_ratio = min(PREVIEW_WIDTH / orig_width, PREVIEW_HEIGHT / orig_height)
+                if resize_ratio < 1:
+                    preview_w = int(round(orig_width * resize_ratio))
+                    preview_h = int(round(orig_height * resize_ratio))
+
         if six.callable(sizes):
             instance = getattr(getattr(bound_field, 'form', None), 'instance', None)
             try:
@@ -43,9 +54,12 @@ class CropDusterWidget(GenericForeignFileWidget):
                 sizes_callable = sizes
             sizes = sizes_callable(instance, related=related_object)
         sizes = [s for s in sizes if not getattr(s, 'is_alias', False)]
+
         ctx.update({
             'sizes': json.dumps(sizes),
             'preview_url': preview_url,
+            'preview_w': preview_w,
+            'preview_h': preview_h,
         })
         return ctx
 

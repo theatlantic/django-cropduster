@@ -246,8 +246,11 @@ window.CropDuster = {};
             }
             CropDuster.setThumbnails(prefix, data.crop.thumbs);
 
-            // add preview_url from context data onto input field for preview rendering
+            // add preview_url, height, and width from context data onto input field for preview rendering
+            debugger;
             $("#id_" + prefix).data('previewUrl', data.preview_url);
+            $("#id_" + prefix).data('previewW', data.preview_w);
+            $("#id_" + prefix).data('previewH', data.preview_h);
             CropDuster.createThumbnails(prefix);
             $(document).trigger('cropduster:update', [prefix, data]);
         },
@@ -373,10 +376,9 @@ window.CropDuster = {};
             });
             preview_img = {
                 'image_url': data.previewUrl,
-                'size_slug': '',
-                // use width and height of first thumb for admin preview
-                'width': data.sizes[0].w,
-                'height': data.sizes[0].h,
+                'size_slug': 'preview',
+                'width': data.previewW,
+                'height': data.previewH
             }
             $thumb.html($.render.cropdusterImage(preview_img) + $thumb.html());
         },
