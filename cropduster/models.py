@@ -267,7 +267,7 @@ class Image(models.Model):
         ''' returns the file extension with a dot (.) prepended to it '''
         if not self.image:
             return u''
-        return os.path.splitext(safe_str_path(self.image.path))[1]
+        return os.path.splitext(safe_str_path(self.image.name))[1]
 
     @staticmethod
     def get_file_for_size(image, size_name='original', tmp=False):
@@ -399,13 +399,13 @@ class Image(models.Model):
                 return (thumb.width, thumb.height)
 
         # Get the original size
-        if not self.image or not default_storage.exists(safe_str_path(self.image.path)):
+        if not self.image or not default_storage.exists(safe_str_path(self.image.name)):
             return (0, 0)
         elif self.width and self.height:
             return (self.width, self.height)
         else:
             try:
-                img = PIL.Image.open(safe_str_path(self.image.path))
+                img = PIL.Image.open(safe_str_path(self.image.name))
             except (IOError, ValueError, TypeError):
                 return (0, 0)
             else:
@@ -522,7 +522,7 @@ class Image(models.Model):
         return thumb
 
     def _save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False, commit=True):
-        image = image or PIL.Image.open(safe_str_path(self.image.path))
+        image = image or PIL.Image.open(safe_str_path(self.image.name))
         if not thumb and self.pk:
             try:
                 thumb = self.thumbs.get(name=size.name)
