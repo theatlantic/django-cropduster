@@ -405,7 +405,9 @@ class Image(models.Model):
             return (self.width, self.height)
         else:
             try:
-                img = PIL.Image.open(safe_str_path(self.image.name))
+                with self.image as f:
+                    f.open()
+                    img = PIL.Image.open(BytesIO(f.read()))
             except (IOError, ValueError, TypeError):
                 return (0, 0)
             else:
@@ -522,7 +524,9 @@ class Image(models.Model):
         return thumb
 
     def _save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False, commit=True):
-        image = image or PIL.Image.open(safe_str_path(self.image.name))
+        with self.image as f:
+            f.open()
+            image = image or PIL.Image.open(BytesIO(f.read()))
         if not thumb and self.pk:
             try:
                 thumb = self.thumbs.get(name=size.name)
