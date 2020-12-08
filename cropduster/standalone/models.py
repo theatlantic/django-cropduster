@@ -4,6 +4,7 @@ import hashlib
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import models
+from django.core.files.storage import default_storage
 
 from generic_plus.utils import get_relative_media_url
 
@@ -64,7 +65,7 @@ class StandaloneImage(models.Model):
     def save(self, **kwargs):
         if not self.md5:
             md5_hash = hashlib.md5()
-            with default_open(self.image.path, mode='rb') as f:
+            with default_storage.open(self.image.name, mode='rb') as f:
                 md5_hash.update(f.read())
             self.md5 = md5_hash.digest()
         super(StandaloneImage, self).save(**kwargs)
