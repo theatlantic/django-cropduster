@@ -490,6 +490,12 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
         },
         commit: function (widget) {
             widget.setData('alt', this.getValue());
+        },
+        validate: function () {
+            if (editor.config.cropduster_requireAltText) {
+                var value = this.getValue();
+                return CKEDITOR.dialog.validate.notEmpty('Alt text describing the image is required for this field.')(value);
+            }
         }
     });
 
