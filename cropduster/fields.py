@@ -158,6 +158,7 @@ class CropDusterField(GenericForeignFileField):
         kwargs.update({
             'upload_to': kwargs.pop('upload_to', None) or '',
         })
+        self.require_alt_text = kwargs.pop('require_alt_text', False)
         super(CropDusterField, self).__init__(to, verbose_name=verbose_name, **kwargs)
 
     def formfield(self, **kwargs):
@@ -178,7 +179,8 @@ class CropDusterField(GenericForeignFileField):
         for_concrete_model = self.for_concrete_model
 
         def get_formset(self, request, obj=None, **kwargs):
-            formset_attrs = {'sizes': self.field.sizes, 'max_num': 1}
+            formset_attrs = {'sizes': self.field.sizes, 'max_num': 1,
+                             'require_alt_text': self.field.require_alt_text}
             formset_attrs.update(kwargs)
             return generic_fk_file_formset_factory(
                 formset=CropDusterInlineFormSet,
@@ -187,7 +189,7 @@ class CropDusterField(GenericForeignFileField):
                 prefix=self.default_prefix,
                 form_attrs={
                     "caption": forms.CharField(required=False),
-                    "alt_text": forms.CharField(required=cropduster.settings.CROPDUSTER_REQUIRE_ALT_TEXT),
+                    "alt_text": forms.CharField(required=False),
                 },
                 for_concrete_model=for_concrete_model)
 
