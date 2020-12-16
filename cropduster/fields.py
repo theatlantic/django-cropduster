@@ -187,7 +187,7 @@ class CropDusterField(GenericForeignFileField):
                 prefix=self.default_prefix,
                 form_attrs={
                     "caption": forms.CharField(required=False),
-                    "alt_text": forms.CharField(required=False),
+                    "alt_text": forms.CharField(required=cropduster.settings.CROPDUSTER_REQUIRE_ALT_TEXT),
                 },
                 for_concrete_model=for_concrete_model)
 
