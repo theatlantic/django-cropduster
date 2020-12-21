@@ -203,6 +203,20 @@ class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
                 field_file = getattr(self.instance, cropduster_field.name)
                 self.queryset._result_cache = list(filter(None, [field_file.related_object]))
 
+    def clean(self):
+        if any(self.errors) or not self.require_alt_text:
+            # Don't bother validating the formset unless each form is valid
+            # and the `require_alt_text` setting is on
+            return
+
+        for form in self.forms:
+            image = form.cleaned_data.get("image")
+            alt_text = form.cleaned_data.get("alt_text")
+
+            if image and not alt_text:
+                form.add_error(
+                    "alt_text", "Alt text describing the image is required for this field.")
+
     def _construct_form(self, i, **kwargs):
         """
         Limit the queryset of the thumbs for performance reasons (so that it doesn't
