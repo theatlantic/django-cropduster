@@ -7,3 +7,4 @@ ghostdriver.log
 test/media
 dist/
 .coverage
+/reports/
