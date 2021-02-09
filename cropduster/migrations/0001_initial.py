@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
             name='StandaloneImage',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('md5', models.CharField(max_length=32)),
+                ('md5', models.CharField(max_length=32, blank=True, default='')),
                 ('image', cropduster.fields.CropDusterImageField(blank=True, db_column='image', default='', upload_to='')),
             ],
             options={
