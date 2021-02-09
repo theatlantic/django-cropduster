@@ -26,6 +26,7 @@ class CropDusterWidget(GenericForeignFileWidget):
     class Media:
         css = {'all': ('cropduster/css/cropduster.css',)}
         js = (
+            'admin/js/jquery.init.js',
             'cropduster/js/jsrender.js',
             'cropduster/js/cropduster.js',
         )
