@@ -54,7 +54,7 @@ class StandaloneImage(models.Model):
 
     objects = StandaloneImageManager()
 
-    md5 = models.CharField(max_length=32)
+    md5 = models.CharField(max_length=32, blank=True, default='')
     image = CropDusterField(sizes=[Size("crop")], upload_to='')
 
     class Meta:
@@ -62,9 +62,10 @@ class StandaloneImage(models.Model):
         db_table = '%s_standaloneimage' % cropduster_settings.CROPDUSTER_DB_PREFIX
 
     def save(self, **kwargs):
-        if not self.md5:
+        if not self.md5 and self.image:
             md5_hash = hashlib.md5()
-            with default_open(self.image.path, mode='rb') as f:
+            with self.image.related_object.image as f:
+                f.open()
                 md5_hash.update(f.read())
-            self.md5 = md5_hash.digest()
+            self.md5 = md5_hash.hexdigest()
         super(StandaloneImage, self).save(**kwargs)
