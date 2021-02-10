@@ -44,20 +44,29 @@ class CropdusterTestCaseMediaMixin(object):
         scroll_top = -1 * self.selenium.execute_script(
             'return document.body.getBoundingClientRect().top')
         tmp_file = tempfile.NamedTemporaryFile(suffix='.png')
-        if not self.selenium.save_screenshot(tmp_file.name):
-            raise Exception("Failed to save screenshot")
         pixel_density = self.selenium.execute_script('return window.devicePixelRatio') or 1
-        im1 = PIL.Image.open(tmp_file.name).convert('RGB')
         x1 = int(round(element.location['x'] + (element.size['width'] // 2.0)))
         y1 = int(round(element.location['y'] - scroll_top + (element.size['height'] // 2.0)))
-        rgb1 = im1.getpixel((x1 * pixel_density, y1 * pixel_density))
-        im2 = PIL.Image.open(os.path.join(os.path.dirname(__file__), 'data', image)).convert('RGB')
-        w, h = im2.size
+
+        image_path = os.path.join(os.path.dirname(__file__), 'data', image)
+        ref_im = PIL.Image.open(image_path).convert('RGB')
+        w, h = ref_im.size
         x2, y2 = int(round(w // 2.0)), int(round(h // 2.0))
-        rgb2 = im2.getpixel((x2, y2))
-        if rgb1 != rgb2:
-            msg = "Colors differ: %s != %s" % (repr_rgb(rgb1), repr_rgb(rgb2))
-            self.fail(msg)
+        ref_rgb = ref_im.getpixel((x2, y2))
+        ref_im.close()
+
+        def get_screenshot_rgb():
+            if not self.selenium.save_screenshot(tmp_file.name):
+                raise Exception("Failed to save screenshot")
+            im = PIL.Image.open(tmp_file.name).convert('RGB')
+            rgb = im.getpixel((x1 * pixel_density, y1 * pixel_density))
+            im.close()
+            return rgb
+
+        self.wait_until(
+            lambda d: get_screenshot_rgb() == ref_rgb,
+            message=(
+                "Colors differ: %s != %s" % (repr_rgb(ref_rgb), repr_rgb(get_screenshot_rgb()))))
 
     def create_unique_image(self, image):
         image_uuid = uuid.uuid4().hex
