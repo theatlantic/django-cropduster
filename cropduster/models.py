@@ -91,7 +91,7 @@ class Thumb(models.Model):
 
     @property
     def path(self):
-        return self.image_file.path if self.image_file else ''
+        return self.image_file.name if self.image_file else ''
 
     @property
     def image_name(self):
@@ -267,7 +267,7 @@ class Image(models.Model):
         ''' returns the file extension with a dot (.) prepended to it '''
         if not self.image:
             return u''
-        return os.path.splitext(safe_str_path(self.image.path))[1]
+        return os.path.splitext(safe_str_path(self.image.name))[1]
 
     @staticmethod
     def get_file_for_size(image, size_name='original', tmp=False):
@@ -378,7 +378,7 @@ class Image(models.Model):
             field_model_class = field_model_class or model_class
             if (isinstance(field, CropDusterImageField) and
                     field.generic_field.field_identifier == self.field_identifier):
-                field_model_class.objects.filter(pk=self.object_id).update(**{field.attname: self.path or ''})
+                field_model_class.objects.filter(pk=self.object_id).update(**{field.attname: self.name or ''})
 
     def get_image_url(self, size_name='original', tmp=False):
         converted = Image.get_file_for_size(self.image, size_name, tmp=tmp)
@@ -399,13 +399,16 @@ class Image(models.Model):
                 return (thumb.width, thumb.height)
 
         # Get the original size
-        if not self.image or not default_storage.exists(safe_str_path(self.image.path)):
+        if not self.image or not default_storage.exists(safe_str_path(self.image.name)):
             return (0, 0)
         elif self.width and self.height:
             return (self.width, self.height)
         else:
             try:
-                img = PIL.Image.open(safe_str_path(self.image.path))
+                with self.image as f:
+                    f.open()
+                    img = PIL.Image.open(BytesIO(f.read()))
+                    img.filename = f.name
             except (IOError, ValueError, TypeError):
                 return (0, 0)
             else:
@@ -442,9 +445,10 @@ class Image(models.Model):
             raise Exception("Cannot save sizes without an image")
 
         if not image:
-            with default_storage.open(self.image.name) as f:
-                image = PIL.Image.open(f)
-                image.filename = self.image.name
+            with self.image as f:
+                f.open()
+                image = PIL.Image.open(BytesIO(f.read()))
+                image.filename = f.name
 
         if standalone:
             if not StandaloneImage:
@@ -522,7 +526,11 @@ class Image(models.Model):
         return thumb
 
     def _save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False, commit=True):
-        image = image or PIL.Image.open(safe_str_path(self.image.path))
+        if not image:
+            with self.image as f:
+                f.open()
+                image = PIL.Image.open(BytesIO(f.read()))
+                image.filename = f.name
         if not thumb and self.pk:
             try:
                 thumb = self.thumbs.get(name=size.name)
