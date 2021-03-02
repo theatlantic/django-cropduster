@@ -91,7 +91,7 @@ class Thumb(models.Model):
 
     @property
     def path(self):
-        return self.image_file.name if self.image_file else ''
+        return self.image_file.path if self.image_file else ''
 
     @property
     def image_name(self):
