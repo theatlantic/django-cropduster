@@ -3,6 +3,7 @@ from __future__ import division
 import os
 import hashlib
 
+import six
 import PIL.Image
 
 from django import forms
@@ -16,7 +17,6 @@ from django.utils.encoding import force_text
 from django.utils.html import conditional_escape
 from django.utils.safestring import mark_safe
 from django.templatetags.static import static
-from django.utils import six
 
 from cropduster.models import Thumb
 from cropduster.utils import (json, get_upload_foldername, get_min_size,

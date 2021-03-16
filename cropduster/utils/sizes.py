@@ -1,6 +1,6 @@
 from __future__ import division
 
-from django.utils import six
+import six
 
 from . import jsonutils as json
 from ..resizing import Size

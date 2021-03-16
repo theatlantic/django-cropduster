@@ -10,7 +10,7 @@ uses the [Jcrop jQuery plugin](https://github.com/tapmodo/Jcrop). It is a drop-i
 replacement for django's `ImageField` and allows users to generate multiple crops
 from images, using predefined sizes and aspect ratios. **django-cropduster**
 was created by developers at [The Atlantic](http://www.theatlantic.com/). It
-is compatible with python 2.7 and 3.4, and Django versions 1.4 - 1.8.
+is compatible with python 3.6+, and Django versions 1.11 - 3.1.
 
 * [Installation](#installation)
 * [Configuration](#configuration)

@@ -3,10 +3,10 @@ from __future__ import unicode_literals
 import os
 import re
 
+import six
 from django.core.files.storage import default_storage, FileSystemStorage
 from django.conf import settings
 from django.db.models.fields.files import FileField
-from django.utils import six
 
 
 __all__ = ('get_upload_foldername')
