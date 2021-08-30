@@ -138,14 +138,8 @@ body.cropduster-debug .cropduster-form .inline-related .grp-collapse-handler {
 	height: 23px;
 }
 
-.cropduster-image span {
-    background-repeat: none;
-    background-position: 0 0;
-    background-size: 100%;
-}
-.cropduster-image span {
+.cropduster-image-thumb {
     display: block;
-    float: left;
     -webkit-box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.8);
        -moz-box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.8);
             box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.8);

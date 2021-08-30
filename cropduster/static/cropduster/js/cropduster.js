@@ -112,36 +112,6 @@ window.CropDuster = {};
         return (zeroes + Math.ceil(Math.random() * Math.pow(10, length)).toString()).slice(-1 * length);
     };
 
-    var image_css = function(src, width, height, opts, is_ie) {
-        var css = '';
-        src = src || '';
-        if (src.indexOf('%') === -1) {
-          src = encodeURI(src);
-          var q = src.indexOf('?') > -1 ? '&' : '?';
-          src = encodeURI(src || '') + q + 'v=' + randomDigits(9);
-        }
-        css += 'background-image:url("' + src + '");';
-
-        if (width > 750) {
-          var origWidth = width;
-          var origHeight = height;
-          var scale = origWidth / 750;
-          width = 750;
-          height = origHeight / scale;
-          css += 'background-size: contain;';
-        }
-
-        css += 'width:' + width + 'px;';
-        css += 'height:' + height + 'px;';
-        if (is_ie) {
-            var filter = 'progid:DXImageTransform.Microsoft.AlphaImageLoader(src=\'' + src + '\', sizingMethod=\'scale\')';
-            css += 'filter:' + filter + ';';
-            css += '-ms-filter:"' + filter + '";';
-        }
-        return css;
-    };
-
-
     var GET_params = (function() {
         var url = window.location.search.substr(1);
         var parts = url.split('&');
@@ -160,20 +130,15 @@ window.CropDuster = {};
 
     // jsrender templates
     if ($.views) {
-        $.views.helpers({
-            image_css: image_css,
-            ie_image_css: function(src, width, height, opts) {
-                return image_css.call(this, src, width, height, opts, true);
-            }
-        });
-
         $.templates({
-            cropdusterImage: '<a target="_blank" class="cropduster-image cropduster-image-{{>size_slug}}" href="{{>image_url}}">' +
-                '<!' + '--[if lt IE 9]' + '>' +
-                '<span style="{{>~ie_image_css(image_url, width, height)}}"></span>' +
-                '<![endif]--><![if gte IE 9]>' +
-                '   <span style="{{>~image_css(image_url, width, height)}}"></span>' +
-                '<![endif]></a>'
+            cropdusterImage: [
+                '<a target="_blank"',
+                ' class="cropduster-image cropduster-image-{{>size_slug}}"',
+                ' href="{{>image_url}}">',
+                '<img class="cropduster-image-thumb cropduster-image-thumb-{{>size_slug}}"',
+                ' src="{{>image_url}}" width="{{>width}}" height="{{>height}}"/>',
+                '</a>'
+            ].join(""),
         });
     }
 
@@ -366,13 +331,6 @@ window.CropDuster = {};
             });
             var $thumb = $input.closest('.cropduster-form').find('.cropduster-images');
             $thumb.find('a').remove();
-
-            $.each(data.sizes, function(i, size) {
-                if (!size || !size.name) return;
-                if (thumbData[size.name]) {
-                    $thumb.html($thumb.html() + $.render.cropdusterImage(thumbData[size.name]));
-                }
-            });
             preview_img = {
                 'image_url': data.previewUrl,
                 'size_slug': 'preview',

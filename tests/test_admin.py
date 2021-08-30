@@ -146,7 +146,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
         self.load_admin(author)
 
-        preview_image_el = self.selenium.find_element_by_css_selector('#headshot-group .cropduster-image span')
+        preview_image_el = self.selenium.find_element_by_css_selector('#headshot-group .cropduster-image-thumb')
         src_image_path = os.path.join(self.TEST_IMG_DIR, 'img.png')
         self.assertImageColorEqual(preview_image_el, src_image_path)
 
