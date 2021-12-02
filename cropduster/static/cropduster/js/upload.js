@@ -387,7 +387,7 @@
                 clearTimeout(this.timeout);
                 this.timeout = undefined;
             }
-            if ($('#cropbox').width() > 1) {
+            if ($('#cropbox').prop('naturalWidth') > 1) {
                 this.onImageLoad();
                 return;
             }
