@@ -173,6 +173,15 @@
             if (this.jcrop) {
                 options = this.jcrop.getOptions();
             }
+            // If the top left coordinates are outside the image, set them to 0
+            if (y < 0) {
+                h += y;
+                y = 0;
+            }
+            if (x < 0) {
+                w += x;
+                x = 0;
+            }
             if (options.minSize) {
                 if (Math.abs(w - options.minSize[0]) == 1) {
                     w = options.minSize[0];
@@ -202,14 +211,14 @@
             } catch(e) {}
             var thumbCount = $('.cropduster-thumb-form').length;
             if (i + 1 == thumbCount) {
-              $('#nav-right').addClass('disabled');
+                $('#nav-right').addClass('disabled');
             } else {
-              $('#nav-right').removeClass('disabled');
+                $('#nav-right').removeClass('disabled');
             }
             if (i == 0) {
-              $('#nav-left').addClass('disabled');
+                $('#nav-left').addClass('disabled');
             } else {
-              $('#nav-left').removeClass('disabled');
+                $('#nav-left').removeClass('disabled');
             }
             if (thumbCount == 1) {
                 $('#crop-nav,#current-thumb-info').hide();
@@ -526,7 +535,7 @@
             var originalSize = parseInt($('#id_crop-orig_' + sizeType).val(), 10) || 0;
             var maxSize = (typeof size == 'object') ? size['max_' + sizeType] : undefined;
 
-            if (val !== "0" && !val) { return; }
+            if (val !== '0' && !val) { return; }
 
             val = parseInt(val, 10);
 
@@ -554,8 +563,8 @@
         }
         if (parent) {
             $P = (typeof parent.django == 'object')
-                   ? parent.django.jQuery
-                   : parent.jQuery;
+                ? parent.django.jQuery
+                : parent.jQuery;
         }
 
         var data = {};
@@ -581,17 +590,17 @@
                 return;
             }
             switch($this.attr('id')) {
-                case 'nav-left':
-                    if (cropBox.index <= 0) {
-                        return;
-                    }
-                    move = -1;
+            case 'nav-left':
+                if (cropBox.index <= 0) {
+                    return;
+                }
+                move = -1;
                 break;
-                case 'nav-right':
-                    if (cropBox.index + 1 >= $('.cropduster-thumb-form').length) {
-                        return;
-                    }
-                    move = 1;
+            case 'nav-right':
+                if (cropBox.index + 1 >= $('.cropduster-thumb-form').length) {
+                    return;
+                }
+                move = 1;
                 break;
             }
             if (!move) {
@@ -670,7 +679,7 @@
                     $messagelist = $errorContainer.parent().find('.messagelist,.grp-messagelist');
                 }
                 $messagelist.show();
-                $messagelist.find('li.warning').html(data.warning.join("<br/>"));
+                $messagelist.find('li.warning').html(data.warning.join('<br/>'));
             } else {
                 $messagelist.hide();
             }
@@ -680,12 +689,12 @@
                     var $input = $(input);
                     var name = $input.attr('name');
                     if (name.match(/\d\-crop_/) || name.match(/\-(width|height|thumbs)$/)) {
-                        $input.val("");
+                        $input.val('');
                     } else if (name == 'thumbs-INITIAL_FORMS') {
-                        $input.val("0");
+                        $input.val('0');
                     }
                 });
-                $('#id_crop-thumbs').val("");
+                $('#id_crop-thumbs').val('');
                 $('#upload-button,#reupload-button').hide();
             }
             setFormData(data);
