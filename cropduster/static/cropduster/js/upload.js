@@ -313,8 +313,8 @@
             }
 
             var options = {
-                boxWidth: $('#cropbox').width(),
-                boxHeight: $('#cropbox').height(),
+                boxWidth: $('#cropbox').prop('naturalWidth'),
+                boxHeight: $('#cropbox').prop('naturalHeight'),
                 minSize: calcMinSize(size),
                 trueSize: [this.orig_w, this.orig_h],
                 setSelect: this.getCropSelect(aspectRatio, aspectExtent),
