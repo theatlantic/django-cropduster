@@ -232,4 +232,7 @@ class ThumbFormSet(BaseModelFormSet):
             pk_key = "%s-%s" % (self.add_prefix(i), self.model._meta.pk.name)
             self.data[pk_key] = self.data.get(pk_key) or None
             self.data._mutable = mutable
-        return super(ThumbFormSet, self)._construct_form(i, **kwargs)
+        form = super(ThumbFormSet, self)._construct_form(i, **kwargs)
+        if self.data.get('crop-standalone') == 'on':
+            form.fields[self.model._meta.pk.name].required = False
+        return form
