@@ -13,3 +13,4 @@ def suppress_warnings():
     warnings.filterwarnings('ignore', message='.*?ckeditor')
     warnings.filterwarnings('ignore', message='.*?collections')
     warnings.filterwarnings('ignore', message='.*?Resampling')
+    warnings.filterwarnings('ignore', message='.*?distutils')
