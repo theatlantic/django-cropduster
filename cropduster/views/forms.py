@@ -6,13 +6,17 @@ import hashlib
 import PIL.Image
 
 from django import forms
+from django.core.exceptions import ObjectDoesNotExist
+from django.core.files.storage import default_storage
 from django.conf import settings
 from django.forms.forms import NON_FIELD_ERRORS
 from django.forms.models import BaseModelFormSet
-from django.forms.util import ErrorDict as _ErrorDict
+from django.forms.utils import ErrorDict as _ErrorDict
+from django.utils.encoding import force_text
 from django.utils.html import conditional_escape
-from django.utils.encoding import force_unicode
 from django.utils.safestring import mark_safe
+from django.templatetags.static import static
+from django.utils import six
 
 from cropduster.models import Thumb
 from cropduster.utils import (json, get_upload_foldername, get_min_size,
@@ -27,7 +31,7 @@ class ErrorDict(_ErrorDict):
         for k, v in self.items():
             if k == NON_FIELD_ERRORS:
                 k = ''
-            error_list.append(u'%s%s' % (k, conditional_escape(force_unicode(v))))
+            error_list.append(u'%s%s' % (k, conditional_escape(force_text(v))))
 
         return mark_safe(u'<ul class="errorlist">%s</ul>'
                 % ''.join([u'<li>%s</li>' % e for e in error_list]))
@@ -40,7 +44,7 @@ def clean_upload_data(data):
         pil_image = PIL.Image.open(image)
     except IOError as e:
         if e.errno:
-            error_msg = unicode(e)
+            error_msg = force_text(e)
         else:
             error_msg = u"Invalid or unsupported image file"
         raise forms.ValidationError({"image": [error_msg]})
@@ -48,6 +52,7 @@ def clean_upload_data(data):
         extension = get_image_extension(pil_image)
 
     upload_to = data['upload_to'] or None
+
     folder_path = get_upload_foldername(image.name, upload_to=upload_to)
 
     (w, h) = (orig_w, orig_h) = pil_image.size
@@ -74,13 +79,14 @@ def clean_upload_data(data):
     # File is good, get rid of the tmp file
     orig_file_path = os.path.join(folder_path, 'original' + extension)
     image.seek(0)
-    image_contents = image.read()
-    with open(os.path.join(settings.MEDIA_ROOT, orig_file_path), 'wb+') as f:
-        f.write(image_contents)
     md5_hash = hashlib.md5()
-    md5_hash.update(image_contents)
+    default_storage.save(orig_file_path, image)
+    with default_storage.open(orig_file_path) as f:
+        md5_hash.update(f.read())
+        f.seek(0)
+        data['image'] = f
     data['md5'] = md5_hash.hexdigest()
-    data['image'] = open(os.path.join(settings.MEDIA_ROOT, orig_file_path))
+
     return data
 
 
@@ -98,7 +104,7 @@ class FormattedErrorMixin(object):
             self._errors = e.update_error_dict(self._errors)
             # Wrap newly updated self._errors values in self.error_class
             # (defaults to django.forms.util.ErrorList)
-            for k, v in self._errors.iteritems():
+            for k, v in six.iteritems(self._errors):
                 if isinstance(v, list) and not isinstance(v, self.error_class):
                     self._errors[k] = self.error_class(v)
             if not isinstance(self._errors, _ErrorDict):
@@ -135,17 +141,17 @@ class CropForm(forms.Form):
 
     class Media:
         css = {'all': (
-            u"%scropduster/css/cropduster.css?v=4" % settings.STATIC_URL,
-            u"%scropduster/css/jquery.jcrop.css?v=4" % settings.STATIC_URL,
-            u"%scropduster/css/upload.css?v=4" % settings.STATIC_URL,
+            u"cropduster/css/cropduster.css",
+            u"cropduster/css/jquery.jcrop.css",
+            u"cropduster/css/upload.css",
         )}
         js = (
-            u"%scropduster/js/json2.js" % settings.STATIC_URL,
-            u"%scropduster/js/jquery.class.js" % settings.STATIC_URL,
-            u"%scropduster/js/jquery.form.js?v=1" % settings.STATIC_URL,
-            u"%scropduster/js/jquery.jcrop.js?v=4" % settings.STATIC_URL,
-            u"%scropduster/js/upload.js?v=5" % settings.STATIC_URL,
-            u"%scropduster/js/cropduster.js?v=4" % settings.STATIC_URL,
+            "cropduster/js/json2.js",
+            "cropduster/js/jquery.class.js",
+            "cropduster/js/jquery.form.js",
+            "cropduster/js/jquery.jcrop.js",
+            "cropduster/js/cropduster.js",
+            "cropduster/js/upload.js",
         )
 
     image_id = forms.IntegerField(required=False)
@@ -202,11 +208,31 @@ class ThumbFormSet(BaseModelFormSet):
     ValueError).
     """
 
+    def _existing_object(self, pk):
+        """
+        Avoid potentially expensive list comprehension over self.queryset()
+        in the parent method.
+        """
+        if not hasattr(self, '_object_dict'):
+            self._object_dict = {}
+        if not pk:
+            return None
+        try:
+            obj = self.get_queryset().get(pk=pk)
+        except ObjectDoesNotExist:
+            return None
+        else:
+            self._object_dict[obj.pk] = obj
+        return super(ThumbFormSet, self)._existing_object(pk)
+
     def _construct_form(self, i, **kwargs):
         if self.is_bound and i < self.initial_form_count():
             mutable = getattr(self.data, '_mutable', False)
             self.data._mutable = True
             pk_key = "%s-%s" % (self.add_prefix(i), self.model._meta.pk.name)
             self.data[pk_key] = self.data.get(pk_key) or None
-            self.data._multable = mutable
-        return super(ThumbFormSet, self)._construct_form(i, **kwargs)
+            self.data._mutable = mutable
+        form = super(ThumbFormSet, self)._construct_form(i, **kwargs)
+        if self.data.get('crop-standalone') == 'on':
+            form.fields[self.model._meta.pk.name].required = False
+        return form

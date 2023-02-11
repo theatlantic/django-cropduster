@@ -1,23 +1,62 @@
 from __future__ import division
+
 import os
 import re
 import math
 import hashlib
+import tempfile
+
+import PIL.Image
+
+from django.core.exceptions import ImproperlyConfigured
+from django.utils import six
+from django.utils.encoding import python_2_unicode_compatible
+from django.utils.six.moves import filter
+from django.core.files.storage import default_storage
+
+from .settings import CROPDUSTER_RETAIN_METADATA
 
 
 __all__ = ('Size', 'Box', 'Crop')
 
 
+INFINITY = float('inf')
+
+
+@python_2_unicode_compatible
+class SizeAlias(object):
+    is_alias = True
+
+    def __init__(self, alias, to):
+        self.alias = alias
+        self.to = to
+
+    def __str__(self):
+        return u'Size %s => %s' % (self.alias, self.to)
+
+    def add_to_sizes_dict(self, sizes):
+        keys = re.split(r'(?<!\\)\.', self.alias)
+        size_to = sizes.get(self.to)
+        if not size_to:
+            return
+        ctx = sizes
+        for key in keys:
+            ctx.setdefault(key, {})
+            ctx = ctx[key]
+        ctx.update(size_to)
+
+
+@python_2_unicode_compatible
 class Size(object):
 
+    is_alias = False
     parent = None
 
     def __init__(self, name, label=None, w=None, h=None, retina=False, auto=None, min_w=None, min_h=None,
-            max_w=None, max_h=None):
-        from django.core.exceptions import ImproperlyConfigured
+            max_w=None, max_h=None, required=True):
 
-        self.min_w = max(w, min_w) or 1
-        self.min_h = max(h, min_h) or 1
+        self.min_w = max(w or 1, min_w or 1) or 1
+        self.min_h = max(h or 1, min_h or 1) or 1
         self.max_w = max_w
         self.max_h = max_h
 
@@ -38,8 +77,24 @@ class Size(object):
         self.width = w
         self.height = h
         self.label = label or u' '.join(filter(None, re.split(r'[_\-]', name))).title()
+        self.required = required
 
-    def __unicode__(self):
+        self.min_aspect = (self.w / self.h) if (self.w and self.h) else 0
+        self.max_aspect = self.min_aspect or INFINITY
+
+        if self.w and self.min_h > 1:
+            self.max_aspect = min(self.max_aspect, self.w / self.min_h)
+
+        if self.w and self.max_h:
+            self.min_aspect = max(self.min_aspect, self.w / self.max_h)
+
+        if self.h and self.min_w > 1:
+            self.min_aspect = max(self.min_aspect, self.min_w / self.h)
+
+        if self.h and self.max_w:
+            self.max_aspect = min(self.max_aspect, self.max_w / self.h)
+
+    def __str__(self):
         name = u'Size %s (%s):' % (self.label, self.name)
         if self.auto:
             name = u'%s[auto]' % name
@@ -67,8 +122,10 @@ class Size(object):
         return self.parent is not None
 
     @staticmethod
-    def flatten(sizes):
+    def flatten(sizes, include_aliases=False):
         for size in sizes:
+            if isinstance(size, SizeAlias) and not include_aliases:
+                continue
             yield size
             if size.auto:
                 for auto_size in size.auto:
@@ -79,6 +136,11 @@ class Size(object):
         if not self.width or not self.height:
             return None
         return self.width / self.height
+
+    def fit_image(self, original_image):
+        orig_w, orig_h = original_image.size
+        crop = Crop(Box(0, 0, orig_w, orig_h), original_image)
+        return self.fit_to_crop(crop, original_image=original_image)
 
     def fit_to_crop(self, crop, original_image=None):
         from cropduster.models import Thumb
@@ -92,6 +154,8 @@ class Size(object):
             'min_h': self.min_h or self.height,
             'max_w': self.max_w,
             'max_h': self.max_h,
+            'min_aspect': self.min_aspect,
+            'max_aspect': self.max_aspect,
         }
         if self.width and self.height:
             best_fit_kwargs.update({'w': self.width, 'h': self.height})
@@ -108,6 +172,7 @@ class Size(object):
             'max_h': self.max_h,
             'retina': 1 if self.retina else 0,
             'label': self.label,
+            'required': self.required,
             '__type__': 'Size',
         }
         if self.auto:
@@ -142,7 +207,7 @@ class Box(object):
     @property
     def midpoint(self):
         x = (self.x1 + self.x2) / 2
-        y = (self.y1 + self.y2) / 2;
+        y = (self.y1 + self.y2) / 2
         return (x, y)
 
     @property
@@ -152,47 +217,65 @@ class Box(object):
     def as_tuple(self):
         return (self.x1, self.y1, self.x2, self.y2)
 
+    def __eq__(self, other):
+        return (isinstance(other, self.__class__) and self.as_tuple() == other.as_tuple())
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 
 class Crop(object):
 
     def __init__(self, box, image):
+        if isinstance(image, six.string_types):
+            self._fh = default_storage.open(image, mode='rb')
+            image = PIL.Image.open(self._fh)
+
         self.box = box
         self.image = image
         self.bounds = Box(0, 0, *image.size)
 
-    def create_image(self, width=None, height=None, max_w=None, max_h=None):
-        import PIL.Image
-        from cropduster.exceptions import CropDusterResizeException
+    def close(self):
+        if hasattr(self, '_fh') and not self._fh.closed:
+            self._fh.close()
 
-        image = self.image.copy()
-        image.load()
-        new_image = image.crop(self.box.as_tuple())
-        new_image.load()
-        new_w, new_h = new_image.size
-        if new_w < width or new_h < height:
-            raise CropDusterResizeException(
-                u"Crop box (%dx%d) is too small for resize to (%dx%d)" % (new_w, new_h, width, height))
+    def __del__(self):
+        self.close()
 
-        # Scale our initial width and height based on the max_w and max_h
-        max_scales = []
-        if max_w and max_w < width:
-            max_scales.append(max_w / width)
-        if max_h and max_h < height:
-            max_scales.append(max_h / height)
-        if max_scales:
-            max_scale = min(max_scales)
-            width = int(round(width * max_scale))
-            height = int(round(height * max_scale))
-        if new_w > width or new_h > height:
-            new_image = new_image.resize((width, height), PIL.Image.ANTIALIAS)
+    def create_image(self, output_filename, width, height):
+        from cropduster.utils import process_image, get_image_extension
+
+        temp_file = tempfile.NamedTemporaryFile(suffix=get_image_extension(self.image), delete=False)
+        temp_filename = temp_file.name
+        with default_storage.open(self.image.filename, mode='rb') as f:
+            temp_file.write(f.read())
+        temp_file.seek(0)
+        image = PIL.Image.open(temp_filename)
+        image.filename = self.image.filename
+
+        crop_args = self.box.as_tuple()
+
+        def crop_and_resize_callback(im):
+            from cropduster.utils import smart_resize
+            im = im.crop(crop_args)
+            return smart_resize(im, final_w=width, final_h=height)
+
+        new_image = process_image(image, output_filename, crop_and_resize_callback)
         new_image.crop = self
+        temp_file.close()
+        os.unlink(temp_filename)
         return new_image
 
-    def best_fit(self, w=None, h=None, min_w=None, min_h=None, max_w=None, max_h=None):
+    def best_fit(self, w=None, h=None, min_w=None, min_h=None, max_w=None, max_h=None, min_aspect=None, max_aspect=None):
         if w and h:
             aspect_ratio = w / h
         else:
             aspect_ratio = self.box.aspect_ratio
+
+        if min_aspect and aspect_ratio < min_aspect:
+            aspect_ratio = min_aspect
+        elif max_aspect and aspect_ratio > max_aspect:
+            aspect_ratio = max_aspect
 
         scale = math.sqrt(aspect_ratio / self.box.aspect_ratio)
 
@@ -240,12 +323,20 @@ class Crop(object):
             scale_y = (y2 - y1) / initial_fit.h
 
         if scale_y < scale_x:
+            # scale down the width to maintain aspect ratio
             w = (x2 - x1) * (scale_y / scale_x)
+            # unless the scaled width would drop below the min_w
+            if w < min_w:
+                w = min_w
             dw = initial_fit.w - w
             x1 += (dw / 2)
             x2 = x1 + w
-        elif scale_x < scale_y:
+        elif scale_x <= scale_y:
+            # scale down the height to maintain aspect ratio
             h = (y2 - y1) * (scale_x / scale_y)
+            # unless the scaled height would drop below the min_h
+            if h < min_h:
+                h = min_h
             dh = initial_fit.h - h
             y1 += (dh / 2)
             y2 = y1 + h
@@ -258,50 +349,40 @@ class Crop(object):
         x2 = min(int(round(x2)), self.bounds.x2, x1 + w)
         y2 = min(int(round(y2)), self.bounds.y2, y1 + h)
 
+        # Fix off-by-one rounding errors
+        if (x2 - x1 == w - 1):
+            if x2 < self.bounds.x2:
+                x2 += 1
+            elif x1 > self.bounds.x1:
+                x1 -= 1
+        if (y2 - y1 == h - 1):
+            if y2 < self.bounds.y2:
+                y2 += 1
+            elif y1 > self.bounds.y1:
+                y1 -= 1
+
         return Crop(Box(x1, y1, x2, y2), self.image)
 
-    def add_xmp_to_crop(self, cropped_image, size):
-        from cropduster.standalone.metadata import libxmp, file_format_supported
+    def add_xmp_to_crop(self, cropped_image_path, size, original_image=None):
+        try:
+            from cropduster.standalone.metadata import (libxmp,
+                get_xmp_from_storage, put_xmp_to_storage)
+        except ImproperlyConfigured:
+            libxmp = None
 
-        if not libxmp:
+        if not libxmp or not cropped_image_path:
             return
 
-        from PIL.ImageFile import ImageFile
-        from django.db.models.fields.files import FieldFile
-        from cropduster.models import Thumb
+        if original_image and CROPDUSTER_RETAIN_METADATA:
+            original_metadata = get_xmp_from_storage(original_image.filename)
+        else:
+            original_metadata = None
 
-        if isinstance(cropped_image, ImageFile):
-            image_path = cropped_image.filename
-        elif isinstance(cropped_image, file):
-            image_path = cropped_image.name
-        elif isinstance(cropped_image, FieldFile):
-            image_path = cropped_image.path
-        elif isinstance(cropped_image, Thumb):
-            try:
-                image = cropped_image.image_set.all()[0]
-            except IndexError:
-                return False
-            else:
-                image_path = image.get_image_path(cropped_image.name)
-        elif isinstance(cropped_image, basestring):
-            image_path = cropped_image
+        xmp_meta = self.generate_xmp(size, original_metadata=original_metadata)
 
-        xmp_file = libxmp.XMPFiles(file_path=image_path, open_forupdate=True)
+        put_xmp_to_storage(xmp_meta, cropped_image_path)
 
-        xmp_meta = self.generate_xmp(size)
-
-        if not xmp_file.can_put_xmp(xmp_meta):
-            if not file_format_supported(image_path):
-                raise Exception("Image format of %s does not allow metadata" %(
-                        os.path.basename(image_path)))
-            else:
-                raise Exception("Could not add metadata to image %s" % (
-                        os.path.basename(image_path)))
-
-        xmp_file.put_xmp(xmp_meta)
-        xmp_file.close_file()
-
-    def generate_xmp(self, size):
+    def generate_xmp(self, size, original_metadata=None):
         from cropduster.standalone.metadata import libxmp
         from cropduster.utils import json
 
@@ -310,11 +391,11 @@ class Crop(object):
         NS_CROP = "http://ns.thealtantic.com/cropduster/1.0/"
 
         md5 = hashlib.md5()
-        with open(self.image.filename) as f:
+        with default_storage.open(self.image.filename, mode='rb') as f:
             md5.update(f.read())
         digest = md5.hexdigest()
 
-        md = libxmp.XMPMeta()
+        md = original_metadata or libxmp.XMPMeta()
         md.register_namespace(NS_XMPMM, 'xmpMM')
         md.register_namespace(NS_MWG_RS, 'mwg-rs')
         md.register_namespace('http://ns.adobe.com/xap/1.0/sType/Dimensions#', 'stDim')
@@ -323,16 +404,20 @@ class Crop(object):
         md.set_property(NS_CROP, 'crop:size/stDim:w', '%s' % (size.width or ''))
         md.set_property(NS_CROP, 'crop:size/stDim:h', '%s' % (size.height or ''))
         md.set_property(NS_CROP, 'crop:size/crop:json', json.dumps(size))
-        md.set_property(NS_XMPMM, 'xmpMM:DerivedFrom', u'xmp.did:%s' % digest.upper())
+        md.set_property(NS_CROP, 'crop:md5', digest.upper())
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions', '', prop_value_is_struct=True)
-        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:w', unicode(self.image.size[0]))
-        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:h', unicode(self.image.size[1]))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:w', six.text_type(self.image.size[0]))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:h', six.text_type(self.image.size[1]))
+        # Clear out any existing <mwg-rs:RegionList> tags so they don't conflict
+        # (for instance, iPhone face regions are stored in this tag)
+        if md.does_property_exist(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList'):
+            md.delete_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList')
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList', '', prop_value_is_array=True)
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Name', 'Crop')
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area', '', prop_value_is_struct=True)
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:unit', "normalized")
-        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:w',    "%.5f" % (self.box.w  / self.bounds.w))
-        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:h',    "%.5f" % (self.box.h  / self.bounds.h))
-        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:x',    "%.5f" % (self.box.x1 / self.bounds.w))
-        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:y',    "%.5f" % (self.box.y1 / self.bounds.h))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:w', "%.5f" % (self.box.w / self.bounds.w))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:h', "%.5f" % (self.box.h / self.bounds.h))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:x', "%.5f" % (self.box.x1 / self.bounds.w))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList[1]/mwg-rs:Area/stArea:y', "%.5f" % (self.box.y1 / self.bounds.h))
         return md

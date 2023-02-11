@@ -344,7 +344,10 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
 
     var okButton = CKEDITOR.dialog.okButton.override({
         onClick: function(evt) {
-            var $j = cropdusterIframe.$.contentWindow.$;
+            var contentWin = cropdusterIframe.iframeElement.$.contentWindow;
+            var $j = (typeof contentWin.django === 'object')
+              ? contentWin.django.jQuery
+              : contentWin.$;
             if ($j) {
                 var $cropButton = $j('#crop-button');
                 if ($j.length && !$cropButton.hasClass('disabled')) {
@@ -362,9 +365,10 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
     var tabElements = [{
         id: 'iframe',
         type: 'html',
-        html: '<div style="width:100%;text-align:center;">' + '<iframe style="border:0;width:650px;height:500px;font-size:20px" scrolling="no" frameborder="0" allowTransparency="true"></iframe>' + '</div>',
+        html: '<div style="width:100%;text-align:center;">' + '<iframe style="border:0;width:650px;height:400px;font-size:20px" scrolling="no" frameborder="0" allowTransparency="true"></iframe>' + '</div>',
         onLoad: function (widget) {},
         setup: function (widget) {
+
             var dialogElement = this.getDialog().getElement();
             dialogElement.addClass('cke_editor_cropduster_content_dialog');
             var tabs = dialogElement.findOne('.cke_dialog_tabs');
@@ -375,39 +379,55 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
             if (contents) {
                 contents.setStyles({'border-top': '0', 'margin-top': '0'});
             }
-            var domId = this.domId.replace(/_uiElement$/, '');
-            var callback_fn = domId + '_callback';
-            var image = widget.parts.image;
-            var url = widget.config.url + '?';
-            var params = {
-                'callback_fn': callback_fn
-            };
-            if (widget.config.uploadTo) {
-                params['upload_to'] = widget.config.uploadTo;
-            }
-            if (widget.config.previewSize) {
-                if (Object.prototype.toString.call(widget.config.previewSize) == '[object Array]') {
-                    if (widget.config.previewSize.length == 2) {
-                        params['preview_size'] = widget.config.previewSize.join('x');
+
+            cropdusterIframe = {
+                setup: function (domId, baseUrl) {
+                    this.iframeElement = CKEDITOR.document.getById(domId).getChild(0)
+                    this.iframeElement.$.src = 'about:blank';
+                    try {
+                        this.iframeElement.$.contentDocument.body.innerHTML = "";
+                    } catch(e) {}
+                    this.baseUrl = baseUrl;
+                    this.callback_fn = domId.replace(/_uiElement$/, '') + '_callback';
+
+                    var image = widget.parts.image;
+                    var params = {'callback_fn': this.callback_fn};
+                    if (widget.config.uploadTo) {
+                        params['upload_to'] = widget.config.uploadTo;
                     }
+                    if (widget.config.previewSize) {
+                        if (Object.prototype.toString.call(widget.config.previewSize) == '[object Array]') {
+                            if (widget.config.previewSize.length == 2) {
+                                params['preview_size'] = widget.config.previewSize.join('x');
+                            }
+                        }
+                    }
+                    if (image.$.naturalWidth != image.$.width) {
+                        params['max_w'] = image.$.width;
+                    }
+                    if (widget.data && widget.data.src) {
+                        params['image'] = widget.data.src;
+                    }
+                    if (widget.config.urlParams && isPlainObject(widget.config.urlParams)) {
+                        params = CKEDITOR.tools.extend({}, params, widget.config.urlParams);
+                    }
+                    this.params = params;
+                    this.reload();
+                },
+                getUrl: function () {
+                    var urlQuery = [];
+                    for (var k in this.params) {
+                        urlQuery.push([k, encodeURIComponent(this.params[k])].join('='));
+                    }
+                    return this.baseUrl + urlQuery.join('&');
+                },
+                reload: function () {
+                    var url = this.getUrl();
+                    this.iframeElement.$.src = url;
                 }
             }
-            if (image.$.naturalWidth != image.$.width) {
-                params['max_w'] = image.$.width;
-            }
-            if (widget.data && widget.data.src) {
-                params['image'] = widget.data.src;
-            }
-            if (widget.config.urlParams && isPlainObject(widget.config.urlParams)) {
-                params = CKEDITOR.tools.extend({}, params, widget.config.urlParams);
-            }
-            var url_query = [];
-            for (var k in params) {
-                url_query.push([k, encodeURIComponent(params[k])].join('='));
-            }
-            url += url_query.join('&');
-            cropdusterIframe = CKEDITOR.document.getById(this.domId).getChild(0);
-            cropdusterIframe.$.src = url;
+            cropdusterIframe.setup(this.domId, widget.config.url + '?');
+            widget.cropdusterIframe = cropdusterIframe;
 
             var self = this;
             var callback = function (prefix, data) {
@@ -418,14 +438,14 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
                     heightField.setValue(thumbData.height);
                     widget.setData('height', thumbData.height);
                     srcField.setValue(thumbData.url);
-                    updateValue(url);
+                    updateValue(cropdusterIframe.getUrl());
                 }
                 var dialog = self.getDialog();
                 if (dialog.fire('ok', {hide: true}).hide !== false) {
                     dialog.hide();
                 }
             };
-            window[callback_fn] = callback;
+            window[cropdusterIframe.callback_fn] = callback;
         }
     }, {
         id: 'hasCaption',
@@ -461,6 +481,24 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
         }
     }
 
+    tabElements.push({
+        id: 'alt',
+        type: 'text',
+        label: lang.alt,
+        setup: function (widget) {
+            this.setValue(widget.data.alt);
+        },
+        commit: function (widget) {
+            widget.setData('alt', this.getValue());
+        },
+        validate: function () {
+            if (editor.config.cropduster_requireAltText) {
+                var value = this.getValue();
+                return CKEDITOR.dialog.validate.notEmpty('Alt text describing the image is required for this field.')(value);
+            }
+        }
+    });
+
     return {
         title: lang.title,
         minWidth: 650,
@@ -474,7 +512,7 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
         },
         onShow: function () {
             // Create a "global" reference to edited widget.
-            widget = this._.widget;
+            widget = this.widget;
             // Create a "global" reference to widget's image.
             image = widget.parts.image;
             // Reset global variables.
@@ -491,6 +529,19 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
             setTimeout(function() {
                 toggleLockDimensions('check');
             });
+        },
+        onOk: function(evt) {
+            var retval = CKEDITOR.dialog.validate.notEmpty(lang.urlMissing).call(this._.contents.info.src),
+                invalid = typeof(retval) == 'string' || retval === false;
+            if (invalid) {
+                evt.data.hide = false;
+                evt.stop();
+                if (this.fire('cancel', {hide: true}).hide !== false) {
+                    this.hide();
+                }
+                return false;
+            }
+            return true;
         },
         contents: [{
             id: 'tab-basic',
@@ -516,16 +567,8 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
                 commit: function (widget) {
                     widget.setData('src', this.getValue());
                 },
-                validate: CKEDITOR.dialog.validate.notEmpty(lang.urlMissing)
-            }, {
-                id: 'alt',
-                type: 'text',
-                label: lang.alt,
-                setup: function (widget) {
-                    this.setValue(widget.data.alt);
-                },
-                commit: function (widget) {
-                    widget.setData('alt', this.getValue());
+                validate: function() {
+                    return true;
                 }
             }, {
                 type: 'hbox',

@@ -1,27 +1,65 @@
+"""
+View functions used by the cropduster dialog.
+
+index() (defined in CropDusterIndex)
+====================================
+
+The initial page that a user sees when clicking on the "Upload Image" button.
+This view renders the form used to interact with upload() and crop() via ajax.
+
+
+standalone() (defined in CropDusterStandalone)
+==============================================
+
+Subclass of CropDusterIndex used for "standalone mode", which saves minimal
+information in the database and instead stores information about the original
+image and crop dimensions in metadata on the generated image. The intended use
+case for standalone mode is a dialog in a WYSIWYG editor.
+
+upload() / crop()
+=================
+
+Both upload() and crop() interact with the index page's html in the same way:
+they receive a POST with data from the django forms and formsets, create new
+image and thumb instances (respectively), and return a JSON object that map
+back onto fields on the index page's forms / formsets.
+"""
 from __future__ import division
 
+from io import BytesIO
 import os
 import copy
 import shutil
+import time
 
+import django
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
+from django.core.files.storage import default_storage
 from django.db.models import Q
 from django.forms.models import modelformset_factory
 from django.http import HttpResponse
-from django.shortcuts import render_to_response
+from django.shortcuts import render
 from django.template import RequestContext
+from django.utils.decorators import method_decorator
+from django.utils.encoding import force_text
 from django.utils.functional import cached_property
+from django.utils import six
+from django.utils.six.moves import filter, map, zip
 from django.views.decorators.csrf import csrf_exempt
 
 import PIL.Image
+
+from generic_plus.utils import get_relative_media_url
 
 from cropduster.files import ImageFile
 from cropduster.models import Thumb, Size, StandaloneImage, Image
 from cropduster.settings import (
     CROPDUSTER_PREVIEW_WIDTH as PREVIEW_WIDTH,
     CROPDUSTER_PREVIEW_HEIGHT as PREVIEW_HEIGHT)
-from cropduster.utils import json, get_relative_media_url
+from cropduster.utils import (
+    json, is_animated_gif, has_animated_gif_support, process_image)
 from cropduster.exceptions import json_error, CropDusterResizeException, full_exc_info
 
 from .base import View
@@ -35,6 +73,7 @@ class CropDusterIndex(View):
 
     is_standalone = False
 
+    @method_decorator(login_required)
     def dispatch(self, request, *args, **kwargs):
         self.request = request
         self.upload_to = self.request.GET.get('upload_to') or None
@@ -94,7 +133,8 @@ class CropDusterIndex(View):
         else:
             thumbs = Thumb.objects.filter(pk__in=thumb_ids)
         thumb_dict = dict([(t.name, t) for t in thumbs])
-        ordered_thumbs = [thumb_dict.get(s.name, Thumb(name=s.name)) for s in self.sizes]
+        ordered_thumbs = [
+            thumb_dict.get(s.name, Thumb(name=s.name)) for s in self.sizes if not s.is_alias]
         return FakeQuerySet(ordered_thumbs, thumbs)
 
     @cached_property
@@ -106,8 +146,14 @@ class CropDusterIndex(View):
 
     def get(self, *args, **kwargs):
         orig_image = self.orig_image
-        orig_w = getattr(orig_image, 'width', None) or 0
-        orig_h = getattr(orig_image, 'height', None) or 0
+        try:
+            orig_w = getattr(orig_image, 'width', None) or 0
+            orig_h = getattr(orig_image, 'height', None) or 0
+            orig_image_name = getattr(orig_image, 'name', None)
+        except Exception:
+            # If original image not found, allow it to be re-uploaded
+            orig_w, orig_h = 0, 0
+            orig_image_name = None
 
         initial = {
             'standalone': self.is_standalone,
@@ -115,8 +161,8 @@ class CropDusterIndex(View):
             'thumbs': json.dumps(dict([
                 (t['name'], t)
                 for t in self.thumbs.queryset.values('id', 'name', 'width', 'height')])),
-            'image_id': getattr(self.db_image, 'pk', None),
-            'orig_image': getattr(orig_image, 'name', None),
+            'image_id': getattr(self.db_image, 'pk', None) if orig_image else None,
+            'orig_image': orig_image_name,
             'orig_w': orig_w,
             'orig_h': orig_h,
         }
@@ -139,7 +185,8 @@ class CropDusterIndex(View):
                 'changed': False,
             })
 
-        return render_to_response('cropduster/upload.html', RequestContext(self.request, {
+        return render(self.request, 'cropduster/upload.html', {
+            'django_is_gte_19': (django.VERSION[:2] >= (1, 9)),
             'is_popup': True,
             'orig_image': '',
             'parent_template': get_admin_base_template(),
@@ -155,32 +202,48 @@ class CropDusterIndex(View):
             }),
             'crop_form': CropForm(initial=initial, prefix='crop'),
             'thumb_formset': thumb_formset,
-        }))
-
-
+        })
 
 
 index = CropDusterIndex.as_view()
 
 
 @csrf_exempt
+@login_required
 def upload(request):
     if request.method == 'GET':
         return index(request)
+
+    # The data we'll be returning as JSON
+    data = {
+        'warning': [],
+    }
 
     form = UploadForm(request.POST, request.FILES)
 
     if not form.is_valid():
         errors = form['image'].errors or form.errors
         return json_error(request, 'upload', action="uploading file",
-                errors=[unicode(errors)])
+                errors=[force_text(errors)])
 
     form_data = form.cleaned_data
+    is_standalone = bool(form_data.get('standalone'))
 
     orig_file_path = form_data['image'].name
+    if six.PY2 and isinstance(orig_file_path, six.text_type):
+        orig_file_path = orig_file_path.encode('utf-8')
     orig_image = get_relative_media_url(orig_file_path)
-    img = PIL.Image.open(orig_file_path)
+
+    with default_storage.open(orig_image, mode='rb') as f:
+        img = PIL.Image.open(BytesIO(f.read()))
+        img.filename = f.name
+
     (w, h) = (orig_w, orig_h) = img.size
+
+    if is_animated_gif(img) and not has_animated_gif_support():
+        data['warning'].append(
+            u"This server does not have animated gif support; your uploaded image "
+            u"has been made static.")
 
     tmp_image = Image(image=orig_image)
     preview_w = form_data.get('preview_width') or PREVIEW_WIDTH
@@ -188,26 +251,27 @@ def upload(request):
 
     # First pass resize if it's too large
     resize_ratio = min(preview_w / w, preview_h / h)
-    if resize_ratio < 1:
-        w = int(round(w * resize_ratio))
-        h = int(round(h * resize_ratio))
-        preview_img = img.resize((w, h), PIL.Image.ANTIALIAS)
-    else:
-        preview_img = img
 
-    preview_file_path = tmp_image.get_image_path('_preview')
+    def fit_preview(im):
+        (w, h) = im.size
+        if resize_ratio < 1:
+            w = int(round(w * resize_ratio))
+            h = int(round(h * resize_ratio))
+            preview_img = im.resize((w, h), PIL.Image.ANTIALIAS)
+        else:
+            preview_img = im
+        return preview_img
 
-    img_save_params = {}
-    if preview_img.format == 'JPEG':
-        img_save_params['quality'] = 95
+    if not is_standalone:
+        preview_file_path = tmp_image.get_image_path('_preview')
+        process_image(img, preview_file_path, fit_preview)
 
-    preview_img.save(preview_file_path, **img_save_params)
-
-    data = {
+    data.update({
         'crop': {
             'orig_image': orig_image,
             'orig_w': orig_w,
             'orig_h': orig_h,
+            'image_id': None,
         },
         'url': tmp_image.get_image_url('_preview'),
         'orig_image': orig_image,
@@ -215,9 +279,9 @@ def upload(request):
         'orig_h': orig_h,
         'width': w,
         'height': h,
-    }
-    if not form_data.get('standalone'):
-        return HttpResponse(json.dumps(data), mimetype='application/json')
+    })
+    if not is_standalone:
+        return HttpResponse(json.dumps(data), content_type='application/json')
 
     size = Size('crop', w=img.size[0], h=img.size[1])
 
@@ -233,7 +297,20 @@ def upload(request):
 
     if not cropduster_image.image:
         cropduster_image.image = orig_image
-    thumb = cropduster_image.save_size(size, standalone=True)
+        cropduster_image.save()
+    elif cropduster_image.image.name != orig_image:
+        data['crop']['orig_image'] = data['orig_image'] = cropduster_image.image.name
+        data['url'] = cropduster_image.get_image_url('_preview')
+
+    with cropduster_image.image as f:
+        f.open()
+        img = PIL.Image.open(BytesIO(f.read()))
+        img.filename = f.name
+    preview_file_path = cropduster_image.get_image_path('_preview')
+    if not default_storage.exists(preview_file_path):
+        process_image(img, preview_file_path, fit_preview)
+
+    thumb = cropduster_image.save_size(size, standalone=True, commit=False)
 
     sizes = form_data.get('sizes') or []
     if len(sizes) == 1:
@@ -259,10 +336,11 @@ def upload(request):
         'image_id': cropduster_image.pk,
         'sizes': json.dumps([size]),
     })
-    return HttpResponse(json.dumps(data), mimetype='application/json')
+    return HttpResponse(json.dumps(data), content_type='application/json')
 
 
 @csrf_exempt
+@login_required
 def crop(request):
     if request.method == "GET":
         return json_error(request, 'crop', action="cropping image",
@@ -274,9 +352,17 @@ def crop(request):
                 log=True, exc_info=full_exc_info())
 
     crop_data = copy.deepcopy(crop_form.cleaned_data)
-    db_image = Image(image=crop_data['orig_image'])
+
+    if crop_data.get('image_id'):
+        db_image = Image.objects.get(pk=crop_data['image_id'])
+    else:
+        db_image = Image(image=crop_data['orig_image'])
+
     try:
-        pil_image = PIL.Image.open(db_image.image.path)
+        with db_image.image as f:
+            f.open()
+            pil_image = PIL.Image.open(BytesIO(f.read()))
+            pil_image.filename = f.name
     except IOError:
         pil_image = None
 
@@ -299,6 +385,13 @@ def crop(request):
 
     standalone_mode = crop_data['standalone']
 
+    # Address a standalone mode issue where, because the thumbs don't have a pk value,
+    # Django no longer returns them in Formset.save() if they are in initial_forms
+    if standalone_mode and not cropped_thumbs and len(thumb_formset.initial_forms):
+        thumb_form = thumb_formset.initial_forms[0]
+        obj = thumb_form.instance
+        cropped_thumbs = [thumb_formset.save_existing(thumb_form, obj, commit=False)]
+
     for i, (thumb, thumb_form) in enumerate(zip(cropped_thumbs, thumb_formset)):
         changed_fields = set(thumb_form.changed_data) - non_model_fields
         thumb_form._changed_data = list(changed_fields)
@@ -316,7 +409,7 @@ def crop(request):
                 new_thumbs = db_image.save_size(size, thumb, tmp=True, standalone=standalone_mode)
             except CropDusterResizeException as e:
                 return json_error(request, 'crop',
-                                  action="saving size", errors=[unicode(e)])
+                                  action="saving size", errors=[force_text(e)])
 
             if not new_thumbs:
                 continue
@@ -336,8 +429,9 @@ def crop(request):
                 'url': db_image.get_image_url(thumb.name),
             })
 
-            for name, new_thumb in new_thumbs.iteritems():
+            for name, new_thumb in six.iteritems(new_thumbs):
                 thumb_data = dict([(k, getattr(new_thumb, k)) for k in json_thumb_fields])
+                thumb_data['url'] = db_image.get_image_url(name, tmp=not(new_thumb.image_id))
                 crop_data['thumbs'].update({name: thumb_data})
                 if new_thumb.reference_thumb_id:
                     continue
@@ -345,9 +439,12 @@ def crop(request):
         elif thumb.pk and thumb.name and thumb.crop_w and thumb.crop_h:
             thumb_path = db_image.get_image_path(thumb.name, tmp=False)
             tmp_thumb_path = db_image.get_image_path(thumb.name, tmp=True)
-            if os.path.exists(thumb_path):
-                if not thumb_form.cleaned_data.get('changed') or not os.path.exists(tmp_thumb_path):
-                    shutil.copy(thumb_path, tmp_thumb_path)
+
+            if default_storage.exists(thumb_path):
+                if not thumb_form.cleaned_data.get('changed') or not default_storage.exists(tmp_thumb_path):
+                    with default_storage.open(thumb_path) as f:
+                        with default_storage.open(tmp_thumb_path, 'wb') as tmp_file:
+                            tmp_file.write(f.read())
 
         if not thumb.pk and not thumb.crop_w and not thumb.crop_h:
             if not len(thumbs_with_crops):
@@ -361,14 +458,28 @@ def crop(request):
                     'crop_w': best_fit.box.w,
                     'crop_h': best_fit.box.h,
                     'changed': True,
+                    'id': None,
                 })
 
     for thumb_data in thumbs_data:
         if isinstance(thumb_data['id'], Thumb):
             thumb_data['id'] = thumb_data['id'].pk
 
+    preview_url = db_image.get_image_url('_preview')
+    preview_w = PREVIEW_WIDTH
+    preview_h = PREVIEW_HEIGHT
+    orig_width, orig_height = crop_data['orig_w'], crop_data['orig_h']
+    if (orig_width and orig_height):
+        resize_ratio = min(PREVIEW_WIDTH / float(orig_width), PREVIEW_HEIGHT / float(orig_height))
+        if resize_ratio < 1:
+            preview_w = int(round(orig_width * resize_ratio))
+            preview_h = int(round(orig_height * resize_ratio))
+
     return HttpResponse(json.dumps({
         'crop': crop_data,
         'thumbs': thumbs_data,
         'initial': True,
-    }), mimetype='application/json')
+        'preview_url': preview_url,
+        'preview_w': preview_w,
+        'preview_h': preview_h
+    }), content_type='application/json')

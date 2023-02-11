@@ -24,13 +24,14 @@ class CropDusterStandaloneIndex(CropDusterIndex):
     def db_image(self):
         if not self.image_file:
             return None
+        md5 = self.image_file.metadata.get('md5') or self.image_file.metadata.get('DerivedFrom')
         try:
-            standalone = StandaloneImage.objects.get(md5=self.image_file.metadata.get('DerivedFrom'))
+            standalone = StandaloneImage.objects.get(md5=md5)
         except StandaloneImage.DoesNotExist:
             (preview_w, preview_h) = self.preview_size
             standalone = StandaloneImage.objects.get_from_file(self.image_file.name,
                 upload_to=self.upload_to, preview_w=preview_w, preview_h=preview_h)
-        db_image = standalone.image.cropduster_image
+        db_image = standalone.image.related_object
         if not getattr(db_image, 'pk', None):
             raise Exception("Image does not exist in database")
         if not db_image.image and standalone.image.name:
@@ -56,6 +57,8 @@ class CropDusterStandaloneIndex(CropDusterIndex):
         size = getattr(self.image_file.metadata, 'crop_size', None)
         if not size:
             size = Size('crop', max_w=self.max_w)
+        else:
+            size.max_w = self.max_w
         return [size]
 
     @cached_property

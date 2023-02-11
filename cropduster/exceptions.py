@@ -4,8 +4,16 @@ import logging
 import copy
 import errno
 
+try:
+    from django.urls import get_urlconf, get_resolver
+except ImportError:
+    from django.core.urlresolvers import get_urlconf, get_resolver
 from django.http import HttpResponse
 from django.utils.safestring import mark_safe
+from django.utils import six
+from django.utils.six.moves import xrange
+
+from django.utils.encoding import force_text
 
 
 logger = logging.getLogger('cropduster')
@@ -20,9 +28,8 @@ except ImportError:
     try:
         from raven.contrib.django.models import get_client
     except ImportError:
-        pass
-    else:
-        raven_client = get_client()
+        def get_client(*args, **kwargs):
+            return None
 
 
 if SentryHandler:
@@ -38,7 +45,8 @@ class FauxTb(object):
 
 
 def current_stack(skip=0):
-    try: 1/0
+    try:
+        1 / 0
     except ZeroDivisionError:
         f = sys.exc_info()[2].tb_frame
     for i in xrange(skip + 2):
@@ -66,12 +74,12 @@ def full_exc_info():
 
 
 def format_error(error):
-    from .utils import get_relative_media_url
+    from generic_plus.utils import get_relative_media_url
 
-    if isinstance(error, basestring):
+    if isinstance(error, six.string_types):
         return error
     elif isinstance(error, IOError):
-        if error.errno == errno.ENOENT: # No such file or directory
+        if error.errno == errno.ENOENT:  # No such file or directory
             file_name = get_relative_media_url(error.filename)
             return u"Could not find file %s" % file_name
 
@@ -111,7 +119,7 @@ def log_error(request, view, action, errors, exc_info=None):
         p = psutil.Process(os.getpid())
         proc_timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(p.create_time))
         try:
-            create_usec = str(p.create_time - math.floor(p.create_time))[1:5]
+            create_usec = six.text_type(p.create_time - math.floor(p.create_time))[1:5]
         except:
             create_usec = ''
         proc_timestamp += create_usec
@@ -119,8 +127,6 @@ def log_error(request, view, action, errors, exc_info=None):
         extra_data['thread_id'] = thread.get_ident()
 
     if isinstance(errors[0], CropDusterUrlException):
-        from django.core.urlresolvers import get_urlconf,get_resolver
-        from django.utils.encoding import force_unicode
         urlconf = get_urlconf()
         resolver = get_resolver(urlconf)
         extra_data['resolver_data'] = {
@@ -132,9 +138,9 @@ def log_error(request, view, action, errors, exc_info=None):
         }
 
         resolver_reverse_dict = dict(
-            [(force_unicode(k), resolver.reverse_dict[k]) for k in resolver.reverse_dict])
+            [(force_text(k), resolver.reverse_dict[k]) for k in resolver.reverse_dict])
         resolver_namespace_dict = dict(
-            [(force_unicode(k), resolver.namespace_dict[k]) for k in resolver.namespace_dict])
+            [(force_text(k), resolver.namespace_dict[k]) for k in resolver.namespace_dict])
 
         extra_data.update({
             'resolver_data': {
@@ -154,6 +160,7 @@ def log_error(request, view, action, errors, exc_info=None):
 
     raven_kwargs = {'request': request, 'extra': extra_data, 'data': {'message': error_msg}}
 
+    raven_client = get_client()
     if raven_client:
         if exc_info:
             return raven_client.get_ident(
@@ -182,7 +189,7 @@ def json_error(request, view, action, errors=None, forms=None, formsets=None, lo
 
     if not errors and not formset_errors:
         return HttpResponse(json.dumps({'error': 'An unknown error occurred'}),
-                mimetype='application/json')
+                content_type='application/json')
 
     error_str = u''
     for forms in formset_errors:
@@ -191,7 +198,7 @@ def json_error(request, view, action, errors=None, forms=None, formsets=None, lo
                 v = form_errors.pop(k)
                 k = mark_safe('<span class="error-field error-%(k)s">%(k)s</span>' % {'k': k})
                 form_errors[k] = v
-            error_str += unicode(form_errors)
+            error_str += force_text(form_errors)
     errors = errors or [error_str]
 
     if log:
@@ -200,12 +207,12 @@ def json_error(request, view, action, errors=None, forms=None, formsets=None, lo
     if len(errors) == 1:
         error_msg = "Error %s: %s" % (action, format_error(errors[0]))
     else:
-        error_msg =  "Errors %s: " % action
+        error_msg = "Errors %s: " % action
         error_msg += "<ul>"
         for error in errors:
             error_msg += "<li>&nbsp;&nbsp;&nbsp;&bull;&nbsp;%s</li>" % format_error(error)
         error_msg += "</ul>"
-    return HttpResponse(json.dumps({'error': error_msg}), mimetype='application/json')
+    return HttpResponse(json.dumps({'error': error_msg}), content_type='application/json')
 
 
 class CropDusterException(Exception):

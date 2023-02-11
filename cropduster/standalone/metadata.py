@@ -2,12 +2,16 @@ import os
 import re
 import ctypes
 import PIL.Image
+import tempfile
+from io import open
 
 from django.core.exceptions import ImproperlyConfigured
+from django.core.files.storage import default_storage
+from django.utils.encoding import force_bytes
+from django.utils import six
 
 from cropduster.files import ImageFile
 from cropduster.utils import json
-
 
 try:
     import libxmp
@@ -28,9 +32,16 @@ except:
 
 if not libxmp:
     check_file_format = get_format_info = None
+
+    def file_to_dict(f):
+        return {}
 else:
-    check_file_format = libxmp._exempi.xmp_files_check_file_format
-    get_format_info = libxmp._exempi.xmp_files_get_format_info
+    try:
+        exempi = libxmp._exempi
+    except AttributeError:
+        exempi = libxmp.exempi.EXEMPI
+    check_file_format = exempi.xmp_files_check_file_format
+    get_format_info = exempi.xmp_files_get_format_info
 
     if not check_file_format.argtypes:
         check_file_format.argtypes = [ctypes.c_char_p]
@@ -42,14 +53,19 @@ else:
     if not get_format_info.restype:
         get_format_info.restype = ctypes.c_bool
 
+    try:
+        from libxmp.utils import file_to_dict
+    except ImportError:
+        from libxmp import file_to_dict
+
 
 class EnumerationMeta(type):
 
     def __new__(cls, name, bases, attrs):
         if '_lookup' not in attrs:
             lookup = {}
-            for k, v in attrs.iteritems():
-                if isinstance(v, (int, long)):
+            for k, v in six.iteritems(attrs):
+                if isinstance(v, six.integer_types):
                     lookup.setdefault(v, k)
             attrs['_lookup'] = lookup
 
@@ -59,8 +75,8 @@ class EnumerationMeta(type):
         return value in self._lookup
 
 
+@six.add_metaclass(EnumerationMeta)
 class Enumeration(object):
-    __metaclass__ = EnumerationMeta
     @classmethod
     def value_name(cls, value):
         return cls._lookup.get(value)
@@ -135,7 +151,7 @@ def file_format_supported(file_path):
         raise IOError("File %s could not be found" % file_path)
     if not check_file_format:
         return False
-    file_format = check_file_format(os.path.abspath(file_path))
+    file_format = check_file_format(force_bytes(os.path.abspath(file_path)))
     format_options = ctypes.c_int()
     if file_format != FileFormats.XMP_FT_UNKNOWN:
         format_options = get_format_info(
@@ -164,9 +180,22 @@ class MetadataDict(dict):
     """
 
     def __init__(self, file_path):
-        self.file_path = file_path
-        ns_dict = libxmp.file_to_dict(file_path)
-        for ns, values in ns_dict.iteritems():
+        try:
+            # Don't use temporary files if we're using FileSystemStorage
+            with open(default_storage.path(file_path), mode='rb') as f:
+                self.file_path = f.name
+        except:
+            self.tmp_file = tempfile.NamedTemporaryFile()
+            with default_storage.open(file_path) as f:
+                self.tmp_file.write(f.read())
+                self.tmp_file.flush()
+                self.tmp_file.seek(0)
+            self.file_path = self.tmp_file.name
+        ns_dict = file_to_dict(self.file_path)
+        self.clean(ns_dict)
+
+    def clean(self, ns_dict):
+        for ns, values in six.iteritems(ns_dict):
             for k, v, opts in values:
                 current = self
                 bits = k.split('/')
@@ -203,17 +232,19 @@ class MetadataDict(dict):
                         v = float(v)
                     except (TypeError, ValueError):
                         v = None
-                elif k == 'DerivedFrom' and isinstance(v, basestring):
+                elif k == 'DerivedFrom' and isinstance(v, six.string_types):
                     v = re.sub(r'^xmp\.did:', '', v).lower()
                 elif ns_prefix == 'crop' and k == 'json':
                     v = json.loads(v)
+                elif ns_prefix == 'crop' and k == 'md5':
+                    v = v.lower()
 
                 m = re.search(r'^(.*)\[(\d+)\](?=\/|\Z)', k)
                 if m:
                     current = current.setdefault(m.group(1), [{}])
                     k = int(m.group(2)) - 1
 
-                if isinstance(current, list) and isinstance(k, int):
+                if isinstance(current, list) and isinstance(k, six.integer_types):
                     if len(current) <= k:
                         current.append(*([{}] * (1 + k - len(current))))
 
@@ -284,4 +315,51 @@ class MetadataImageFile(ImageFile):
     def __init__(self, *args, **kwargs):
         super(MetadataImageFile, self).__init__(*args, **kwargs)
         if self:
-            self.metadata = MetadataDict(self.path)
+            self.metadata = MetadataDict(self.name)
+
+
+def get_xmp_from_file(file_path):
+    return libxmp.XMPFiles(file_path=file_path).get_xmp()
+
+
+def get_xmp_from_bytes(img_bytes):
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    tmp.write(img_bytes)
+    tmp.close()
+    try:
+        return get_xmp_from_file(tmp.name)
+    finally:
+        os.unlink(tmp.name)
+
+
+def get_xmp_from_storage(file_path, storage=default_storage):
+    with storage.open(file_path, mode='rb') as f:
+        return get_xmp_from_bytes(f.read())
+
+
+def put_xmp_to_file(xmp_meta, file_path):
+    xmp_file = libxmp.XMPFiles(file_path=file_path, open_forupdate=True)
+
+    if not xmp_file.can_put_xmp(xmp_meta):
+        if not file_format_supported(file_path):
+            raise Exception("Image format of %s does not allow metadata" % (file_path))
+        else:
+            raise Exception("Could not add metadata to image %s" % (file_path))
+
+    xmp_file.put_xmp(xmp_meta)
+    xmp_file.close_file()
+
+
+def put_xmp_to_storage(xmp_meta, file_path, storage=default_storage):
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    try:
+        with default_storage.open(file_path, mode='rb') as f:
+            tmp.write(f.read())
+        tmp.close()
+        put_xmp_to_file(xmp_meta, tmp.name)
+        with open(tmp.name, mode='rb') as f:
+            data = f.read()
+        with storage.open(file_path, mode='wb') as f:
+            f.write(data)
+    finally:
+        os.unlink(tmp.name)

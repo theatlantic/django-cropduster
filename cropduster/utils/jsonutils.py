@@ -1,9 +1,15 @@
-from jsonutil import jsonutil
+import json
+from django.utils import six
+from django.utils.six.moves import filter
+
 from cropduster.resizing import Size
 
 
+__all__ = ('dumps', 'loads')
+
+
 def json_default(obj):
-    if callable(getattr(obj, '__serialize__', None)):
+    if six.callable(getattr(obj, '__serialize__', None)):
         dct = obj.__serialize__()
         module = obj.__module__
         if module == '__builtin__':
@@ -24,6 +30,7 @@ def object_hook(dct):
     if dct.get('__type__') in ['Size', 'cropduster.resizing.Size']:
         return Size(
             name=dct.get('name'),
+            label=dct.get('label'),
             w=dct.get('w'),
             h=dct.get('h'),
             min_w=dct.get('min_w'),
@@ -31,15 +38,18 @@ def object_hook(dct):
             max_w=dct.get('max_w'),
             max_h=dct.get('max_h'),
             retina=dct.get('retina'),
-            auto=dct.get('auto'))
+            auto=dct.get('auto'),
+            required=dct.get('required'))
     return dct
 
 
 def dumps(obj, *args, **kwargs):
     kwargs.setdefault('default', json_default)
-    return jsonutil.dumps(obj, *args, **kwargs)
+    return json.dumps(obj, *args, **kwargs)
 
 
 def loads(s, *args, **kwargs):
+    if isinstance(s, six.binary_type):
+        s = s.decode('utf-8')
     kwargs.setdefault('object_hook', object_hook)
-    return jsonutil.loads(s, *args, **kwargs)
+    return json.loads(s, *args, **kwargs)

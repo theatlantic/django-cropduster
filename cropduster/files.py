@@ -2,23 +2,19 @@ from __future__ import division
 
 import os
 import re
-import urllib2
 import hashlib
 
-try:
-    from urlparse import urlparse
-except ImportError:
-    # python 3
-    from urllib import parse as urlparse
-
-import PIL.Image
-
+from django.core.files.images import get_image_dimensions
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.files.storage import default_storage
 from django.conf import settings
 from django.db.models.fields.files import FieldFile, FileField
 from django.utils.functional import cached_property
+from django.utils.http import urlunquote_plus
+from django.utils.six.moves.urllib import parse as urlparse
+from django.utils.six.moves.urllib.request import urlopen
 
-from .utils import get_relative_media_url, get_media_path
+from generic_plus.utils import get_relative_media_url, get_media_path
 
 
 class VirtualFieldFile(FieldFile):
@@ -28,6 +24,7 @@ class VirtualFieldFile(FieldFile):
         self.instance = None
         self.field = FileField(name='file', upload_to=upload_to, storage=storage)
         self.storage = self.field.storage
+        self._committed = True
 
     def get_directory_name(self):
         return self.field.get_directory_name()
@@ -47,11 +44,11 @@ class VirtualFieldFile(FieldFile):
     @cached_property
     def dimensions(self):
         try:
-            pil_image = PIL.Image.open(self.path)
+            close = self.closed
+            self.open()
+            return get_image_dimensions(self, close=close)
         except:
             return (0, 0)
-        else:
-            return pil_image.size
 
     @cached_property
     def width(self):
@@ -78,21 +75,23 @@ class ImageFile(VirtualFieldFile):
         self.metadata = {}
 
         if not path:
+            self.name = None
             return
+
+        if '%' in path:
+            path = urlunquote_plus(path)
 
         if path.startswith(settings.MEDIA_URL):
             # Strips leading MEDIA_URL, if starts with
-            path = getattr(urlparse(path), 'path', path)
             self._path = get_relative_media_url(path, clean_slashes=False)
         elif re.search(r'^(?:http(?:s)?:)?//', path):
             # url on other server? download it.
             self._path = self.download_image_url(path)
         else:
-            abs_path = get_media_path(path)
-            if os.path.exists(abs_path):
-                self._path = get_relative_media_url(abs_path)
+            if default_storage.exists(path):
+                self._path = path
 
-        if not self._path or not os.path.exists(os.path.join(settings.MEDIA_ROOT, self._path)):
+        if not self._path:
             self.name = None
             return
 
@@ -105,7 +104,7 @@ class ImageFile(VirtualFieldFile):
         from cropduster.models import StandaloneImage
         from cropduster.views.forms import clean_upload_data
 
-        image_contents = urllib2.urlopen(url).read()
+        image_contents = urlopen(url).read()
         md5_hash = hashlib.md5()
         md5_hash.update(image_contents)
         try:
@@ -115,7 +114,7 @@ class ImageFile(VirtualFieldFile):
         else:
             return get_relative_media_url(standalone_image.image.name)
 
-        parse_result = urlparse(url)
+        parse_result = urlparse.urlparse(url)
 
         fake_upload = SimpleUploadedFile(os.path.basename(parse_result.path), image_contents)
         file_data = clean_upload_data({
@@ -135,8 +134,6 @@ class ImageFile(VirtualFieldFile):
 
         image = Image.get_file_for_size(self, size_slug)
         if size_slug == 'preview':
-            if not os.path.exists(image.path):
+            if not default_storage.exists(image.name):
                 Image.save_preview_file(self, preview_w=self.preview_width, preview_h=self.preview_height)
         return image
-
-

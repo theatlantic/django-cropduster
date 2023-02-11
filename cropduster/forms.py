@@ -1,57 +1,143 @@
 from django import forms
-from django.contrib.admin.widgets import AdminFileWidget
-from django.contrib.contenttypes.generic import BaseGenericInlineFormSet
-from django.core import validators
-from django.core.files.uploadedfile import UploadedFile
-from django.db import models
-from django.db.models.fields.files import FieldFile
-from django.forms.forms import BoundField
-from django.forms.models import ModelMultipleChoiceField, ModelFormMetaclass
 from django.core.exceptions import ValidationError
+from django.forms.models import ModelChoiceIterator
+from django.forms.models import ChoiceField, ModelMultipleChoiceField
+from django.forms.utils import flatatt
+from django.utils.encoding import force_text
+from django.utils.html import escape, conditional_escape
+from django.utils import six
 
-from .models import Image, Thumb
-from .widgets import cropduster_widget_factory, CropDusterWidget, CropDusterThumbWidget
+from generic_plus.forms import BaseGenericFileInlineFormSet, GenericForeignFileWidget
+
+from .utils import json
+from cropduster.settings import (
+    CROPDUSTER_PREVIEW_WIDTH as PREVIEW_WIDTH,
+    CROPDUSTER_PREVIEW_HEIGHT as PREVIEW_HEIGHT)
+
+__all__ = ('CropDusterWidget', 'CropDusterThumbFormField', 'CropDusterInlineFormSet')
 
 
-class CropDusterFormField(forms.Field):
+class CropDusterWidget(GenericForeignFileWidget):
 
     sizes = None
 
-    def __init__(self, sizes=None, *args, **kwargs):
-        self.sizes = sizes or self.sizes
-        kwargs['widget'] = CropDusterWidget(field=self, sizes=self.sizes)
-        super(CropDusterFormField, self).__init__(*args, **kwargs)
+    template = "cropduster/custom_field.html"
 
-    def to_python(self, value):
-        value = super(CropDusterFormField, self).to_python(value)
-        if value in validators.EMPTY_VALUES:
-            return None
+    class Media:
+        css = {'all': ('cropduster/css/cropduster.css',)}
+        js = (
+            'admin/js/jquery.init.js',
+            'cropduster/js/jsrender.js',
+            'cropduster/js/cropduster.js',
+        )
 
-        # value can be an UploadedFile if the form was submitted with the
-        # fallback ImageField formfield
-        if isinstance(value, UploadedFile):
-            return value
+    def get_context_data(self, name, value, attrs=None, bound_field=None):
+        ctx = super(CropDusterWidget, self).get_context_data(name, value, attrs, bound_field)
+        sizes = self.sizes
+        related_object = ctx['instance']
+        preview_url = ''
+        preview_w = PREVIEW_WIDTH
+        preview_h = PREVIEW_HEIGHT
+        if related_object:
+            preview_url = related_object.get_image_url(size_name='_preview')
+            orig_width, orig_height = related_object.width, related_object.height
+            if (orig_width and orig_height):
+                resize_ratio = min(PREVIEW_WIDTH / float(orig_width), PREVIEW_HEIGHT / float(orig_height))
+                if resize_ratio < 1:
+                    preview_w = int(round(orig_width * resize_ratio))
+                    preview_h = int(round(orig_height * resize_ratio))
 
-        if isinstance(value, basestring) and not value.isdigit():
-            return value
+        if six.callable(sizes):
+            instance = getattr(getattr(bound_field, 'form', None), 'instance', None)
+            try:
+                sizes_callable = six.get_method_function(sizes)
+            except AttributeError:
+                sizes_callable = sizes
+            sizes = sizes_callable(instance, related=related_object)
+        sizes = [s for s in sizes if not getattr(s, 'is_alias', False)]
 
-        try:
-            value = int(str(value))
-        except (ValueError, TypeError):
-            raise ValidationError(self.error_messages['invalid'])
-        return value
+        ctx.update({
+            'sizes': json.dumps(sizes),
+            'preview_url': preview_url,
+            'preview_w': preview_w,
+            'preview_h': preview_h,
+        })
+        return ctx
 
 
-def cropduster_formfield_factory(sizes, widget=None, related=None):
-    widget = widget or cropduster_widget_factory(sizes, related=related)
-    return type('CropDusterFormField', (CropDusterFormField,), {
-        '__module__': CropDusterFormField.__module__,
-        'sizes': sizes,
-        'widget': widget,
-        'related': related,
-        'parent_model': getattr(related, 'model', None),
-        'rel_field': getattr(related, 'field', None),
-    })
+class ThumbChoiceIterator(ModelChoiceIterator):
+
+    def __iter__(self):
+        if self.field.empty_label is not None:
+            yield ("", self.field.empty_label)
+        if getattr(self.field, 'cache_choices', None):
+            if self.field.choice_cache is None:
+                self.field.choice_cache = [
+                    self.choice(obj) for obj in self.queryset
+                ]
+            for choice in self.field.choice_cache:
+                yield choice
+        else:
+            for obj in self.queryset:
+                yield self.choice(obj)
+
+    def choice(self, obj):
+        return (obj.pk, self.field.label_from_instance(obj))
+
+
+class CropDusterThumbWidget(forms.SelectMultiple):
+
+    def __init__(self, *args, **kwargs):
+        from cropduster.models import Thumb
+
+        super(CropDusterThumbWidget, self).__init__(*args, **kwargs)
+        self.model = Thumb
+
+    def get_option_attrs(self, value):
+        if isinstance(value, self.model):
+            thumb = value
+        else:
+            try:
+                thumb = self.model.objects.get(pk=value)
+            except (TypeError, self.model.DoesNotExist):
+                return {}
+
+        if thumb.image_id:
+            thumb_url = thumb.image.get_image_url(size_name=thumb.name)
+        else:
+            thumb_url = None
+
+        return {
+            'data-width': thumb.width,
+            'data-height': thumb.height,
+            'data-url': thumb_url,
+            'data-tmp-file': json.dumps(not(thumb.image_id)),
+        }
+
+    def create_option(self, *args, **kwargs):
+        option = super(CropDusterThumbWidget, self).create_option(*args, **kwargs)
+        option['attrs'].update(self.get_option_attrs(option['value']))
+        option['selected'] = True
+        if isinstance(option['value'], self.model):
+            option['value'] = option['value'].pk
+        return option
+
+    def render_option(self, selected_choices, option_value, option_label):
+        attrs = self.get_option_attrs(option_value)
+        if isinstance(option_value, self.model):
+            option_value = option_value.pk
+        option_value = force_text(option_value)
+        if option_value in selected_choices:
+            selected_html = u' selected="selected"'
+        else:
+            selected_html = ''
+        return (
+            u'<option value="%(value)s"%(selected)s%(attrs)s>%(label)s</option>') % {
+                'value': escape(option_value),
+                'selected': selected_html,
+                'attrs': flatatt(attrs),
+                'label': conditional_escape(force_text(option_label)),
+        }
 
 
 class CropDusterThumbFormField(ModelMultipleChoiceField):
@@ -65,85 +151,91 @@ class CropDusterThumbFormField(ModelMultipleChoiceField):
         """
         try:
             value = super(CropDusterThumbFormField, self).clean(value)
-        except ValidationError, e:
+        except ValidationError as e:
             if self.error_messages['required'] in e.messages:
                 raise
             elif self.error_messages['list'] in e.messages:
                 raise
         return value
 
+    def _get_choices(self):
+        if hasattr(self, '_choices'):
+            return self._choices
+        return ThumbChoiceIterator(self)
 
-class BaseCropDusterInlineFormSet(BaseGenericInlineFormSet):
+    choices = property(_get_choices, ChoiceField._set_choices)
 
-    model = Image
-    fields = ('image', 'thumbs',)
-    extra_fields = None
-    exclude = None
-    sizes = None
-    exclude = ["content_type", "object_id"]
-    max_num = 1
-    can_order = False
-    can_delete = True
-    extra = 1
-    label = "Upload"
 
-    prefix_override = None
+def get_cropduster_field_on_model(model, field_identifier):
+    from cropduster.fields import CropDusterField
+
+    opts = model._meta
+    m2m_fields = [f for f in opts.get_fields() if f.many_to_many and not f.auto_created]
+    if hasattr(opts, 'private_fields'):
+        # Django 1.10+
+        private_fields = opts.private_fields
+    else:
+        # Django < 1.10
+        private_fields = opts.virtual_fields
+    m2m_related_fields = set(m2m_fields + private_fields)
+
+    field_match = lambda f: (isinstance(f, CropDusterField)
+        and f.field_identifier == field_identifier)
+
+    try:
+        return [f for f in m2m_related_fields if field_match(f)][0]
+    except IndexError:
+        return None
+
+
+class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
+
+    fields = ('image', 'thumbs', 'attribution', 'attribution_link',
+        'caption', 'alt_text', 'field_identifier')
 
     def __init__(self, *args, **kwargs):
-        self.label = kwargs.pop('label', None) or self.label
-        self.sizes = kwargs.pop('sizes', None) or self.sizes
-        self.extra = kwargs.pop('extra', None) or self.extra
-        self.extra_fields = kwargs.pop('extra_fields', None) or self.extra_fields
-        if hasattr(self.extra_fields, 'iter'):
-            for field in self.extra_fields:
-                self.fields.append(field)
+        super(CropDusterInlineFormSet, self).__init__(*args, **kwargs)
+        if self.instance and not self.data:
+            cropduster_field = get_cropduster_field_on_model(self.instance.__class__, self.field_identifier)
+            if cropduster_field:
+                # An order_by() is required to prevent the queryset result cache
+                # from being removed
+                self.queryset = self.queryset.order_by('pk')
+                field_file = getattr(self.instance, cropduster_field.name)
+                self.queryset._result_cache = list(filter(None, [field_file.related_object]))
 
-        if self.prefix_override:
-            kwargs['prefix'] = self.prefix_override
+    def clean(self):
+        if any(self.errors) or not self.require_alt_text:
+            # Don't bother validating the formset unless each form is valid
+            # and the `require_alt_text` setting is on
+            return
 
-        super(BaseCropDusterInlineFormSet, self).__init__(*args, **kwargs)
+        for form in self.forms:
+            image = form.cleaned_data.get("image")
+            alt_text = form.cleaned_data.get("alt_text")
 
-    def initial_form_count(self):
-        """
-        In the event that the formset fields never rendered, don't raise a
-        ValidationError, but return the sensible value (0)
-        """
-        try:
-            return super(BaseCropDusterInlineFormSet, self).initial_form_count()
-        except ValidationError:
-            return 0
-
-    def total_form_count(self):
-        """See the docstring for initial_form_count()"""
-        try:
-            return super(BaseCropDusterInlineFormSet, self).total_form_count()
-        except ValidationError:
-            return 0
-
-    @classmethod
-    def get_default_prefix(cls):
-        if cls.prefix_override:
-            return cls.prefix_override
-        else:
-            return super(BaseCropDusterInlineFormSet, cls).get_default_prefix()
+            if image and not alt_text:
+                form.add_error(
+                    "alt_text", "Alt text describing the image is required for this field.")
 
     def _construct_form(self, i, **kwargs):
         """
         Limit the queryset of the thumbs for performance reasons (so that it doesn't
         pull in every available thumbnail into the selectbox)
         """
-        form = super(BaseCropDusterInlineFormSet, self)._construct_form(i, **kwargs)
+        from cropduster.models import Thumb
 
-        try:
-            instance = Image.objects.get(pk=form['id'].value())
-        except (ValueError, Image.DoesNotExist):
-            instance = None
+        form = super(CropDusterInlineFormSet, self)._construct_form(i, **kwargs)
+
+        field_identifier_field = form.fields['field_identifier']
+        field_identifier_field.widget = forms.HiddenInput()
+        field_identifier_field.initial = self.field_identifier
 
         thumbs_field = form.fields['thumbs']
 
-        if instance:
+        if form.instance and form.instance.pk:
             # Set the queryset to the current list of thumbs on the image
-            thumbs_field.queryset = instance.thumbs.get_query_set()
+            thumbs_field.queryset = form.instance.thumbs.get_queryset()
         else:
             # Start with an empty queryset
             thumbs_field.queryset = Thumb.objects.none()
@@ -153,7 +245,7 @@ class BaseCropDusterInlineFormSet(BaseGenericInlineFormSet):
             # These can differ from the values in the database if a
             # ValidationError elsewhere prevented saving.
             try:
-                thumb_pks = map(int, form['thumbs'].value())
+                thumb_pks = [int(v) for v in form['thumbs'].value()]
             except (TypeError, ValueError):
                 pass
             else:
@@ -161,120 +253,3 @@ class BaseCropDusterInlineFormSet(BaseGenericInlineFormSet):
                     thumbs_field.queryset = Thumb.objects.filter(pk__in=thumb_pks)
 
         return form
-
-
-class CropDusterBoundField(BoundField):
-
-    db_image_field = None
-
-    def __init__(self, form, field, name):
-        super(CropDusterBoundField, self).__init__(form, field, name)
-        db_field = getattr(getattr(field, 'related', None), 'field', None)
-        self.db_image_field = getattr(db_field, 'image_field', None)
-        value = self.value()
-        use_image_field = False
-        if form.is_bound and isinstance(value, basestring) and not value.isdigit():
-            formset_total_count_name = u'%s-%s' % (name, forms.formsets.TOTAL_FORM_COUNT)
-            if formset_total_count_name not in form.data:
-                use_image_field = True
-        # If the ImageFieldFile has a filename, but no corresponding
-        # cropduster.Image (as it would, for instance, on instances
-        # with images originally saved with a vanilla models.ImageField)
-        # then we use the standard ImageField formfield.
-        if isinstance(value, FieldFile) and value.name and not value.cropduster_image:
-            use_image_field = True
-        # If this is a form submission from the ImageField formfield (above),
-        # then the value can be a django UploadedFile
-        elif isinstance(value, UploadedFile):
-            use_image_field = True
-        # Swap out the CropDusterFormField with a django.forms.ImageField
-        if use_image_field and self.db_image_field:
-            widget = AdminFileWidget
-            if form._meta.widgets and form._meta.widgets.get(name):
-                widget = form._meta.widgets[name]
-            self.field = self.db_image_field.formfield(**{
-                'required': field.required,
-                'label': field.label,
-                'initial': field.initial,
-                'widget': widget,
-                'help_text': field.help_text,
-            })
-
-    def value(self):
-        val = super(CropDusterBoundField, self).value()
-        if not self.db_image_field or not getattr(self.form, 'instance', None):
-            return val
-        if isinstance(self.field, forms.ImageField) and isinstance(val, basestring):
-            val = self.db_image_field.attr_class(self.form.instance, self.db_image_field, val)
-        return val
-
-    def as_widget(self, widget=None, attrs=None, only_initial=False):
-        widget = widget or self.field.widget
-        attrs = attrs or {}
-
-        if self.auto_id and 'id' not in attrs and 'id' not in widget.attrs:
-            attrs['id'] = self.html_initial_id if only_initial else self.auto_id
-
-        name = self.html_initial_name if only_initial else self.html_name
-
-        widget_kwargs = {'attrs': attrs,}
-        if isinstance(widget, CropDusterWidget):
-            widget_kwargs['bound_field'] = self
-
-        return widget.render(name, self.value(), **widget_kwargs)
-
-
-def cropduster_formset_factory(sizes=None, **kwargs):
-    model = kwargs.get('model', Image)
-    ct_field = model._meta.get_field("content_type")
-    ct_fk_field = model._meta.get_field("object_id")
-    exclude = [ct_field.name, ct_fk_field.name]
-
-    formfield_callback = kwargs.get('formfield_callback')
-
-    def formfield_for_dbfield(db_field, **kwargs):
-        if isinstance(db_field, models.ManyToManyField) and db_field.rel.to == Thumb:
-            return db_field.formfield(form_class=CropDusterThumbFormField, queryset=Thumb.objects.none())
-        elif isinstance(db_field, models.ImageField) and db_field.model == Image:
-            kwargs['widget'] = forms.TextInput
-        kwargs.pop('request', None)
-        if formfield_callback is not None:
-            return formfield_callback(db_field, **kwargs)
-        else:
-            return db_field.formfield(**kwargs)
-
-    def has_changed(self):
-        if not self.changed_data and not any(self.cleaned_data.values()):
-            return False
-        return True
-
-    form_class_attrs = {
-        'has_changed': has_changed,
-        "model": model,
-        "image": forms.CharField(required=False),
-        "formfield_callback": formfield_for_dbfield,
-        "Meta": type('Meta', (object,), {
-            "fields": BaseCropDusterInlineFormSet.fields,
-            "exclude": exclude,
-            "model": model,
-        }),
-        '__module__': BaseCropDusterInlineFormSet.__module__,
-    }
-
-    CropDusterForm = ModelFormMetaclass('CropDusterForm', (forms.ModelForm,), form_class_attrs)
-
-    inline_formset_attrs = {
-        "formfield_callback": formfield_for_dbfield,
-        "ct_field": ct_field,
-        "ct_fk_field": ct_fk_field,
-        "exclude": exclude,
-        "form": CropDusterForm,
-        "model": model,
-        '__module__': BaseCropDusterInlineFormSet.__module__,
-        'prefix_override': kwargs.get('prefix'),
-    }
-    if sizes is not None:
-        inline_formset_attrs['sizes'] = sizes
-
-    return type('CropDusterInlineFormSet',
-        (BaseCropDusterInlineFormSet,), inline_formset_attrs)

@@ -5,11 +5,12 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import models
 
+from generic_plus.utils import get_relative_media_url
+
 from cropduster import settings as cropduster_settings
 from cropduster.fields import CropDusterField
 from cropduster.files import VirtualFieldFile
 from cropduster.resizing import Size
-from cropduster.utils import get_relative_media_url
 
 
 class StandaloneImageManager(models.Manager):
@@ -42,10 +43,10 @@ class StandaloneImageManager(models.Manager):
         cropduster_image, created = Image.objects.get_or_create(
             content_type=ContentType.objects.get_for_model(StandaloneImage),
             object_id=standalone.pk)
+        standalone.image.related_object = cropduster_image
         cropduster_image.image = file_path
         cropduster_image.save()
         cropduster_image.save_preview(preview_w, preview_h)
-        standalone.image.cropduster_image = cropduster_image
         return standalone
 
 
@@ -53,17 +54,18 @@ class StandaloneImage(models.Model):
 
     objects = StandaloneImageManager()
 
-    md5 = models.CharField(max_length=32)
-    image = CropDusterField(sizes=[Size("crop")])
+    md5 = models.CharField(max_length=32, blank=True, default='')
+    image = CropDusterField(sizes=[Size("crop")], upload_to='')
 
     class Meta:
         app_label = cropduster_settings.CROPDUSTER_APP_LABEL
         db_table = '%s_standaloneimage' % cropduster_settings.CROPDUSTER_DB_PREFIX
 
     def save(self, **kwargs):
-        if not self.md5:
+        if not self.md5 and self.image:
             md5_hash = hashlib.md5()
-            with open(self.image.path) as f:
+            with self.image.related_object.image as f:
+                f.open()
                 md5_hash.update(f.read())
-            self.md5 = md5_hash.digest()
+            self.md5 = md5_hash.hexdigest()
         super(StandaloneImage, self).save(**kwargs)
