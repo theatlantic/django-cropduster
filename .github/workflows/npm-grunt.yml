@@ -1,0 +1,661 @@
+
+KSkip to Content
+Social Security
+The Official Website of the U.S. Social Security Administration
+
+Joe Doe Sign Out
+Text Size
+ Accessibility Help
+Electronic Records Express (ERE) - DEMO
+OMB No. 0960-0753
+Paperwork Reduction Act
+ 
+System Notices(4) - System Notice Updated: 05/16/2015
+
+Sign Up for Email ERE System Notifications
+
+ 
+What's New? - What's New Updated: 05/16/2015
+
+Evidence Functions Help
+Access Electronic Requests
+Access Provider's Electronic Requests
+Send Individual Response
+Send Grouped Response
+Send CE with Scanned Signature
+Send CE Report
+Send CE No Show Response
+Prepare Report for Provider
+Review / Submit Prepared Requests
+Track Status of Submissions
+Submission Inquiry
+Teacher Questionnaire (PDF)
+ 
+Account Functions Help
+Create Account
+Search Accounts
+Modify Your Account
+Change Your Password
+Manage Your Email Notifications
+Messaging Functions Help
+Secure Messaging
+Contact OHO Office
+ 
+Organization Account Functions
+Create Organization Account
+Search Organizational Accounts
+Payment Functions Help
+Submit Payment Request
+Access Provider's Electronic Payment Requests
+ 
+Help & Support
+Email: EETechSupport@SSA.gov
+
+Call Us (toll free):
+1-866-691-3061
+User Resources
+For your security, please log out and close all Internet windows when you are finished.
+name: NodeJS with Grunt
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [14.x, 16.x, 18.x]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - name: Build
+      run: |
+        npm install
+        grunt
+Form 8879
+(Rev. January 2021)
+Department of the Treasury
+Internal Revenue Service
+IRS e-file Signature Authorization
+▶ ERO must obtain and retain completed Form 8879.
+▶ Go to www.irs.gov/Form8879 for the latest information.
+OMB No. 1545-0074
+Submission Identification Number (SID) ▲
+Taxpayer’s name Social security number
+Spouse’s name Spouse’s social security number
+Part I Tax Return Information — Tax Year Ending December 31, (Enter year you are authorizing.)
+Enter whole dollars only on lines 1 through 5.
+Note: Form 1040-SS filers use line 4 only. Leave lines 1, 2, 3, and 5 blank.
+1 Adjusted gross income . . . . . . . . . . . . . . . . . . . . . . . . . . 1
+2 Total tax . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2
+3 Federal income tax withheld from Form(s) W-2 and Form(s) 1099 . . . . . . . . . . . . . 3
+4 Amount you want refunded to you . . . . . . . . . . . . . . . . . . . . . . 4
+5 Amount you owe . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+Part II Taxpayer Declaration and Signature Authorization (Be sure you get and keep a copy of your return)
+Under penalties of perjury, I declare that I have examined a copy of the income tax return (original or amended) I am now authorizing, and to the best of
+my knowledge and belief, it is true, correct, and complete. I further declare that the amounts in Part I above are the amounts from the income tax
+return (original or amended) I am now authorizing. I consent to allow my intermediate service provider, transmitter, or electronic return originator (ERO)
+to send my return to the IRS and to receive from the IRS (a) an acknowledgement of receipt or reason for rejection of the transmission, (b) the reason
+for any delay in processing the return or refund, and (c) the date of any refund. If applicable, I authorize the U.S. Treasury and its designated Financial
+Agent to initiate an ACH electronic funds withdrawal (direct debit) entry to the financial institution account indicated in the tax preparation software for
+payment of my federal taxes owed on this return and/or a payment of estimated tax, and the financial institution to debit the entry to this account. This
+authorization is to remain in full force and effect until I notify the U.S. Treasury Financial Agent to terminate the authorization. To revoke (cancel) a
+payment, I must contact the U.S. Treasury Financial Agent at 1-888-353-4537. Payment cancellation requests must be received no later than 2
+business days prior to the payment (settlement) date. I also authorize the financial institutions involved in the processing of the electronic payment of
+taxes to receive confidential information necessary to answer inquiries and resolve issues related to the payment. I further acknowledge that the
+personal identification number (PIN) below is my signature for the income tax return (original or amended) I am now authorizing and, if applicable, my
+Electronic Funds Withdrawal Consent.
+Taxpayer’s PIN: check one box only
+I authorize
+ERO firm name
+to enter or generate my PIN Enter five digits, but
+don’t enter all zeros
+as my
+signature on the income tax return (original or amended) I am now authorizing.
+I will enter my PIN as my signature on the income tax return (original or amended) I am now authorizing. Check this box only
+if you are entering your own PIN and your return is filed using the Practitioner PIN method. The ERO must complete Part III
+below.
+Your signature ▶ Date ▶
+Spouse’s PIN: check one box only
+I authorize
+ERO firm name
+to enter or generate my PIN
+Enter five digits, but
+don’t enter all zeros
+as my
+signature on the income tax return (original or amended) I am now authorizing.
+I will enter my PIN as my signature on the income tax return (original or amended) I am now authorizing. Check this box only
+if you are entering your own PIN and your return is filed using the Practitioner PIN method. The ERO must complete Part III
+below.
+Spouse’s signature ▶ Date ▶
+Practitioner PIN Method Returns Only—continue below
+Part III Certification and Authentication — Practitioner PIN Method Only
+ERO’s EFIN/PIN. Enter your six-digit EFIN followed by your five-digit self-selected PIN.
+Don’t enter all zeros
+I certify that the above numeric entry is my PIN, which is my signature for the electronic individual income tax return (original or amended) I am now
+authorized to file for tax year indicated above for the taxpayer(s) indicated above. I confirm that I am submitting this return in accordance with the
+requirements of the Practitioner PIN method and Pub. 1345, Handbook for Authorized IRS e-file Providers of Individual Income Tax Returns.
+ERO’s signature ▶ Date ▶
+ERO Must Retain This Form — See Instructions
+Don’t Submit This Form to the IRS Unless Requested To Do So
+For Paperwork Reduction Act Notice, see your tax return instructions. Cat. No. 32778X Form 8879 (Rev. 01-2021)
+Form 8879 (Rev. 01-2021) Page 2
+General Instructions
+Section references are to the Internal Revenue
+Code unless otherwise noted.
+Future developments. For the latest
+information about developments related to
+Form 8879 and its instructions, such as
+legislation enacted after they were published,
+go to www.irs.gov/Form8879.
+What's New. Form 8879 is used to authorize
+the electronic filing (e-file) of original and
+amended returns. Use this Form 8879 (Rev.
+January 2021) to authorize e-file of your Form
+1040, 1040-SR, 1040-NR, 1040-SS, or 1040-
+X, for tax years beginning with 2019.
+Purpose of Form
+Form 8879 is the declaration document and
+signature authorization for an e-filed return
+filed by an electronic return originator (ERO).
+Complete Form 8879 when the Practitioner
+PIN method is used or when the taxpayer
+authorizes the ERO to enter or generate the
+taxpayer’s personal identification number
+(PIN) on his or her e-filed individual income
+tax return.
+▲!
+CAUTION
+Don’t send this form to the IRS.
+The ERO must retain Form 8879.
+When and How To Complete
+Use this chart to determine when and how to
+complete Form 8879.
+IF the ERO is . . . THEN . . .
+Not using the Practitioner
+PIN method and the
+taxpayer enters his or her
+own PIN
+Don’t complete
+Form 8879.
+Not using the Practitioner
+PIN method and is
+authorized to enter or
+generate the taxpayer’s
+PIN
+Complete Form
+8879, Parts I and II.
+Using the Practitioner PIN
+method and is authorized
+to enter or generate the
+taxpayer’s PIN
+Complete Form 8879,
+Parts I, II, and III.
+Using the Practitioner PIN
+method and the taxpayer
+enters his or her own PIN
+Complete Form 8879,
+Parts I, II, and III.
+ERO Responsibilities
+The ERO must:
+1. Enter the name(s) and social security
+number(s) of the taxpayer(s) at the top of the
+form.
+2. Complete Part I using the amounts (zeros
+may be entered when appropriate) from the
+taxpayer’s tax return. Form 1040-SS filers
+leave lines 1 through 3 and line 5 blank.
+3. Enter or generate, if authorized by the
+taxpayer, the taxpayer’s PIN and enter it in
+the boxes provided in Part II.
+4. Enter on the authorization line in Part II
+the ERO firm name (not the name of the
+individual preparing the return) if the ERO is
+authorized to enter the taxpayer’s PIN.
+5. Provide the taxpayer(s) Form 8879 by
+hand delivery, U.S. mail, private delivery
+service, email, Internet website, or fax.
+6. Enter the 20-digit Submission Identification
+Number (SID) assigned to the tax return, or
+associate Form 9325, Acknowledgement and
+General Information for Taxpayers Who File
+Returns Electronically, with Form 8879 after
+filing. If Form 9325 is used to provide the SID, it
+isn’t required to be physically attached to Form
+8879. However, it must be kept in accordance
+with published retention requirements for Form
+8879. See Pub. 4164, Modernized e-File (MeF)
+Guide for Software Developers and
+Transmitters, for more details.
+▲!
+CAUTION
+You must receive the completed
+and signed Form 8879 from the
+taxpayer before the electronic
+return is transmitted (or released
+for transmission).
+For additional information, see Pub. 1345.
+Taxpayer Responsibilities
+Taxpayers must:
+1. Verify the accuracy of the prepared income
+tax return, including direct deposit information.
+2. Check the appropriate box in Part II to
+authorize the ERO to enter or generate your
+PIN or to do it yourself.
+3. Indicate or verify your PIN when
+authorizing the ERO to enter or generate it (the
+PIN must be five digits other than all zeros).
+4. Sign and date Form 8879. Taxpayers
+must sign Form 8879 by handwritten
+signature, or electronic signature if supported
+by computer software.
+5. Return the completed Form 8879 to the
+ERO by hand delivery, U.S. mail, private
+delivery service, email, Internet website, or fax.
+Your return won’t be transmitted to the IRS
+until the ERO receives your signed Form 8879.
+Refund information. You can check on the
+status of your refund if it has been at least 72
+hours since the IRS acknowledged receipt of
+your e-filed return. But if you filed Form 8379
+with your return, allow 11 weeks. To check
+the status of your refund, do one of the
+following.
+• Go to www.irs.gov/Refunds.
+• Call 1-800-829-4477 for automated refund
+information and follow the recorded
+instructions.
+• Call 1-800-829-1954.
+Important Notes for EROs
+• Don’t send Form 8879 to the IRS unless
+requested to do so. Retain the completed
+Form 8879 for 3 years from the return due
+date or IRS received date, whichever is later.
+Form 8879 may be retained electronically in
+accordance with the recordkeeping guidelines
+in Rev. Proc. 97-22, which is on page 9 of
+Internal Revenue Bulletin 1997-13 at
+www.irs.gov/pub/irs-irbs/irb97-13.pdf.
+• Confirm the identity of the taxpayer(s).
+• Complete Part III only if you are filing the
+return using the Practitioner PIN method. You
+aren’t required to enter the taxpayer’s date of
+birth, prior year adjusted gross income, or PIN
+in the Authentication Record of the
+electronically filed return.
+• If you aren’t using the Practitioner PIN
+method, enter the taxpayer(s) date of birth
+and either the adjusted gross income or the
+PIN, or both, from the taxpayer’s prior year
+originally filed return in the Authentication
+Record of the taxpayer’s electronically filed
+return. Don’t use an amount from an
+amended return or a math error correction
+made by the IRS.
+• Enter the taxpayer’s PIN(s) on the input
+screen only if the taxpayer has authorized you
+to do so. If married filing jointly, it is
+acceptable for one spouse to authorize you to
+enter his or her PIN, and for the other spouse
+to enter his or her own PIN. It isn’t acceptable
+for a taxpayer to select or enter the PIN of an
+absent spouse.
+• Taxpayers must use a PIN to sign their
+e-filed individual income tax return
+transmitted by an ERO.
+• Provide the taxpayer with a copy of the
+signed Form 8879 for his or her records upon
+request.
+• Provide the taxpayer with a corrected copy
+of Form 8879 if changes are made to the
+return (for example, based on taxpayer
+review).
+• EROs can sign the form using a rubber
+stamp, mechanical device (such as a
+signature pen), or computer software
+program. See Notice 2007-79, 2007-42 I.R.B.
+809, available at www.irs.gov/
+irb/2007-42_IRB/ar10.html, for more
+information.
+• Go to www.irs.gov/Efile for the latest
+information. 
+Form 941 for 2022:
+(Rev. June 2022)
+Employer’s QUARTERLY Federal Tax Return
+Department of the Treasury — Internal Revenue Service
+950122
+OMB No. 1545-0029
+Employer identification number (EIN) —
+Name (not your trade name)
+Trade name (if any)
+Address
+Number Street Suite or room number
+City State ZIP code
+Foreign country name Foreign province/county Foreign postal code
+Report for this Quarter of 2022
+(Check one.)
+1: January, February, March
+2: April, May, June
+3: July, August, September
+4: October, November, December
+Go to www.irs.gov/Form941 for
+instructions and the latest information.
+Read the separate instructions before you complete Form 941. Type or print within the boxes.
+Part 1: Answer these questions for this quarter.
+1 Number of employees who received wages, tips, or other compensation for the pay period
+including: June 12 (Quarter 2), Sept. 12 (Quarter 3), or Dec. 12 (Quarter 4) . . . . . . 1
+2 Wages, tips, and other compensation . . . . . . . . . . . . . . . . . 2 .
+3 Federal income tax withheld from wages, tips, and other compensation . . . . . . 3 .
+4 If no wages, tips, and other compensation are subject to social security or Medicare tax Check and go to line 6.
+Column 1 Column 2
+5a Taxable social security wages* . . . × 0.124 = .
+5a (i) Qualified sick leave wages* . . × 0.062 = .
+5a (ii) Qualified family leave wages* . . × 0.062 = .
+*Include taxable qualified sick and
+family leave wages paid in this
+quarter of 2022 for leave taken
+after March 31, 2021, and before
+October 1, 2021, on line 5a. Use
+lines 5a(i) and 5a(ii) only for taxable
+qualified sick and family leave
+wages paid in this quarter of 2022
+for leave taken after March 31,
+2020, and before April 1, 2021.
+5b Taxable social security tips . . . . × 0.124 = .
+5c Taxable Medicare wages & tips. . . × 0.029 = . 5d Taxable wages & tips subject to
+Additional Medicare Tax withholding . × 0.009 = .
+5e Total social security and Medicare taxes. Add Column 2 from lines 5a, 5a(i), 5a(ii), 5b, 5c, and 5d 5e .
+5f Section 3121(q) Notice and Demand—Tax due on unreported tips (see instructions) . . 5f .
+6 Total taxes before adjustments. Add lines 3, 5e, and 5f . . . . . . . . . . . . 6 .
+7 Current quarter’s adjustment for fractions of cents . . . . . . . . . . . . . 7 .
+8 Current quarter’s adjustment for sick pay . . . . . . . . . . . . . . . . 8 .
+9 Current quarter’s adjustments for tips and group-term life insurance . . . . . . . 9 .
+10 Total taxes after adjustments. Combine lines 6 through 9 . . . . . . . . . . . 10 .
+11a Qualified small business payroll tax credit for increasing research activities. Attach Form 8974 11a .
+11b Nonrefundable portion of credit for qualified sick and family leave wages for leave taken
+before April 1, 2021 . . . . . . . . . . . . . . . . . . . . . . . 11b .
+11c Reserved for future use . . . . . . . . . . . . . . . . . . . . . . 11c .
+▶ You MUST complete all three pages of Form 941 and SIGN it. Next ■▶
+For Privacy Act and Paperwork Reduction Act Notice, see the back of the Payment Voucher. Cat. No. 17001Z Form 941 (Rev. 6-2022)
+8 8 1 3 0 3 4 9 1
+ZACHRY T WOOD ZACHRY T WOOD 5323 BRADFORD DR DALLAS TX 75235 1
+70842743866 00 1888138 00
+951222
+Name (not your trade name) Employer identification number (EIN)
+–
+Part 1: Answer these questions for this quarter. (continued)
+11d Nonrefundable portion of credit for qualified sick and family leave wages for leave taken
+after March 31, 2021, and before October 1, 2021 . . . . . . . . . . . . . 11d .
+11e Reserved for future use . . . . . . . . . . . . . . . . . . . . . . 11e .
+11f Reserved for future use . . . . . . . . . . . . .
+11g Total nonrefundable credits. Add lines 11a, 11b, and 11d . . . . . . . . . . . 11g .
+12 Total taxes after adjustments and nonrefundable credits. Subtract line 11g from line 10 . 12 .
+13a Total deposits for this quarter, including overpayment applied from a prior quarter and
+overpayments applied from Form 941-X, 941-X (PR), 944-X, or 944-X (SP) filed in the current quarter 13a .
+13b Reserved for future use . . . . . . . . . . . . . . . . . . . . . . 13b .
+13c Refundable portion of credit for qualified sick and family leave wages for leave taken
+before April 1, 2021 . . . . . . . . . . . . . . . . . . . . . . . 13c .
+13d Reserved for future use . . . . . . . . . . . . . . . . . . . . . . 13d .
+13e Refundable portion of credit for qualified sick and family leave wages for leave taken
+after March 31, 2021, and before October 1, 2021 . . . . . . . . . . . . . . 13e .
+13f Reserved for future use . . . . . . . . . . . . . . . . . . . . . . 13f .
+13g Total deposits and refundable credits. Add lines 13a, 13c, and 13e . . . . . . . . 13g .
+13h Reserved for future use . . . . . . . . . . . . . . . . . . . . . . 13h .
+13i Reserved for future use . . . . . . . . . . . . . . . . . . . . . . 13i .
+14 Balance due. If line 12 is more than line 13g, enter the difference and see instructions . . . 14 .
+15 Overpayment. If line 13g is more than line 12, enter the difference . Check one: Apply to next return. Send a refund.
+Part 2: Tell us about your deposit schedule and tax liability for this quarter.
+If you’re unsure about whether you’re a monthly schedule depositor or a semiweekly schedule depositor, see section 11 of Pub. 15.
+16 Check one: Line 12 on this return is less than $2,500 or line 12 on the return for the prior quarter was less than $2,500,
+and you didn’t incur a $100,000 next-day deposit obligation during the current quarter. If line 12 for the prior
+quarter was less than $2,500 but line 12 on this return is $100,000 or more, you must provide a record of your
+federal tax liability. If you’re a monthly schedule depositor, complete the deposit schedule below; if you’re a
+semiweekly schedule depositor, attach Schedule B (Form 941). Go to Part 3.
+You were a monthly schedule depositor for the entire quarter. Enter your tax liability for each month and total
+liability for the quarter, then go to Part 3.
+Tax liability: Month 1 .
+Month 2 .
+Month 3 .
+Total liability for quarter . Total must equal line 12.
+You were a semiweekly schedule depositor for any part of this quarter. Complete Schedule B (Form 941),
+Report of Tax Liability for Semiweekly Schedule Depositors, and attach it to Form 941. Go to Part 3.
+▶ You MUST complete all three pages of Form 941 and SIGN it. Next ■▶
+Page 2 Form 941 (Rev. 6-2022)
+950922
+Name (not your trade name) Employer identification number (EIN)
+–
+Part 3: Tell us about your business. If a question does NOT apply to your business, leave it blank.
+17 If your business has closed or you stopped paying wages . . . . . . . . . . . . . . . Check here, and
+enter the final date you paid wages / / ; also attach a statement to your return. See instructions.
+18 If you’re a seasonal employer and you don’t have to file a return for every quarter of the year . . . Check here.
+19 Qualified health plan expenses allocable to qualified sick leave wages for leave taken before April 1, 2021 19 .
+20 Qualified health plan expenses allocable to qualified family leave wages for leave taken before April 1, 2021 20 .
+21 Reserved for future use . . . . . . . . . . . . . . . . . . . . . . 21 .
+22 Reserved for future use . . . . . . . . . . . . . . . . . . . . . . 22 .
+23 Qualified sick leave wages for leave taken after March 31, 2021, and before October 1, 2021 23 .
+24 Qualified health plan expenses allocable to qualified sick leave wages reported on line 23 24 . 25 Amounts under certain collectively bargained agreements allocable to qualified sick
+leave wages reported on line 23 . . . . . . . . . . . . . . . . . . . 25 .
+26 Qualified family leave wages for leave taken after March 31, 2021, and before October 1, 2021 26 .
+27 Qualified health plan expenses allocable to qualified family leave wages reported on line 26 27 . 28 Amounts under certain collectively bargained agreements allocable to qualified family
+leave wages reported on line 26 . . . . . . . . . . . . . . . . . . . 28 .
+Part 4: May we speak with your third-party designee?
+Do you want to allow an employee, a paid tax preparer, or another person to discuss this return with the IRS? See the instructions
+for details.
+Yes. Designee’s name and phone number
+Select a 5-digit personal identification number (PIN) to use when talking to the IRS.
+No.
+Part 5: Sign here. You MUST complete all three pages of Form 941 and SIGN it.
+Under penalties of perjury, I declare that I have examined this return, including accompanying schedules and statements, and to the best of my knowledge
+and belief, it is true, correct, and complete. Declaration of preparer (other than taxpayer) is based on all information of which preparer has any knowledge.
+✗ Sign your
+name here
+Date / /
+Print your
+name here
+Print your
+title here
+Best daytime phone
+Paid Preparer Use Only Check if you’re self-employed . . .
+Preparer’s name PTIN
+Preparer’s signature Date / /
+Firm’s name (or yours
+if self-employed) EIN
+Address Phone
+City State ZIP code
+Page 3 Form 941 (Rev. 6-2022)
+951020
+This page intentionally left blank
+Form 941-V,
+Payment Voucher
+Purpose of Form
+Complete Form 941-V if you’re making a payment with
+Form 941. We will use the completed voucher to credit
+your payment more promptly and accurately, and to
+improve our service to you.
+Making Payments With Form 941
+To avoid a penalty, make your payment with Form 941
+only if:
+• Your total taxes after adjustments and nonrefundable
+credits (Form 941, line 12) for either the current quarter or
+the preceding quarter are less than $2,500, you didn’t
+incur a $100,000 next-day deposit obligation during the
+current quarter, and you’re paying in full with a timely filed
+return; or
+• You’re a monthly schedule depositor making a
+payment in accordance with the Accuracy of Deposits
+Rule. See section 11 of Pub. 15 for details. In this case,
+the amount of your payment may be $2,500 or more.
+Otherwise, you must make deposits by electronic funds
+transfer. See section 11 of Pub. 15 for deposit
+instructions. Don’t use Form 941-V to make federal tax
+deposits.
+▲! CAUTION
+Use Form 941-V when making any payment with
+Form 941. However, if you pay an amount with
+Form 941 that should’ve been deposited, you
+may be subject to a penalty. See Deposit Penalties in
+section 11 of Pub. 15.
+Specific Instructions
+Box 1—Employer identification number (EIN). If you
+don’t have an EIN, you may apply for one online by
+visiting the IRS website at www.irs.gov/EIN. You may also
+apply for an EIN by faxing or mailing Form SS-4 to the
+IRS. If you haven’t received your EIN by the due date of
+Form 941, write “Applied For” and the date you applied in
+this entry space.
+Box 2—Amount paid. Enter the amount paid with
+Form 941.
+Box 3—Tax period. Darken the circle identifying the
+quarter for which the payment is made. Darken only
+one circle.
+Box 4—Name and address. Enter your name and
+address as shown on Form 941.
+• Enclose your check or money order made payable to
+“United States Treasury.” Be sure to enter your
+EIN, “Form 941,” and the tax period (“1st Quarter 2022,”
+“2nd Quarter 2022,” “3rd Quarter 2022,” or “4th Quarter
+2022”) on your check or money order. Don’t send cash.
+Don’t staple Form 941-V or your payment to Form 941 (or
+to each other).
+• Detach Form 941-V and send it with your payment
+and Form 941 to the address in the Instructions for
+Form 941.
+Note: You must also complete the entity information
+above Part 1 on Form 941.
+✁ ▼ Detach Here and Mail With Your Payment and Form 941. ▼
+✃
+Form 941-V
+Department of the Treasury
+Internal Revenue Service
+Payment Voucher
+▶ Don’t staple this voucher or your payment to Form 941.
+OMB No. 1545-0029
+2022
+1 Enter your employer identification
+number (EIN).
+–System Notices
+ 
+May 16, 2015 Email Notices Information
+Please DO NOT REPLY to ERE system generated emails received from EESystem@ssa.gov.
+
+If you have any questions or concerns, please send an email to EETechSupport@ssa.gov.
+
+May 16, 2015 General Info
+Get important information about Electronic Records Express availability.
+
+May 16, 2015 Notice
+ERE have tested the following commonly-used browsers:
+
+Internet Explorer for Windows
+Firefox for Windows and Mac
+Safari for Windows and Mac
+Chrome for Windows and Mac
+
+
+2
+Enter the amount of your payment. ▶
+Make your check or money order payable to “United States Treasury”
+Dollars Cents
+3 Tax Period
+1st
+Quarter
+2nd
+Quarter
+3rd
+Quarter
+4th
+Quarter
+4 Enter your business name (individual name if sole proprietor).
+Enter your address.
+Enter your city, state, and ZIP code; or your city, foreign country name, foreign province/county, and foreign postal code.
+88 1303491 70842743866 00 ●
+ZACHRY T WOOD 5222 BRADFORD DR DALLAS TX 75235-8313
+Form 941 (Rev. 6-2022)
+Privacy Act and Paperwork Reduction Act Notice.
+We ask for the information on Form 941 to carry out the
+Internal Revenue laws of the United States. We need it to
+figure and collect the right amount of tax. Subtitle C,
+Employment Taxes, of the Internal Revenue Code
+imposes employment taxes on wages and provides for
+income tax withholding. Form 941 is used to determine
+the amount of taxes that you owe. Section 6011 requires
+you to provide the requested information if the tax is
+applicable to you. Section 6109 requires you to provide
+your identification number. If you fail to provide this
+information in a timely manner, or provide false or
+fraudulent information, you may be subject to penalties.
+You’re not required to provide the information
+requested on a form that is subject to the Paperwork
+Reduction Act unless the form displays a valid OMB
+control number. Books and records relating to a form or
+its instructions must be retained as long as their contents
+may become material in the administration of any Internal
+Revenue law.
+Generally, tax returns and return information are
+confidential, as required by section 6103. However,
+section 6103 allows or requires the IRS to disclose or
+give the information shown on your tax return to others
+as described in the Code. For example, we may
+disclose your tax information to the Department of
+Justice for civil and criminal litigation, and to cities,
+states, the District of Columbia, and U.S. commonwealths
+and possessions for use in administering their tax laws.
+We may also disclose this information to other countries
+under a tax treaty, to federal and state agencies to
+enforce federal nontax criminal laws, or to federal law
+enforcement and intelligence agencies to combat
+terrorism.
+The time needed to complete and file Form 941 will
+vary depending on individual circumstances. The
+estimated average time is:
+Recordkeeping . . . . . . . . . . 22 hr., 28 min.
+Learning about the law or the form . . . . 53 min.
+Preparing, copying, assembling, and
+sending the form to the IRS . . . . . 1 hr., 18 min.
+If you have comments concerning the accuracy of
+these time estimates or suggestions for making Form 941
+simpler, we would be happy to hear from you. You can
+send us comments from www.irs.gov/FormComments. Or
+you can send your comments to Internal Revenue
+Service, Tax Forms and Publications Division, 1111
+Constitution Ave. NW, IR-6526, Washington, DC 20224.
+Don’t send Form 941 to this address. Instead, see Where
+Should You File? in the Instructions for Form 941.
+DEPOSIT TICKET
+1
+250000.00
+250000.00
+Account Name: Amazon Web Services, Inc.
+420 Montgomery Street
+San Francisco CA,94104
+Date: February 06, 2023
+WELLS FARGO BANK NA
+MINNEAPOLIS , 32767
+This deposit slip was
+created using
+Online Check Writer on
+2023-02-10 00:55:04
+f you have any
+questions concerning
+this transaction
+please contact
+www.onlinecheckwriter.com
+Deposit Slip Created By
+Ref id : 1
+&121000248& 4121350227)
+Account Name: Amazon Web Services, Inc.
+Total Cash: 0.00 Total Check: 0.00 # of CHK : 0 Grand Total :$ 250,000.00
+Check Details
+From Check# Note Cashier Type Amount
+Ref id : 1
