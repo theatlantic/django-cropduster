@@ -11,8 +11,8 @@ from django.conf import settings
 from django.db.models.fields.files import FieldFile, FileField
 from django.utils.functional import cached_property
 from django.utils.http import urlunquote_plus
-from django.utils.six.moves.urllib import parse as urlparse
-from django.utils.six.moves.urllib.request import urlopen
+from urllib.parse import urlparse
+from urllib.request import urlopen
 
 from generic_plus.utils import get_relative_media_url, get_media_path
 
@@ -114,7 +114,7 @@ class ImageFile(VirtualFieldFile):
         else:
             return get_relative_media_url(standalone_image.image.name)
 
-        parse_result = urlparse.urlparse(url)
+        parse_result = urlparse(url)
 
         fake_upload = SimpleUploadedFile(os.path.basename(parse_result.path), image_contents)
         file_data = clean_upload_data({

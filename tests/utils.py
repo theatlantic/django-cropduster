@@ -1,13 +1,10 @@
-import six
-
-
 def esc_code(codes=None):
     if codes is None:
         # reset escape code
         return "\x1b[0m"
     if not isinstance(codes, (list, tuple)):
         codes = [codes]
-    return '\x1b[0;' + ';'.join(map(six.text_type, codes)) + 'm'
+    return '\x1b[0;' + ';'.join(map(str, codes)) + 'm'
 
 
 def get_luminance(rgb):

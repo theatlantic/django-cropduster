@@ -39,7 +39,7 @@ class Migration(SchemaMigration):
         'cropduster.standaloneimage': {
             'Meta': {'object_name': 'StandaloneImage', 'db_table': "'cropduster4_standaloneimage'"},
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'image': ('cropduster.fields.CropDusterField', [], {'to': "orm['cropduster.Image']", 'max_length': '100', 'sizes': "[{'min_w': 1, 'retina': 0, 'name': 'crop', 'h': None, 'required': True, '__type__': 'Size', 'max_h': None, 'label': u'Crop', 'max_w': None, 'min_h': 1, 'w': None}]"}),
+            'image': ('cropduster.fields.CropDusterField', [], {'to': "orm['cropduster.Image']", 'max_length': '100', 'sizes': "[{'min_w': 1, 'retina': 0, 'name': 'crop', 'h': None, 'required': True, '__type__': 'Size', 'max_h': None, 'label': 'Crop', 'max_w': None, 'min_h': 1, 'w': None}]"}),
             'md5': ('django.db.models.fields.CharField', [], {'max_length': '32'})
         },
         'cropduster.thumb': {

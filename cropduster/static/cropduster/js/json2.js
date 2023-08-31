@@ -219,7 +219,7 @@ if (!this.JSON) {
             '"' + string.replace(escapable, function (a) {
                 var c = meta[a];
                 return typeof c === 'string' ? c :
-                    '\\u' + ('0000' + a.charCodeAt(0).toString(16)).slice(-4);
+                    '\\' + ('0000' + a.charCodeAt(0).toString(16)).slice(-4);
             }) + '"' :
             '"' + string + '"';
     }
@@ -438,7 +438,7 @@ if (!this.JSON) {
             cx.lastIndex = 0;
             if (cx.test(text)) {
                 text = text.replace(cx, function (a) {
-                    return '\\u' +
+                    return '\\' +
                         ('0000' + a.charCodeAt(0).toString(16)).slice(-4);
                 });
             }

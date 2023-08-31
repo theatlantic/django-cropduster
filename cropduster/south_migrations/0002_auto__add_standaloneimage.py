@@ -10,7 +10,7 @@ class Migration(SchemaMigration):
         
         # Adding model 'StandaloneImage'
         db.create_table('cropduster4_standaloneimage', (
-            ('image', self.gf('cropduster.fields.CropDusterField')(to=orm['cropduster.Image'], max_length=100, sizes=[{'retina': 0, 'min_h': 1, 'name': 'crop', 'w': None, 'h': None, 'min_w': 1, '__type__': 'Size', 'label': u'Crop'}])),
+            ('image', self.gf('cropduster.fields.CropDusterField')(to=orm['cropduster.Image'], max_length=100, sizes=[{'retina': 0, 'min_h': 1, 'name': 'crop', 'w': None, 'h': None, 'min_w': 1, '__type__': 'Size', 'label': 'Crop'}])),
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
             ('md5', self.gf('django.db.models.fields.CharField')(max_length=32)),
         ))
@@ -47,7 +47,7 @@ class Migration(SchemaMigration):
         'cropduster.standaloneimage': {
             'Meta': {'object_name': 'StandaloneImage', 'db_table': "'cropduster4_standaloneimage'"},
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'image': ('cropduster.fields.CropDusterField', [], {'to': "orm['cropduster.Image']", 'max_length': '100', 'sizes': "[{'retina': 0, 'min_h': 1, 'name': 'crop', 'w': None, 'h': None, 'min_w': 1, '__type__': 'Size', 'label': u'Crop'}]"}),
+            'image': ('cropduster.fields.CropDusterField', [], {'to': "orm['cropduster.Image']", 'max_length': '100', 'sizes': "[{'retina': 0, 'min_h': 1, 'name': 'crop', 'w': None, 'h': None, 'min_w': 1, '__type__': 'Size', 'label': 'Crop'}]"}),
             'md5': ('django.db.models.fields.CharField', [], {'max_length': '32'})
         },
         'cropduster.thumb': {

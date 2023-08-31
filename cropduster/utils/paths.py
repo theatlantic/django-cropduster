@@ -1,12 +1,10 @@
-from __future__ import unicode_literals
-
 import os
 import re
 
-from django.core.files.storage import default_storage, FileSystemStorage
+from django.core.files.storage import default_storage
 from django.conf import settings
 from django.db.models.fields.files import FileField
-from django.utils import six
+
 
 
 __all__ = ('get_upload_foldername')
@@ -19,9 +17,6 @@ def get_upload_foldername(file_name, upload_to='%Y/%m'):
         file_name = 'no_name'
     filename = file_field.generate_filename(None, file_name)
     filename = re.sub(r'[_\-]+', '_', filename)
-
-    if six.PY2 and isinstance(filename, unicode):
-        filename = filename.encode('utf-8')
 
     root_dir = os.path.splitext(filename)[0]
     parent_dir, _, basename = root_dir.rpartition('/')

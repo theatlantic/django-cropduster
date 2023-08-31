@@ -9,9 +9,6 @@ import tempfile
 import PIL.Image
 
 from django.core.exceptions import ImproperlyConfigured
-from django.utils import six
-from django.utils.encoding import python_2_unicode_compatible
-from django.utils.six.moves import filter
 from django.core.files.storage import default_storage
 
 from .settings import CROPDUSTER_RETAIN_METADATA
@@ -23,7 +20,6 @@ __all__ = ('Size', 'Box', 'Crop')
 INFINITY = float('inf')
 
 
-@python_2_unicode_compatible
 class SizeAlias(object):
     is_alias = True
 
@@ -32,7 +28,7 @@ class SizeAlias(object):
         self.to = to
 
     def __str__(self):
-        return u'Size %s => %s' % (self.alias, self.to)
+        return 'Size %s => %s' % (self.alias, self.to)
 
     def add_to_sizes_dict(self, sizes):
         keys = re.split(r'(?<!\\)\.', self.alias)
@@ -46,7 +42,6 @@ class SizeAlias(object):
         ctx.update(size_to)
 
 
-@python_2_unicode_compatible
 class Size(object):
 
     is_alias = False
@@ -76,7 +71,7 @@ class Size(object):
         self.retina = retina
         self.width = w
         self.height = h
-        self.label = label or u' '.join(filter(None, re.split(r'[_\-]', name))).title()
+        self.label = label or ' '.join(filter(None, re.split(r'[_\-]', name))).title()
         self.required = required
 
         self.min_aspect = (self.w / self.h) if (self.w and self.h) else 0
@@ -95,18 +90,18 @@ class Size(object):
             self.max_aspect = min(self.max_aspect, self.max_w / self.h)
 
     def __str__(self):
-        name = u'Size %s (%s):' % (self.label, self.name)
+        name = 'Size %s (%s):' % (self.label, self.name)
         if self.auto:
-            name = u'%s[auto]' % name
+            name = '%s[auto]' % name
         if self.retina:
-            name = u'%s[@2x]' % name
+            name = '%s[@2x]' % name
         kw = []
         for k in ['w', 'h', 'min_w', 'min_h', 'max_w', 'max_h']:
             v = getattr(self, k, None)
             if v:
-                kw.append(u'%s=%s' % (k, v))
+                kw.append('%s=%s' % (k, v))
         if len(kw):
-            name += u'(%s)' % (u', '.join(kw))
+            name += '(%s)' % (', '.join(kw))
         return name
 
     @property
@@ -227,7 +222,7 @@ class Box(object):
 class Crop(object):
 
     def __init__(self, box, image):
-        if isinstance(image, six.string_types):
+        if isinstance(image, str):
             self._fh = default_storage.open(image, mode='rb')
             image = PIL.Image.open(self._fh)
 
@@ -406,8 +401,8 @@ class Crop(object):
         md.set_property(NS_CROP, 'crop:size/crop:json', json.dumps(size))
         md.set_property(NS_CROP, 'crop:md5', digest.upper())
         md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions', '', prop_value_is_struct=True)
-        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:w', six.text_type(self.image.size[0]))
-        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:h', six.text_type(self.image.size[1]))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:w', str(self.image.size[0]))
+        md.set_property(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:h', str(self.image.size[1]))
         # Clear out any existing <mwg-rs:RegionList> tags so they don't conflict
         # (for instance, iPhone face regions are stored in this tag)
         if md.does_property_exist(NS_MWG_RS, 'mwg-rs:Regions/mwg-rs:RegionList'):

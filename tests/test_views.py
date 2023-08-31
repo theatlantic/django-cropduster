@@ -51,13 +51,13 @@ class TestUpload(CropdusterViewTestRunner):
     def test_post_request(self):
         img_file = open(os.path.join(self.TEST_IMG_DIR, 'img.jpg'), 'rb')
         data = {
-            u'image': img_file,
-            u'upload_to': [u'test'],
-            u'image_element_id': u'mt_image',
-            u'md5': u'',
-            u'preview_height': u'500',
-            u'preview_width': u'800',
-            u'sizes': u'''
+            'image': img_file,
+            'upload_to': ['test'],
+            'image_element_id': 'mt_image',
+            'md5': '',
+            'preview_height': '500',
+            'preview_width': '800',
+            'sizes': '''
             [{
             "auto": [{
                         "max_w": null,

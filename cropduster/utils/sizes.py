@@ -1,7 +1,5 @@
 from __future__ import division
 
-from django.utils import six
-
 from . import jsonutils as json
 from ..resizing import Size
 
@@ -14,7 +12,7 @@ def get_min_size(sizes):
     min_w, min_h = 0, 0
     if sizes == 'null':
         return (0, 0)
-    if isinstance(sizes, six.string_types):
+    if isinstance(sizes, str):
         sizes = json.loads(sizes)
     if not sizes:
         return (0, 0)

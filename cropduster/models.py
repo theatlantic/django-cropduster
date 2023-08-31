@@ -11,10 +11,7 @@ from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.core.files.storage import FileSystemStorage
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
-from django.db import connection, models
-from django.utils import six
-from django.utils.encoding import python_2_unicode_compatible
-from django.utils.six.moves import xrange
+from django.db import models
 from django.core.files.storage import default_storage, FileSystemStorage
 
 import PIL.Image
@@ -34,17 +31,6 @@ from . import settings as cropduster_settings
 __all__ = ('Image', 'Thumb', 'StandaloneImage', 'CropDusterField', 'Size', 'Box', 'Crop')
 
 
-def safe_str_path(file_path):
-    """
-    Convert unicode paths to bytestrings so that os.path does not throw
-    string conversion errors
-    """
-    if six.PY2 and isinstance(file_path, unicode):
-        return file_path.encode('utf-8')
-    return file_path
-
-
-@python_2_unicode_compatible
 class Thumb(models.Model):
 
     name = models.CharField(max_length=255, db_index=True)
@@ -115,10 +101,8 @@ class Thumb(models.Model):
     def to_dict(self):
         """Returns a dict of the thumb's values which are JSON serializable."""
         dct = {}
-        for k, v in six.iteritems(vars(self)):
-            if isinstance(v, (six.string_types, float, bool, type(None))):
-                dct[k] = v
-            if isinstance(v, six.integer_types):
+        for k, v in vars(self).items():
+            if isinstance(v, (str, float, int, bool, type(None))):
                 dct[k] = v
         return dct
 
@@ -137,13 +121,13 @@ class Thumb(models.Model):
         if original_image is None:
             if not self.pk:
                 raise Exception(
-                    u"The `original_image` argument is required for"
-                    u" thumbnails which have not yet been saved")
+                    "The `original_image` argument is required for"
+                    " thumbnails which have not yet been saved")
 
             if not self.image_id:
                 raise Exception(
-                    u"The `original_image` argument is required for"
-                    u" thumbnails which are not associated with an image")
+                    "The `original_image` argument is required for"
+                    " thumbnails which are not associated with an image")
 
             original_image = self.image
 
@@ -175,7 +159,7 @@ class Thumb(models.Model):
         new_w, new_h = crop.box.size
         if new_w < width or new_h < height:
             raise CropDusterResizeException(
-                u"Crop box (%dx%d) is too small for resize to (%dx%d)" % (new_w, new_h, width, height))
+                "Crop box (%dx%d) is too small for resize to (%dx%d)" % (new_w, new_h, width, height))
 
         # Scale our initial width and height based on the max_w and max_h
         max_scales = []
@@ -194,26 +178,13 @@ class Thumb(models.Model):
         return crop
 
 
-class StrFileSystemStorage(FileSystemStorage):
-    """Converts paths to byte-strings.
-
-    Linux uses str/bytes for file paths, but Django tries to use unicode.
-    """
-    def path(self, name):
-        path = super(StrFileSystemStorage, self).path(name)
-        if six.PY2 and isinstance(path, unicode):
-            path = path.encode('utf-8')
-        return path
-
-
-image_storage = StrFileSystemStorage()
+image_storage = FileSystemStorage()
 
 
 def generate_filename(instance, filename):
     return filename
 
 
-@python_2_unicode_compatible
 class Image(models.Model):
 
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
@@ -266,16 +237,16 @@ class Image(models.Model):
     def extension(self):
         ''' returns the file extension with a dot (.) prepended to it '''
         if not self.image:
-            return u''
-        return os.path.splitext(safe_str_path(self.image.name))[1]
+            return ''
+        return os.path.splitext(self.image.name)[1]
 
     @staticmethod
     def get_file_for_size(image, size_name='original', tmp=False):
-        if isinstance(image, six.string_types):
+        if isinstance(image, str):
             image = VirtualFieldFile(image)
         if not image:
             return None
-        path, basename = os.path.split(safe_str_path(image.name))
+        path, basename = os.path.split(image.name)
         filename, extension = os.path.splitext(basename)
         if size_name == 'preview':
             size_name = '_preview'
@@ -284,7 +255,7 @@ class Image(models.Model):
         return VirtualFieldFile(
             '/'.join([
                 path,
-                safe_str_path(size_name) + extension]))
+                size_name + extension]))
 
     @classmethod
     def save_preview_file(cls, image_file, preview_w=None, preview_h=None):
@@ -310,7 +281,7 @@ class Image(models.Model):
             return preview_img
 
         preview_file = cls.get_file_for_size(image_file, '_preview')
-        process_image(pil_img, safe_str_path(preview_file.name), fit_preview)
+        process_image(pil_img, preview_file.name, fit_preview)
         return preview_file
 
     def save_preview(self, preview_w=None, preview_h=None):
@@ -340,7 +311,7 @@ class Image(models.Model):
         size_name = size_name or 'original'
         converted = Image.get_file_for_size(self.image, size_name, tmp=tmp)
         if not converted:
-            return u''
+            return ''
         else:
             return converted.name
 
@@ -382,7 +353,7 @@ class Image(models.Model):
 
     def get_image_url(self, size_name='original', tmp=False):
         converted = Image.get_file_for_size(self.image, size_name, tmp=tmp)
-        return getattr(converted, 'url', None) or u''
+        return getattr(converted, 'url', None) or ''
 
     def get_image_size(self, size_name=None):
         """
@@ -399,7 +370,7 @@ class Image(models.Model):
                 return (thumb.width, thumb.height)
 
         # Get the original size
-        if not self.image or not default_storage.exists(safe_str_path(self.image.name)):
+        if not self.image or not default_storage.exists(self.image.name):
             return (0, 0)
         elif self.width and self.height:
             return (self.width, self.height)
@@ -452,7 +423,7 @@ class Image(models.Model):
 
         if standalone:
             if not StandaloneImage:
-                raise ImproperlyConfigured(u"standalone mode used, but not installed.")
+                raise ImproperlyConfigured("standalone mode used, but not installed.")
             return self._save_standalone_thumb(size, image, thumb, commit=commit)
 
         for sz in Size.flatten([size]):
@@ -487,7 +458,7 @@ class Image(models.Model):
             thumb = Thumb(
                 width=self.width, height=self.height,
                 crop_x=0, crop_y=0, crop_w=self.width, crop_h=self.height)
-        thumb.name = ''.join([random.choice('abcdefghijklmnopqrstuvwxyz0123456789') for i in xrange(0, 8)])
+        thumb.name = ''.join([random.choice('abcdefghijklmnopqrstuvwxyz0123456789') for i in range(0, 8)])
         thumb_path = self.get_image_path(thumb.name)
 
         # In standalone mode, if only one dimension is overridden by the user,
@@ -558,14 +529,4 @@ class Image(models.Model):
         return thumb
 
 
-try:
-    from cropduster.standalone.models import StandaloneImage
-except:
-    raise
-    class FalseMeta(type):
-        def __nonzero__(cls): return False
-        __bool__ = __nonzero__
-
-    @six.add_metaclass(FalseMeta)
-    class StandaloneImage(object):
-        DoesNotExist = type('DoesNotExist', (ObjectDoesNotExist,), {})
+from cropduster.standalone.models import StandaloneImage

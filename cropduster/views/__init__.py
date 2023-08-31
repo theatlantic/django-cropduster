@@ -45,8 +45,6 @@ from django.template import RequestContext
 from django.utils.decorators import method_decorator
 from django.utils.encoding import force_text
 from django.utils.functional import cached_property
-from django.utils import six
-from django.utils.six.moves import filter, map, zip
 from django.views.decorators.csrf import csrf_exempt
 
 import PIL.Image
@@ -190,7 +188,7 @@ class CropDusterIndex(View):
             'is_popup': True,
             'orig_image': '',
             'parent_template': get_admin_base_template(),
-            'image': getattr(self.image_file.preview_image, 'url', u"%scropduster/img/blank.gif" % settings.STATIC_URL),
+            'image': getattr(self.image_file.preview_image, 'url', "%scropduster/img/blank.gif" % settings.STATIC_URL),
             'standalone': self.is_standalone,
             'upload_form': UploadForm(initial={
                 'upload_to': self.upload_to,
@@ -230,8 +228,6 @@ def upload(request):
     is_standalone = bool(form_data.get('standalone'))
 
     orig_file_path = form_data['image'].name
-    if six.PY2 and isinstance(orig_file_path, six.text_type):
-        orig_file_path = orig_file_path.encode('utf-8')
     orig_image = get_relative_media_url(orig_file_path)
 
     with default_storage.open(orig_image, mode='rb') as f:
@@ -242,8 +238,8 @@ def upload(request):
 
     if is_animated_gif(img) and not has_animated_gif_support():
         data['warning'].append(
-            u"This server does not have animated gif support; your uploaded image "
-            u"has been made static.")
+            "This server does not have animated gif support; your uploaded image "
+            "has been made static.")
 
     tmp_image = Image(image=orig_image)
     preview_w = form_data.get('preview_width') or PREVIEW_WIDTH
@@ -429,7 +425,7 @@ def crop(request):
                 'url': db_image.get_image_url(thumb.name),
             })
 
-            for name, new_thumb in six.iteritems(new_thumbs):
+            for name, new_thumb in new_thumbs.items():
                 thumb_data = dict([(k, getattr(new_thumb, k)) for k in json_thumb_fields])
                 thumb_data['url'] = db_image.get_image_url(name, tmp=not(new_thumb.image_id))
                 crop_data['thumbs'].update({name: thumb_data})

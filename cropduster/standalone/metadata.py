@@ -8,7 +8,6 @@ from io import open
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import default_storage
 from django.utils.encoding import force_bytes
-from django.utils import six
 
 from cropduster.files import ImageFile
 from cropduster.utils import json
@@ -16,7 +15,7 @@ from cropduster.utils import json
 try:
     import libxmp
 except ImportError:
-    raise ImproperlyConfigured(u"Could not import libxmp")
+    raise ImproperlyConfigured("Could not import libxmp")
 except:
     libxmp = None
     # Annoyingly libxmp has a ExempiLoadError but doesn't use it,
@@ -27,7 +26,7 @@ except:
         raise
     else:
         raise ImproperlyConfigured(
-            u"cropduster.standalone used, but exempi shared library not installed")
+            "cropduster.standalone used, but exempi shared library not installed")
 
 
 if not libxmp:
@@ -64,8 +63,8 @@ class EnumerationMeta(type):
     def __new__(cls, name, bases, attrs):
         if '_lookup' not in attrs:
             lookup = {}
-            for k, v in six.iteritems(attrs):
-                if isinstance(v, six.integer_types):
+            for k, v in attrs.items():
+                if isinstance(v, int):
                     lookup.setdefault(v, k)
             attrs['_lookup'] = lookup
 
@@ -75,8 +74,7 @@ class EnumerationMeta(type):
         return value in self._lookup
 
 
-@six.add_metaclass(EnumerationMeta)
-class Enumeration(object):
+class Enumeration(metaclass=EnumerationMeta):
     @classmethod
     def value_name(cls, value):
         return cls._lookup.get(value)
@@ -195,7 +193,7 @@ class MetadataDict(dict):
         self.clean(ns_dict)
 
     def clean(self, ns_dict):
-        for ns, values in six.iteritems(ns_dict):
+        for ns, values in ns_dict.items():
             for k, v, opts in values:
                 current = self
                 bits = k.split('/')
@@ -232,7 +230,7 @@ class MetadataDict(dict):
                         v = float(v)
                     except (TypeError, ValueError):
                         v = None
-                elif k == 'DerivedFrom' and isinstance(v, six.string_types):
+                elif k == 'DerivedFrom' and isinstance(v, str):
                     v = re.sub(r'^xmp\.did:', '', v).lower()
                 elif ns_prefix == 'crop' and k == 'json':
                     v = json.loads(v)
@@ -244,7 +242,7 @@ class MetadataDict(dict):
                     current = current.setdefault(m.group(1), [{}])
                     k = int(m.group(2)) - 1
 
-                if isinstance(current, list) and isinstance(k, six.integer_types):
+                if isinstance(current, list) and isinstance(k, int):
                     if len(current) <= k:
                         current.append(*([{}] * (1 + k - len(current))))
 

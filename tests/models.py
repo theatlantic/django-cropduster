@@ -1,5 +1,4 @@
 from django.db import models
-from django.utils.encoding import python_2_unicode_compatible
 
 from cropduster.fields import ReverseForeignRelation
 from cropduster.models import CropDusterField, Size
@@ -21,13 +20,13 @@ class Article(models.Model):
     author = models.ForeignKey(to=Author, blank=True, null=True,
         on_delete=models.SET_NULL)
     LEAD_IMAGE_SIZES = [
-        Size(u'main', w=600, h=480, auto=[
-            Size(u'thumb', w=110, h=90),
+        Size('main', w=600, h=480, auto=[
+            Size('thumb', w=110, h=90),
         ]),
-        Size(u'no_height', w=600),
+        Size('no_height', w=600),
     ]
     ALT_IMAGE_SIZES = [
-        Size(u'wide', w=600, h=300),
+        Size('wide', w=600, h=300),
     ]
     lead_image = CropDusterField(upload_to="article/lead_image/%Y/%m",
                                 db_column='image',
@@ -67,16 +66,15 @@ class OrphanedThumbs(models.Model):
 class MultipleFieldsInheritanceParent(models.Model):
 
     slug = models.SlugField()
-    image = CropDusterField(upload_to="test", sizes=[Size(u'main', w=600, h=480)])
+    image = CropDusterField(upload_to="test", sizes=[Size('main', w=600, h=480)])
 
 
 class MultipleFieldsInheritanceChild(MultipleFieldsInheritanceParent):
 
-    image2 = CropDusterField(upload_to="test", sizes=[Size(u'main', w=600, h=480)],
+    image2 = CropDusterField(upload_to="test", sizes=[Size('main', w=600, h=480)],
         field_identifier="2")
 
 
-@python_2_unicode_compatible
 class ReverseForeignRelA(models.Model):
     slug = models.SlugField()
     c = models.ForeignKey('ReverseForeignRelC', on_delete=models.CASCADE)
@@ -90,7 +88,6 @@ class ReverseForeignRelA(models.Model):
         return self.slug
 
 
-@python_2_unicode_compatible
 class ReverseForeignRelB(models.Model):
     slug = models.SlugField()
     c = models.ForeignKey('ReverseForeignRelC', on_delete=models.CASCADE)
@@ -99,7 +96,6 @@ class ReverseForeignRelB(models.Model):
         return self.slug
 
 
-@python_2_unicode_compatible
 class ReverseForeignRelC(models.Model):
     slug = models.SlugField()
     rel_a = ReverseForeignRelation(
@@ -110,7 +106,6 @@ class ReverseForeignRelC(models.Model):
         return self.slug
 
 
-@python_2_unicode_compatible
 class ReverseForeignRelM2M(models.Model):
     slug = models.SlugField()
     m2m = models.ManyToManyField(ReverseForeignRelC)

@@ -1,10 +1,8 @@
 import math
 import PIL
-import distutils.spawn
-from distutils.version import LooseVersion
+import shutil
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.utils import six
 
 
 CROPDUSTER_MEDIA_ROOT = getattr(settings, 'CROPDUSTER_MEDIA_ROOT', settings.MEDIA_ROOT)
@@ -36,7 +34,7 @@ CROPDUSTER_JPEG_QUALITY = getattr(settings, 'CROPDUSTER_JPEG_QUALITY', default_j
 
 
 def get_jpeg_quality(width, height):
-    if six.callable(CROPDUSTER_JPEG_QUALITY):
+    if callable(CROPDUSTER_JPEG_QUALITY):
         return CROPDUSTER_JPEG_QUALITY(width, height)
     elif isinstance(CROPDUSTER_JPEG_QUALITY, (int, float)):
         return CROPDUSTER_JPEG_QUALITY
@@ -45,14 +43,13 @@ def get_jpeg_quality(width, height):
             "CROPDUSTER_JPEG_QUALITY setting must be either a callable "
             "or a numeric value, got type %s" % (type(CROPDUSTER_JPEG_QUALITY).__name__))
 
-JPEG_SAVE_ICC_SUPPORTED = (LooseVersion(getattr(PIL, '__version__', '0'))
-    >= LooseVersion('2.2.1'))
+JPEG_SAVE_ICC_SUPPORTED = getattr(settings, 'JPEG_SAVE_ICC_SUPPORTED', True)
 
 CROPDUSTER_GIFSICLE_PATH = getattr(settings, 'CROPDUSTER_GIFSICLE_PATH', None)
 
 if CROPDUSTER_GIFSICLE_PATH is None:
     # Try to find executable in the PATH
-    CROPDUSTER_GIFSICLE_PATH = distutils.spawn.find_executable("gifsicle")
+    CROPDUSTER_GIFSICLE_PATH = shutil.which("gifsicle")
 
 CROPDUSTER_RETAIN_METADATA = getattr(settings, 'CROPDUSTER_RETAIN_METADATA', False)
 CROPDUSTER_CREATE_THUMBS = getattr(settings, 'CROPDUSTER_CREATE_THUMBS', True)

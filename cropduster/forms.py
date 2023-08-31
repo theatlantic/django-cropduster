@@ -5,7 +5,6 @@ from django.forms.models import ChoiceField, ModelMultipleChoiceField
 from django.forms.utils import flatatt
 from django.utils.encoding import force_text
 from django.utils.html import escape, conditional_escape
-from django.utils import six
 
 from generic_plus.forms import BaseGenericFileInlineFormSet, GenericForeignFileWidget
 
@@ -47,10 +46,10 @@ class CropDusterWidget(GenericForeignFileWidget):
                     preview_w = int(round(orig_width * resize_ratio))
                     preview_h = int(round(orig_height * resize_ratio))
 
-        if six.callable(sizes):
+        if callable(sizes):
             instance = getattr(getattr(bound_field, 'form', None), 'instance', None)
             try:
-                sizes_callable = six.get_method_function(sizes)
+                sizes_callable = sizes.__func__
             except AttributeError:
                 sizes_callable = sizes
             sizes = sizes_callable(instance, related=related_object)
@@ -128,11 +127,11 @@ class CropDusterThumbWidget(forms.SelectMultiple):
             option_value = option_value.pk
         option_value = force_text(option_value)
         if option_value in selected_choices:
-            selected_html = u' selected="selected"'
+            selected_html = ' selected="selected"'
         else:
             selected_html = ''
         return (
-            u'<option value="%(value)s"%(selected)s%(attrs)s>%(label)s</option>') % {
+            '<option value="%(value)s"%(selected)s%(attrs)s>%(label)s</option>') % {
                 'value': escape(option_value),
                 'selected': selected_html,
                 'attrs': flatatt(attrs),

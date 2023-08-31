@@ -129,7 +129,7 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
         self.assertHTMLEqual(
             content_html,
-            u"""
+            """
             <figure>
                 <img alt="" width="672" height="798" src="%s" />
                 <figcaption class="caption">Caption</figcaption>
@@ -185,7 +185,7 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
         self.assertHTMLEqual(
             content_html,
-            u"""
+            """
             <figure>
                 <img alt="" width="300" height="356" src="%s" />
                 <figcaption class="caption">Caption</figcaption>

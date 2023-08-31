@@ -4,14 +4,11 @@ from io import BytesIO
 import os
 import warnings
 import math
-from distutils.version import LooseVersion
 
 import PIL.Image
 from PIL import ImageFile, JpegImagePlugin
 
 from django.core.files.storage import default_storage
-from django.utils import six
-from django.utils.six.moves import xrange
 
 from cropduster.settings import (
     get_jpeg_quality, JPEG_SAVE_ICC_SUPPORTED, CROPDUSTER_GIFSICLE_PATH)
@@ -48,7 +45,7 @@ def get_image_extension(img):
     if img.format in IMAGE_EXTENSIONS:
         return IMAGE_EXTENSIONS[img.format]
     else:
-        for ext, format in six.iteritems(PIL.Image.EXTENSION):
+        for ext, format in PIL.Image.EXTENSION.items():
             if format == img.format:
                 return ext
         # Our fallback is the PIL format name in lowercase,
@@ -132,8 +129,8 @@ def process_image(im, save_filename=None, callback=lambda i: i, nq=0, save_param
     if is_animated:
         if not CROPDUSTER_GIFSICLE_PATH:
             warnings.warn(
-                u"This server does not have animated gif support; your uploaded image "
-                u"has been made static.")
+                "This server does not have animated gif support; your uploaded image "
+                "has been made static.")
         else:
             images = [GifsicleImage(im)]
 
@@ -176,38 +173,4 @@ def smart_resize(im, final_w, final_h):
         # If the image is already the right size, don't change it
         return im
 
-    # Pillow 2.7.0 greatly improved the bicubic resize algorithm, which makes
-    # our multiple-step resizing unnecessary
-    pillow_version = getattr(PIL, '__version__', None)
-    if pillow_version and LooseVersion(pillow_version) >= LooseVersion('2.7.0'):
-        return im.resize((final_w, final_h), PIL.Image.BICUBIC)
-
-    # Attempt to resize the image 1/8, 2/8, such that it is at least 1.5x bigger
-    # than the final size
-    # (Libjpg-Turbo has optimizations for resizing images by a ratio of eights)
-    (goal_w, goal_h) = (final_w * 1.5, final_h * 1.5)
-    # Ratios from 1/8, 2/8... 7/8
-    for i in xrange(1, 8):
-        ratio = i / 8
-        scaled_w = orig_w * ratio
-        scaled_h = orig_h * ratio
-        if scaled_w >= goal_w and scaled_h >= goal_h:
-
-            # The image may need to be cropped slightly to ensure an even
-            # size reduction
-            crop_w = orig_w % 8
-            crop_h = orig_h % 8
-            if not crop_w or not crop_h:
-                im.crop((math.floor(crop_w / 2),
-                         math.floor(crop_h / 2),
-                         orig_w - math.ceil(crop_w / 2),
-                         orig_h - math.ceil(crop_h / 2)))
-                (orig_w, orig_h) = im.size
-
-            # Resize part of the way using the fastest algorithm
-            im = im.resize((int(orig_w * ratio), int(orig_w * ratio)),
-                           PIL.Image.NEAREST)
-            break
-
-    # Return the image with the final resizing done at best quality
-    return im.resize((final_w, final_h), PIL.Image.ANTIALIAS)
+    return im.resize((final_w, final_h), PIL.Image.BICUBIC)

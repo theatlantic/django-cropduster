@@ -7,7 +7,6 @@ import PIL
 from django.core.files.storage import default_storage
 from django.test import TestCase, override_settings
 from django.contrib.contenttypes.models import ContentType
-from django.utils.six.moves import range
 
 from .helpers import CropdusterTestCaseMediaMixin
 from .models import (

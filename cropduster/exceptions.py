@@ -4,14 +4,9 @@ import logging
 import copy
 import errno
 
-try:
-    from django.urls import get_urlconf, get_resolver
-except ImportError:
-    from django.core.urlresolvers import get_urlconf, get_resolver
+from django.urls import get_urlconf, get_resolver
 from django.http import HttpResponse
 from django.utils.safestring import mark_safe
-from django.utils import six
-from django.utils.six.moves import xrange
 
 from django.utils.encoding import force_text
 
@@ -49,7 +44,7 @@ def current_stack(skip=0):
         1 / 0
     except ZeroDivisionError:
         f = sys.exc_info()[2].tb_frame
-    for i in xrange(skip + 2):
+    for i in range(skip + 2):
         f = f.f_back
     lst = []
     while f is not None:
@@ -76,14 +71,14 @@ def full_exc_info():
 def format_error(error):
     from generic_plus.utils import get_relative_media_url
 
-    if isinstance(error, six.string_types):
+    if isinstance(error, str):
         return error
     elif isinstance(error, IOError):
         if error.errno == errno.ENOENT:  # No such file or directory
             file_name = get_relative_media_url(error.filename)
-            return u"Could not find file %s" % file_name
+            return "Could not find file %s" % file_name
 
-    return u"[%(type)s] %(msg)s" % {
+    return "[%(type)s] %(msg)s" % {
         'type': error.__class__.__name__,
         'msg': error,
     }
@@ -119,7 +114,7 @@ def log_error(request, view, action, errors, exc_info=None):
         p = psutil.Process(os.getpid())
         proc_timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(p.create_time))
         try:
-            create_usec = six.text_type(p.create_time - math.floor(p.create_time))[1:5]
+            create_usec = str(p.create_time - math.floor(p.create_time))[1:5]
         except:
             create_usec = ''
         proc_timestamp += create_usec
@@ -191,7 +186,7 @@ def json_error(request, view, action, errors=None, forms=None, formsets=None, lo
         return HttpResponse(json.dumps({'error': 'An unknown error occurred'}),
                 content_type='application/json')
 
-    error_str = u''
+    error_str = ''
     for forms in formset_errors:
         for form_errors in forms:
             for k in sorted(form_errors.keys()):

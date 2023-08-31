@@ -9,19 +9,19 @@ class Migration(SchemaMigration):
     def forwards(self, orm):
         
         # Adding field 'Image.attribution_link'
-        db.add_column(u'cropduster4_image', 'attribution_link', self.gf('django.db.models.fields.URLField')(max_length=255, null=True, blank=True), keep_default=False)
+        db.add_column('cropduster4_image', 'attribution_link', self.gf('django.db.models.fields.URLField')(max_length=255, null=True, blank=True), keep_default=False)
 
         # Adding field 'Image.caption'
-        db.add_column(u'cropduster4_image', 'caption', self.gf('django.db.models.fields.CharField')(max_length=255, null=True, blank=True), keep_default=False)
+        db.add_column('cropduster4_image', 'caption', self.gf('django.db.models.fields.CharField')(max_length=255, null=True, blank=True), keep_default=False)
     
     
     def backwards(self, orm):
         
         # Deleting field 'Image.attribution_link'
-        db.delete_column(u'cropduster4_image', 'attribution_link')
+        db.delete_column('cropduster4_image', 'attribution_link')
 
         # Deleting field 'Image.caption'
-        db.delete_column(u'cropduster4_image', 'caption')
+        db.delete_column('cropduster4_image', 'caption')
     
     
     models = {
@@ -33,7 +33,7 @@ class Migration(SchemaMigration):
             'name': ('django.db.models.fields.CharField', [], {'max_length': '100'})
         },
         'cropduster.image': {
-            'Meta': {'unique_together': "(('content_type', 'object_id', 'prev_object_id'),)", 'object_name': 'Image', 'db_table': "u'cropduster4_image'"},
+            'Meta': {'unique_together': "(('content_type', 'object_id', 'prev_object_id'),)", 'object_name': 'Image', 'db_table': "'cropduster4_image'"},
             'attribution': ('django.db.models.fields.CharField', [], {'max_length': '255', 'null': 'True', 'blank': 'True'}),
             'attribution_link': ('django.db.models.fields.URLField', [], {'max_length': '255', 'null': 'True', 'blank': 'True'}),
             'caption': ('django.db.models.fields.CharField', [], {'max_length': '255', 'null': 'True', 'blank': 'True'}),
@@ -49,13 +49,13 @@ class Migration(SchemaMigration):
             'width': ('django.db.models.fields.PositiveIntegerField', [], {'null': 'True', 'blank': 'True'})
         },
         'cropduster.standaloneimage': {
-            'Meta': {'object_name': 'StandaloneImage', 'db_table': "u'cropduster4_standaloneimage'"},
+            'Meta': {'object_name': 'StandaloneImage', 'db_table': "'cropduster4_standaloneimage'"},
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'image': ('cropduster.fields.CropDusterField', [], {'to': "orm['cropduster.Image']", 'max_length': '100', 'sizes': "[{'max_w': None, 'retina': 0, 'min_h': 1, 'name': 'crop', 'w': None, 'h': None, 'min_w': 1, '__type__': 'Size', 'max_h': None, 'label': u'Crop'}]"}),
+            'image': ('cropduster.fields.CropDusterField', [], {'to': "orm['cropduster.Image']", 'max_length': '100', 'sizes': "[{'max_w': None, 'retina': 0, 'min_h': 1, 'name': 'crop', 'w': None, 'h': None, 'min_w': 1, '__type__': 'Size', 'max_h': None, 'label': 'Crop'}]"}),
             'md5': ('django.db.models.fields.CharField', [], {'max_length': '32'})
         },
         'cropduster.thumb': {
-            'Meta': {'object_name': 'Thumb', 'db_table': "u'cropduster4_thumb'"},
+            'Meta': {'object_name': 'Thumb', 'db_table': "'cropduster4_thumb'"},
             'crop_h': ('django.db.models.fields.PositiveIntegerField', [], {'null': 'True', 'blank': 'True'}),
             'crop_w': ('django.db.models.fields.PositiveIntegerField', [], {'null': 'True', 'blank': 'True'}),
             'crop_x': ('django.db.models.fields.PositiveIntegerField', [], {'null': 'True', 'blank': 'True'}),

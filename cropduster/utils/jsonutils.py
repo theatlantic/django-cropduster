@@ -1,6 +1,4 @@
 import json
-from django.utils import six
-from django.utils.six.moves import filter
 
 from cropduster.resizing import Size
 
@@ -9,7 +7,7 @@ __all__ = ('dumps', 'loads')
 
 
 def json_default(obj):
-    if six.callable(getattr(obj, '__serialize__', None)):
+    if callable(getattr(obj, '__serialize__', None)):
         dct = obj.__serialize__()
         module = obj.__module__
         if module == '__builtin__':
@@ -18,7 +16,7 @@ def json_default(obj):
             name = obj.__name__
         else:
             name = obj.__class__.__name__
-        type_name = u'.'.join(filter(None, [module, name]))
+        type_name = '.'.join(filter(None, [module, name]))
         if type_name == 'cropduster.resizing.Size':
             type_name = 'Size'
         dct.update({'__type__': type_name})
@@ -49,7 +47,7 @@ def dumps(obj, *args, **kwargs):
 
 
 def loads(s, *args, **kwargs):
-    if isinstance(s, six.binary_type):
+    if isinstance(s, bytes):
         s = s.decode('utf-8')
     kwargs.setdefault('object_hook', object_hook)
     return json.loads(s, *args, **kwargs)

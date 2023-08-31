@@ -8,7 +8,6 @@ from django.db.models.fields import Field
 from django.db.models.fields.files import ImageFileDescriptor, ImageFieldFile
 from django.db.models.fields.related import ManyToManyRel, ManyToManyField
 from django.utils.functional import cached_property
-from django.utils import six
 from django.contrib.contenttypes.models import ContentType
 
 from generic_plus.fields import GenericForeignFileField
@@ -47,7 +46,7 @@ class CropDusterImageFieldFile(ImageFieldFile):
 
     @property
     def sizes(self):
-        if six.callable(self.field.db_field.sizes):
+        if callable(self.field.db_field.sizes):
             return self.field.db_field.sizes(self.instance, related=self.related_object)
         else:
             return self.field.db_field.sizes
@@ -105,7 +104,7 @@ class CropDusterImageFieldFile(ImageFieldFile):
             thumbs = self.related_object.save_size(
                 size, thumb=crop_thumb, permissive=permissive, skip_existing=skip_existing)
 
-            for slug, thumb in six.iteritems(thumbs):
+            for slug, thumb in thumbs.items():
                 thumb.image = self.related_object
                 thumb.save()
 
