@@ -35,10 +35,12 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
         return apps
 
     def test_addform_single_image(self):
+        from selenium.webdriver.common.by import By
+
         self.load_admin(Author)
 
         browser = self.selenium
-        browser.find_element_by_id('id_name').send_keys('Mark Twain')
+        browser.find_element(By.ID, 'id_name').send_keys('Mark Twain')
         with self.clickable_selector('#headshot-group .cropduster-button') as el:
             el.click()
 
@@ -88,13 +90,15 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
         self.assertTrue(default_storage.exists(auto_thumb.image_name))
 
     def test_addform_multiple_image(self):
+        from selenium.webdriver.common.by import By
+
         author = Author.objects.create(name="Mark Twain")
         self.load_admin(Article)
         browser = self.selenium
-        browser.find_element_by_id('id_title').send_keys("A Connecticut Yankee in King Arthur's Court")
+        browser.find_element(By.ID, 'id_title').send_keys("A Connecticut Yankee in King Arthur's Court")
 
         # Upload and crop first Image
-        browser.find_element_by_css_selector('#lead_image-group .cropduster-button').click()
+        browser.find_element(By.CSS_SELECTOR, '#lead_image-group .cropduster-button').click()
 
         with self.switch_to_popup_window():
             with self.visible_selector('#id_image') as el:
@@ -122,7 +126,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
                 el.click()
 
         # Add required FK
-        browser.find_element_by_xpath('//select[@id="id_author"]/option[@value=%d]' % author.pk).click()
+        browser.find_element(By.XPATH, '//select[@id="id_author"]/option[@value=%d]' % author.pk).click()
 
         self.save_form()
 
@@ -137,6 +141,8 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
         self.assertEqual(len(article.alt_image.related_object.thumbs.all()), len(alt_sizes))
 
     def test_changeform_single_image(self):
+        from selenium.webdriver.common.by import By
+
         image_path = self.create_unique_image('img.png')
         author = Author.objects.create(name="Samuel Langhorne Clemens",
             headshot=image_path)
@@ -146,11 +152,11 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
         self.load_admin(author)
 
-        preview_image_el = self.selenium.find_element_by_css_selector('#headshot-group .cropduster-image-thumb')
+        preview_image_el = self.selenium.find_element(By.CSS_SELECTOR, '#headshot-group .cropduster-image-thumb')
         src_image_path = os.path.join(self.TEST_IMG_DIR, 'img.png')
         self.assertImageColorEqual(preview_image_el, src_image_path)
 
-        elem = self.selenium.find_element_by_id('id_name')
+        elem = self.selenium.find_element(By.ID, 'id_name')
         elem.clear()
         elem.send_keys("Mark Twain")
 
@@ -162,6 +168,8 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
         self.assertEqual(len(author.headshot.related_object.thumbs.all()), 2)
 
     def test_changeform_multiple_images(self):
+        from selenium.webdriver.common.by import By
+
         author = Author.objects.create(name="Samuel Langhorne Clemens")
         lead_image_path = self.create_unique_image('img.jpg')
         alt_image_path = self.create_unique_image('img.png')
@@ -177,7 +185,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
         self.load_admin(article)
 
-        elem = self.selenium.find_element_by_id('id_title')
+        elem = self.selenium.find_element(By.ID, 'id_title')
         elem.clear()
         elem.send_keys("Updated Title")
 
