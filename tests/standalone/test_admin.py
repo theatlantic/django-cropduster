@@ -16,7 +16,7 @@ from selenosis import AdminSelenosisTestCase
 from cropduster.models import Image, Thumb
 from tests.helpers import CropdusterTestCaseMediaMixin
 
-from .models import Article
+from .models import StandaloneArticle
 
 
 class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
@@ -56,8 +56,6 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
         self.ckeditor_override.disable()
 
     def setUp(self):
-        if django.VERSION >= (2, 1):
-            raise SkipTest("django-ckeditor not compatible with this version of Django")
         super(TestStandaloneAdmin, self).setUp()
         self.is_s3 = os.environ.get('S3') == '1'
 
@@ -91,7 +89,7 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
         time.sleep(2 if self.is_s3 else 0.2)
 
     def test_basic_usage(self):
-        self.load_admin(Article)
+        self.load_admin(StandaloneArticle)
 
         with self.open_cropduster_ckeditor_dialog():
             with self.visible_selector('#id_image') as el:
@@ -142,7 +140,7 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
         Test that changing the width in the cropduster CKEDITOR dialog produces
         an image and html with the correct dimensions
         """
-        self.load_admin(Article)
+        self.load_admin(StandaloneArticle)
 
         with self.open_cropduster_ckeditor_dialog():
             with self.visible_selector('#id_image') as el:

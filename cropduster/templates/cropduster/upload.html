@@ -94,7 +94,7 @@
                 {{ thumb_formset.management_form }}
                 {% for thumb_form in thumb_formset %}
                 <div class="cropduster-thumb-form" id="{{ thumb_formset.prefix }}-{{ forloop.counter0 }}">
-                    <table>{{ thumb_form }}</table>
+                    <table>{{ thumb_form.as_table }}</table>
                 </div>
                 {% endfor %}
             </div>

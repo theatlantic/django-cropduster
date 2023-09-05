@@ -372,7 +372,7 @@ class ReverseForeignRelation(ManyToManyField):
         kwargs['blank'] = True
         kwargs['editable'] = True
         kwargs['serialize'] = False
-        Field.__init__(self, **kwargs)
+        super(ManyToManyField, self).__init__(**kwargs)
 
     def is_hidden(self):
         return True

@@ -49,65 +49,65 @@ class TestUpload(CropdusterViewTestRunner):
             views.index(request).content)
 
     def test_post_request(self):
-        img_file = open(os.path.join(self.TEST_IMG_DIR, 'img.jpg'), 'rb')
-        data = {
-            'image': img_file,
-            'upload_to': ['test'],
-            'image_element_id': 'mt_image',
-            'md5': '',
-            'preview_height': '500',
-            'preview_width': '800',
-            'sizes': '''
-            [{
-            "auto": [{
-                        "max_w": null,
-                        "retina": 0,
-                        "min_h": 1,
-                        "name": "lead",
-                        "w": 570,
-                        "h": null,
-                        "min_w": 570,
-                        "__type__": "Size",
-                        "max_h": null,
-                        "label": "Lead"
-                    }, {
-                        "max_w": null,
-                        "retina": 0,
-                        "min_h": 110,
-                        "name": "featured_small",
-                        "w": 170,
-                        "h": 110,
-                        "min_w": 170,
-                        "__type__": "Size",
-                        "max_h": null,
-                        "label": "Featured Small"
-                    }, {
-                        "max_w": null,
-                        "retina": 0,
-                        "min_h": 250,
-                        "name": "featured_large",
-                        "w": 386,
-                        "h": 250,
-                        "min_w": 386,
-                        "__type__": "Size",
-                        "max_h": null,
-                        "label": "Featured Large"
-                    }],
-            "retina": 0,
-            "name": "lead_large",
-            "h": null,
-            "min_w": 615,
-            "__type__": "Size",
-            "max_h": null,
-            "label": "Lead Large",
-            "max_w": null,
-            "min_h": 250,
-            "w": 615
-        }]''',
-        }
-        request = self.factory.post(reverse('cropduster-upload'), data)
-        request.user = self.user
-        response = views.upload(request)
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.content)
-        self.assertTrue(default_storage.exists(data['orig_image']))
+        with open(os.path.join(self.TEST_IMG_DIR, 'img.jpg'), 'rb') as img_file:
+            data = {
+                'image': img_file,
+                'upload_to': ['test'],
+                'image_element_id': 'mt_image',
+                'md5': '',
+                'preview_height': '500',
+                'preview_width': '800',
+                'sizes': '''
+                [{
+                "auto": [{
+                            "max_w": null,
+                            "retina": 0,
+                            "min_h": 1,
+                            "name": "lead",
+                            "w": 570,
+                            "h": null,
+                            "min_w": 570,
+                            "__type__": "Size",
+                            "max_h": null,
+                            "label": "Lead"
+                        }, {
+                            "max_w": null,
+                            "retina": 0,
+                            "min_h": 110,
+                            "name": "featured_small",
+                            "w": 170,
+                            "h": 110,
+                            "min_w": 170,
+                            "__type__": "Size",
+                            "max_h": null,
+                            "label": "Featured Small"
+                        }, {
+                            "max_w": null,
+                            "retina": 0,
+                            "min_h": 250,
+                            "name": "featured_large",
+                            "w": 386,
+                            "h": 250,
+                            "min_w": 386,
+                            "__type__": "Size",
+                            "max_h": null,
+                            "label": "Featured Large"
+                        }],
+                "retina": 0,
+                "name": "lead_large",
+                "h": null,
+                "min_w": 615,
+                "__type__": "Size",
+                "max_h": null,
+                "label": "Lead Large",
+                "max_w": null,
+                "min_h": 250,
+                "w": 615
+            }]''',
+            }
+            request = self.factory.post(reverse('cropduster-upload'), data)
+            request.user = self.user
+            response = views.upload(request)
+            self.assertEqual(response.status_code, 200)
+            data = json.loads(response.content)
+            self.assertTrue(default_storage.exists(data['orig_image']))

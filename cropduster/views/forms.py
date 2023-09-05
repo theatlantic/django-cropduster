@@ -12,7 +12,7 @@ from django.conf import settings
 from django.forms.forms import NON_FIELD_ERRORS
 from django.forms.models import BaseModelFormSet
 from django.forms.utils import ErrorDict as _ErrorDict
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.html import conditional_escape
 from django.utils.safestring import mark_safe
 
@@ -29,7 +29,7 @@ class ErrorDict(_ErrorDict):
         for k, v in self.items():
             if k == NON_FIELD_ERRORS:
                 k = ''
-            error_list.append('%s%s' % (k, conditional_escape(force_text(v))))
+            error_list.append('%s%s' % (k, conditional_escape(force_str(v))))
 
         return mark_safe('<ul class="errorlist">%s</ul>'
                 % ''.join(['<li>%s</li>' % e for e in error_list]))
@@ -42,7 +42,7 @@ def clean_upload_data(data):
         pil_image = PIL.Image.open(image)
     except IOError as e:
         if e.errno:
-            error_msg = force_text(e)
+            error_msg = force_str(e)
         else:
             error_msg = "Invalid or unsupported image file"
         raise forms.ValidationError({"image": [error_msg]})

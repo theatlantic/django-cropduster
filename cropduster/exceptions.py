@@ -8,7 +8,7 @@ from django.urls import get_urlconf, get_resolver
 from django.http import HttpResponse
 from django.utils.safestring import mark_safe
 
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 
 
 logger = logging.getLogger('cropduster')
@@ -133,9 +133,9 @@ def log_error(request, view, action, errors, exc_info=None):
         }
 
         resolver_reverse_dict = dict(
-            [(force_text(k), resolver.reverse_dict[k]) for k in resolver.reverse_dict])
+            [(force_str(k), resolver.reverse_dict[k]) for k in resolver.reverse_dict])
         resolver_namespace_dict = dict(
-            [(force_text(k), resolver.namespace_dict[k]) for k in resolver.namespace_dict])
+            [(force_str(k), resolver.namespace_dict[k]) for k in resolver.namespace_dict])
 
         extra_data.update({
             'resolver_data': {
@@ -193,7 +193,7 @@ def json_error(request, view, action, errors=None, forms=None, formsets=None, lo
                 v = form_errors.pop(k)
                 k = mark_safe('<span class="error-field error-%(k)s">%(k)s</span>' % {'k': k})
                 form_errors[k] = v
-            error_str += force_text(form_errors)
+            error_str += force_str(form_errors)
     errors = errors or [error_str]
 
     if log:

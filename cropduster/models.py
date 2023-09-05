@@ -259,8 +259,8 @@ class Image(models.Model):
 
     @classmethod
     def save_preview_file(cls, image_file, preview_w=None, preview_h=None):
-        with image_file as f:
-            f.open()
+        storage = image_file.storage
+        with storage.open(image_file.name, "rb") as f:
             pil_img = PIL.Image.open(BytesIO(f.read()))
             pil_img.filename = f.name
         orig_w, orig_h = pil_img.size
@@ -274,7 +274,7 @@ class Image(models.Model):
             if resize_ratio < 1:
                 w = int(round(orig_w * resize_ratio))
                 h = int(round(orig_h * resize_ratio))
-                preview_img = im.resize((w, h), PIL.Image.ANTIALIAS)
+                preview_img = im.resize((w, h), PIL.Image.LANCZOS)
             else:
                 w, h = orig_w, orig_h
                 preview_img = im
@@ -376,8 +376,7 @@ class Image(models.Model):
             return (self.width, self.height)
         else:
             try:
-                with self.image as f:
-                    f.open()
+                with self.image_file_open() as f:
                     img = PIL.Image.open(BytesIO(f.read()))
                     img.filename = f.name
             except (IOError, ValueError, TypeError):
@@ -416,8 +415,7 @@ class Image(models.Model):
             raise Exception("Cannot save sizes without an image")
 
         if not image:
-            with self.image as f:
-                f.open()
+            with self.image_file_open() as f:
                 image = PIL.Image.open(BytesIO(f.read()))
                 image.filename = f.name
 
@@ -496,10 +494,13 @@ class Image(models.Model):
 
         return thumb
 
+    def image_file_open(self):
+        storage = self._meta.get_field("image").storage
+        return storage.open(self.image.name, "rb")
+
     def _save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False, commit=True):
         if not image:
-            with self.image as f:
-                f.open()
+            with self.image_file_open() as f:
                 image = PIL.Image.open(BytesIO(f.read()))
                 image.filename = f.name
         if not thumb and self.pk:

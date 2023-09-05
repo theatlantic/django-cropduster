@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.forms.models import ModelChoiceIterator
 from django.forms.models import ChoiceField, ModelMultipleChoiceField
 from django.forms.utils import flatatt
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.html import escape, conditional_escape
 
 from generic_plus.forms import BaseGenericFileInlineFormSet, GenericForeignFileWidget
@@ -125,7 +125,7 @@ class CropDusterThumbWidget(forms.SelectMultiple):
         attrs = self.get_option_attrs(option_value)
         if isinstance(option_value, self.model):
             option_value = option_value.pk
-        option_value = force_text(option_value)
+        option_value = force_str(option_value)
         if option_value in selected_choices:
             selected_html = ' selected="selected"'
         else:
@@ -135,7 +135,7 @@ class CropDusterThumbWidget(forms.SelectMultiple):
                 'value': escape(option_value),
                 'selected': selected_html,
                 'attrs': flatatt(attrs),
-                'label': conditional_escape(force_text(option_label)),
+                'label': conditional_escape(force_str(option_label)),
         }
 
 

@@ -64,8 +64,7 @@ class StandaloneImage(models.Model):
     def save(self, **kwargs):
         if not self.md5 and self.image:
             md5_hash = hashlib.md5()
-            with self.image.related_object.image as f:
-                f.open()
+            with self.image.related_object.image_file_open() as f:
                 md5_hash.update(f.read())
             self.md5 = md5_hash.hexdigest()
         super(StandaloneImage, self).save(**kwargs)

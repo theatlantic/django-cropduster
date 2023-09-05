@@ -1,24 +1,18 @@
-import django
-from django.conf import settings
-from django.conf.urls import include, url, static
+from django.urls import include, re_path
 from django.contrib import admin
 
 
 admin.autodiscover()
 
 urlpatterns = [
-    url(r"^cropduster/", include("cropduster.urls")),
-    url(r'^ckeditor/', include('ckeditor.urls')),
+    re_path(r"^cropduster/", include("cropduster.urls")),
+    re_path(r'^ckeditor/', include('ckeditor.urls')),
+    re_path(r'^admin/', admin.site.urls),
 ]
-
-if django.VERSION < (1, 9):
-    urlpatterns += [url(r'^admin/', include(admin.site.urls))]
-else:
-    urlpatterns += [url(r'^admin/', admin.site.urls)]
 
 try:
     import grappelli.urls
 except ImportError:
     pass
 else:
-    urlpatterns += [url(r"^grappelli/", include(grappelli.urls))]
+    urlpatterns += [re_path(r"^grappelli/", include(grappelli.urls))]

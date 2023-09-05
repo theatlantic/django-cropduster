@@ -1,4 +1,5 @@
 from django.utils.functional import cached_property
+from django.views.decorators.clickjacking import xframe_options_exempt
 
 from cropduster.models import Size, Thumb
 from cropduster.standalone.metadata import MetadataImageFile
@@ -81,4 +82,4 @@ class CropDusterStandaloneIndex(CropDusterIndex):
         return self.image_file.get_for_size('original')
 
 
-index = CropDusterStandaloneIndex.as_view()
+index = xframe_options_exempt(CropDusterStandaloneIndex.as_view())

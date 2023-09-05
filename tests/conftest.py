@@ -14,3 +14,5 @@ def suppress_warnings():
     warnings.filterwarnings('ignore', message='.*?collections')
     warnings.filterwarnings('ignore', message='.*?Resampling')
     warnings.filterwarnings('ignore', message='.*?distutils')
+    # warning from grappelli 3.0 templates
+    warnings.filterwarnings('ignore', message='.*?length_is')

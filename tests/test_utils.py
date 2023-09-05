@@ -23,49 +23,42 @@ class TestUtilsImage(CropdusterTestCaseMediaMixin, test.TestCase):
     def test_get_image_extension(self):
         from cropduster.utils import get_image_extension
 
-        tmp_jpg_bad_ext_pdf = tempfile.NamedTemporaryFile(suffix='.pdf')
-        tmp_png_bad_ext_jpg = tempfile.NamedTemporaryFile(suffix='.png')
+        with self._get_img('img.jpg') as im:
+            assert get_image_extension(im) == ".jpg"
+        with self._get_img('img.png') as im:
+            assert get_image_extension(im) == ".png"
+        with self._get_img('animated.gif') as im:
+            assert get_image_extension(im) == ".gif"
 
+        tmp_jpg_bad_ext_pdf = tempfile.NamedTemporaryFile(suffix='.pdf')
         with open(os.path.join(self.TEST_IMG_DIR, 'img.jpg'), mode='rb') as f:
             tmp_jpg_bad_ext_pdf.write(f.read())
             tmp_jpg_bad_ext_pdf.seek(0)
-
-        with open(os.path.join(self.TEST_IMG_DIR, 'img.png'), mode='rb') as f:
-            tmp_png_bad_ext_jpg.write(f.read())
-            tmp_png_bad_ext_jpg.seek(0)
-
-        imgs = [
-            (self._get_img('img.jpg'), '.jpg'),
-            (self._get_img('img.png'), '.png'),
-            (self._get_img('animated.gif'), '.gif'),
-            (Image.open(tmp_jpg_bad_ext_pdf.name), '.jpg'),
-            (Image.open(tmp_png_bad_ext_jpg.name), '.png'),
-        ]
-        for img, ext in imgs:
-            self.assertEqual(get_image_extension(img), ext)
+        with Image.open(tmp_jpg_bad_ext_pdf.name) as im:
+            assert get_image_extension(im) == ".jpg"
+        tmp_jpg_bad_ext_pdf.close()
 
     def test_is_transparent(self):
         from cropduster.utils import is_transparent
-        yes = self._get_img('transparent.png')
-        no = self._get_img('img.png')
-
-        self.assertTrue(is_transparent(yes))
-        self.assertFalse(is_transparent(no))
+        with self._get_img('transparent.png') as im:
+            assert is_transparent(im) is True
+        with self._get_img('img.png') as im:
+            assert is_transparent(im) is False
 
     def test_correct_colorspace(self):
         from cropduster.utils import correct_colorspace
-        img = self._get_img('cmyk.jpg')
-        self.assertEqual(img.mode, 'CMYK')
-        converted = correct_colorspace(img)
-        self.assertEqual(img.mode, 'CMYK')
-        self.assertEqual(converted.mode, 'RGB')
+        with self._get_img('cmyk.jpg') as img:
+            self.assertEqual(img.mode, 'CMYK')
+            converted = correct_colorspace(img)
+            self.assertEqual(img.mode, 'CMYK')
+            self.assertEqual(converted.mode, 'RGB')
 
     def test_is_animated_gif(self):
         from cropduster.utils import is_animated_gif
-        yes = self._get_img('animated.gif')
-        no = self._get_img('img.jpg')
-        self.assertTrue(is_animated_gif(yes))
-        self.assertFalse(is_animated_gif(no))
+        with self._get_img('animated.gif') as yes:
+            with self._get_img('img.jpg') as no:
+                self.assertTrue(is_animated_gif(yes))
+                self.assertFalse(is_animated_gif(no))
 
 
 class TestUtilsPaths(CropdusterTestCaseMediaMixin, test.TestCase):

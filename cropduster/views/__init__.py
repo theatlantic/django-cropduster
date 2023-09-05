@@ -26,6 +26,7 @@ back onto fields on the index page's forms / formsets.
 """
 from __future__ import division
 
+import functools
 from io import BytesIO
 import os
 import copy
@@ -43,9 +44,10 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.template import RequestContext
 from django.utils.decorators import method_decorator
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.functional import cached_property
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.clickjacking import xframe_options_exempt
 
 import PIL.Image
 
@@ -208,6 +210,7 @@ index = CropDusterIndex.as_view()
 
 @csrf_exempt
 @login_required
+@xframe_options_exempt
 def upload(request):
     if request.method == 'GET':
         return index(request)
@@ -222,7 +225,7 @@ def upload(request):
     if not form.is_valid():
         errors = form['image'].errors or form.errors
         return json_error(request, 'upload', action="uploading file",
-                errors=[force_text(errors)])
+                errors=[force_str(errors)])
 
     form_data = form.cleaned_data
     is_standalone = bool(form_data.get('standalone'))
@@ -253,7 +256,7 @@ def upload(request):
         if resize_ratio < 1:
             w = int(round(w * resize_ratio))
             h = int(round(h * resize_ratio))
-            preview_img = im.resize((w, h), PIL.Image.ANTIALIAS)
+            preview_img = im.resize((w, h), PIL.Image.LANCZOS)
         else:
             preview_img = im
         return preview_img
@@ -298,8 +301,7 @@ def upload(request):
         data['crop']['orig_image'] = data['orig_image'] = cropduster_image.image.name
         data['url'] = cropduster_image.get_image_url('_preview')
 
-    with cropduster_image.image as f:
-        f.open()
+    with cropduster_image.image_file_open() as f:
         img = PIL.Image.open(BytesIO(f.read()))
         img.filename = f.name
     preview_file_path = cropduster_image.get_image_path('_preview')
@@ -337,6 +339,7 @@ def upload(request):
 
 @csrf_exempt
 @login_required
+@xframe_options_exempt
 def crop(request):
     if request.method == "GET":
         return json_error(request, 'crop', action="cropping image",
@@ -355,8 +358,7 @@ def crop(request):
         db_image = Image(image=crop_data['orig_image'])
 
     try:
-        with db_image.image as f:
-            f.open()
+        with db_image.image_file_open() as f:
             pil_image = PIL.Image.open(BytesIO(f.read()))
             pil_image.filename = f.name
     except IOError:
@@ -405,7 +407,7 @@ def crop(request):
                 new_thumbs = db_image.save_size(size, thumb, tmp=True, standalone=standalone_mode)
             except CropDusterResizeException as e:
                 return json_error(request, 'crop',
-                                  action="saving size", errors=[force_text(e)])
+                                  action="saving size", errors=[force_str(e)])
 
             if not new_thumbs:
                 continue
