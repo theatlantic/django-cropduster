@@ -56,6 +56,8 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
         self.ckeditor_override.disable()
 
     def setUp(self):
+        if self.has_grappelli and django.VERSION >= (3, 2):
+            raise SkipTest("django-ckeditor is not yet compatible with django 3.2+ and grappelli")
         super(TestStandaloneAdmin, self).setUp()
         self.is_s3 = os.environ.get('S3') == '1'
 
