@@ -40,6 +40,7 @@ jobs:
     name: Django ${{ matrix.django-version }} (Python ${{ matrix.python-version }})${{ matrix.name-suffix }}
 
     env:
+      PYTHON: ${{ matrix.python-version }}
       DJANGO: ${{ matrix.django-version }}
       GRAPPELLI: ${{ matrix.grappelli }}
       S3: ${{ matrix.s3 }}
@@ -81,9 +82,11 @@ jobs:
       run: tox -e coverage-report
 
     - name: Upload coverage
-      run: tox -e codecov
-      env:
-        CODECOV_NAME: ${{ github.workflow }}
+      uses: codecov/codecov-action@v3
+      with:
+        name: ${{ github.workflow }}
+        files: .tox/coverage/coverage.xml
+        env_vars: "DJANGO,GRAPPELLI,PYTHON,S3"
 
   report:
     if: always()
