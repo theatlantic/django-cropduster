@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
                 ('prev_object_id', models.PositiveIntegerField(null=True, blank=True)),
                 ('width', models.PositiveIntegerField(null=True, blank=True)),
                 ('height', models.PositiveIntegerField(null=True, blank=True)),
-                ('image', cropduster.fields.CropDusterSimpleImageField(db_column='path', db_index=True, height_field='height', storage=cropduster.models.StrFileSystemStorage(), upload_to=cropduster.models.generate_filename, width_field='width')),
+                ('image', cropduster.fields.CropDusterSimpleImageField(db_column='path', db_index=True, height_field='height', upload_to=cropduster.models.generate_filename, width_field='width')),
                 ('date_created', models.DateTimeField(auto_now_add=True)),
                 ('date_modified', models.DateTimeField(auto_now=True)),
                 ('attribution', models.CharField(max_length=255, null=True, blank=True)),

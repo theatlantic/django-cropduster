@@ -12,6 +12,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='image',
             name='alt_text',
-            field=models.TextField(null=False, default="", verbose_name=b'Alt Text', blank=True),
+            field=models.TextField(blank=True, default='', verbose_name='Alt Text'),
         ),
     ]
