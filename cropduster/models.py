@@ -259,8 +259,8 @@ class Image(models.Model):
 
     @classmethod
     def save_preview_file(cls, image_file, preview_w=None, preview_h=None):
-        storage = image_file.storage
-        with storage.open(image_file.name, "rb") as f:
+        with image_file as f:
+            f.open()
             pil_img = PIL.Image.open(BytesIO(f.read()))
             pil_img.filename = f.name
         orig_w, orig_h = pil_img.size
