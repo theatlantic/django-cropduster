@@ -190,7 +190,7 @@ def get_cropduster_field_on_model(model, field_identifier):
 class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
 
     fields = ('image', 'thumbs', 'attribution', 'attribution_link',
-        'caption', 'alt_text', 'field_identifier')
+        'caption', 'alt_text', 'field_identifier', 'width', 'height')
 
     def __init__(self, *args, **kwargs):
         super(CropDusterInlineFormSet, self).__init__(*args, **kwargs)

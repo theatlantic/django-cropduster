@@ -4,10 +4,14 @@
 
 .cropduster-form .image,
 .cropduster-form .thumbs,
+.cropduster-form .width,
+.cropduster-form .height,
 .cropduster-form .DELETE,
 .cropduster-form .field_identifier,
 .cropduster-form .field-image,
 .cropduster-form .field-thumbs,
+.cropduster-form .field-width,
+.cropduster-form .field-height,
 .cropduster-form .field-field_identifier,
 .cropduster-form .inline-related .grp-collapse-handler {
     display: none;
@@ -33,8 +37,12 @@
 
 body.cropduster-debug .cropduster-form .image,
 body.cropduster-debug .cropduster-form .thumbs,
+body.cropduster-debug .cropduster-form .width,
+body.cropduster-debug .cropduster-form .height,
 body.cropduster-debug .cropduster-form .field-image,
 body.cropduster-debug .cropduster-form .field-thumbs,
+body.cropduster-debug .cropduster-form .field-width,
+body.cropduster-debug .cropduster-form .field-height,
 body.cropduster-debug .cropduster-form .DELETE,
 body.cropduster-debug .cropduster-form .inline-related .grp-collapse-handler {
     display: block !important;

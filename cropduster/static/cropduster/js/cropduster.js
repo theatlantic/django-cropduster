@@ -204,6 +204,8 @@ window.CropDuster = {};
                 $('#id_' + prefix + '-INITIAL_FORMS').val('0');
             }
             $('#id_' + prefix + '-0-image').val(data.crop.orig_image);
+            $('#id_' + prefix + '-0-width').val(data.crop.orig_w);
+            $('#id_' + prefix + '-0-height').val(data.crop.orig_h);
             $('#id_' + prefix).val(data.crop.orig_image);
             $('#id_' + prefix + '-TOTAL_FORMS').val('1');
             if (typeof data.thumbs != 'object') {
