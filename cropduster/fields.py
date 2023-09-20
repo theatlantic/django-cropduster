@@ -128,6 +128,10 @@ class CropDusterImageFileDescriptor(ImageFileDescriptor):
         super(ImageFileDescriptor, self).__set__(instance, value)
 
         if previous_file is not None:
+            # Don't update dimensions if this is a new image and we already
+            # have the width and height
+            if not previous_file and instance.width and instance.height:
+                return
             if previous_file != value:
                 self.field.update_dimension_fields(instance, force=True)
 
