@@ -280,7 +280,7 @@
             this.shiftState = CKEDITOR.plugins.cropduster.stateShifter(this.editor);
 
             // Add widget editing option to its context menu.
-            this.on('contextMen', function(evt) {
+            this.on('contextMenu', function(evt) {
                 evt.data.cropduster = CKEDITOR.TRISTATE_OFF;
             });
 
