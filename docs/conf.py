@@ -57,7 +57,7 @@ project = 'django-cropduster'
 copyright = '2015, The Atlantic'
 author = 'The Atlantic'
 
-# The version info for the project yo're documenting, acts as replacement for
+# The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
@@ -194,8 +194,8 @@ html_static_path = ['_static']
 
 # Language to be used for generating the HTML full-text search index.
 # Sphinx supports the following languages:
-#   'da', 'de', 'en', 'es', 'fi', 'fr', 'h', 'it', 'ja'
-#   'nl', 'no', 'pt', 'ro', 'r', 'sv', 'tr'
+#   'da', 'de', 'en', 'es', 'fi', 'fr', 'hu', 'it', 'ja'
+#   'nl', 'no', 'pt', 'ro', 'ru', 'sv', 'tr'
 #html_search_language = 'en'
 
 # A dictionary with options for the search language support, empty by default.

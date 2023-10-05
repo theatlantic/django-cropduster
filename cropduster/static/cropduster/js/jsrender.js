@@ -666,7 +666,7 @@
 		+ "}catch(e){return j._err(e);}";
 
 		try {
-			code = new Function("data, view, j, b, ", code);
+			code = new Function("data, view, j, b, u", code);
 		} catch (e) {
 			syntaxError("Compiled template code:\n\n" + code, e);
 		}
