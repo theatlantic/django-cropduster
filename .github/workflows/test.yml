@@ -7,43 +7,41 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        grappelli: ["0"]
-        python-version: ["3.8"]
-        django-version: ["3.2"]
-        s3: ["0"]
         include:
-          - grappelli: "0"
-            name-suffix: ""
-          - python-version: "3.7"
-            django-version: "2.2"
-          - grappelli: "1"
+          - django-version: "2.2"
             python-version: "3.8"
-            django-version: "2.2"
-            name-suffix: " + grappelli"
-          - python-version: "3.11"
-            django-version: "4.2"
-          - grappelli: "1"
-            name-suffix: " + grappelli"
+          - django-version: "2.2"
+            python-version: "3.8"
+            grappelli: "1"
+          - django-version: "3.2"
             python-version: "3.9"
-            django-version: "3.2"
-          - grappelli: "1"
-            name-suffix: " + grappelli"
+          # - django-version: "3.2"
+          #   python-version: "3.9"
+          #   s3: "1"
+          - django-version: "3.2"
             python-version: "3.10"
-            django-version: "4.0"
-          - grappelli: "0"
-            s3: "1"
-            python-version: "3.8"
-            django-version: "3.2"
-            name-suffix: " + s3"
+            grappelli: "1"
+          - django-version: "4.2"
+            python-version: "3.10"
+          - django-version: "4.2"
+            python-version: "3.11"
+            grappelli: "1"
+          - django-version: "5.1"
+            python-version: "3.12"
+          - django-version: "5.2"
+            python-version: "3.12"
+          - django-version: "5.2"
+            python-version: "3.13"
+            grappelli: "1"
+            # s3: "1"
 
     runs-on: ubuntu-latest
-    name: Django ${{ matrix.django-version }} (Python ${{ matrix.python-version }})${{ matrix.name-suffix }}
-
+    name: Django ${{ matrix.django-version }} (Python ${{ matrix.python-version }})${{ matrix.grappelli == '1' && ' + grappelli' || '' }}${{ matrix.s3 == '1' && ' + s3' || '' }}
     env:
       PYTHON: ${{ matrix.python-version }}
       DJANGO: ${{ matrix.django-version }}
-      GRAPPELLI: ${{ matrix.grappelli }}
-      S3: ${{ matrix.s3 }}
+      GRAPPELLI: ${{ matrix.grappelli || '0' }}
+      S3: ${{ matrix.s3 || '0' }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       NODE_ENV: test
@@ -73,20 +71,22 @@ jobs:
 
     - name: Upload junit xml
       if: always()
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: junit-reports
         path: reports/*.xml
+        overwrite: true
 
     - name: Combine coverage
       run: tox -e coverage-report
 
     - name: Upload coverage
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         name: ${{ github.workflow }}
         files: .tox/coverage/coverage.xml
         env_vars: "DJANGO,GRAPPELLI,PYTHON,S3"
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   report:
     if: always()
@@ -94,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     name: "Report Test Results"
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         with:
           name: junit-reports
 

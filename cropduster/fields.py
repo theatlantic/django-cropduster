@@ -241,11 +241,18 @@ def create_reverse_foreign_related_manager(
         set.alters_data = True
 
         def get_prefetch_queryset(self, instances, queryset=None):
+            if queryset is None:
+                return self.get_prefetch_querysets(instances)
+            return self.get_prefetch_querysets(instances, [queryset])
+
+        def get_prefetch_querysets(self, instances, querysets=None):
             if isinstance(instances[0], CropDusterImageFieldFile):
                 instances = [i.related_object for i in instances]
 
-            if queryset is None:
+            if querysets is None:
                 queryset = super(new_superclass, self).get_queryset()
+            else:
+                queryset = querysets[0]
 
             queryset._add_hints(instance=instances[0])
             queryset = queryset.using(queryset._db or self._db)

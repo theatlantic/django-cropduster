@@ -157,12 +157,15 @@ class CropDusterThumbFormField(ModelMultipleChoiceField):
                 raise
         return value
 
-    def _get_choices(self):
-        if hasattr(self, '_choices'):
-            return self._choices
-        return ThumbChoiceIterator(self)
+    @property
+    def choices(self):
+        if not hasattr(self, '_choices'):
+            return ThumbChoiceIterator(self)
+        return self._choices
 
-    choices = property(_get_choices, ChoiceField._set_choices)
+    @choices.setter
+    def choices(self, value):
+        super(self.__class__, self.__class__).choices.__set__(self, value)
 
 
 def get_cropduster_field_on_model(model, field_identifier):
