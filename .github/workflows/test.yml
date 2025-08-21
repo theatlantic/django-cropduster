@@ -73,7 +73,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: junit-reports
+        name: junit-reports-django-${{ matrix.django-version }}-python${{ matrix.python-version }})${{ matrix.grappelli == '1' && '-grappelli' || '' }}${{ matrix.s3 == '1' && '-s3' || '' }}-${{ github.sha }}
         path: reports/*.xml
         overwrite: true
 
@@ -96,7 +96,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: junit-reports
+          merge-multiple: true
 
       - name: Publish Unit Test Results
         if: always()
