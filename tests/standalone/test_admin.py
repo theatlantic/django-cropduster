@@ -9,9 +9,11 @@ import os
 import django
 from django.core.files.storage import default_storage
 from django.test import override_settings
+from django.test.testcases import LiveServerThread
 
 import PIL.Image
 from selenosis import AdminSelenosisTestCase
+from selenosis.utils import class_property
 
 from cropduster.models import Image, Thumb
 from tests.helpers import CropdusterTestCaseMediaMixin
@@ -21,10 +23,11 @@ from .models import StandaloneArticle
 
 class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
+    server_thread_class = LiveServerThread
     root_urlconf = 'tests.urls'
 
-    @property
-    def available_apps(self):
+    @class_property
+    def available_apps(cls):
         apps = [
             'django.contrib.auth',
             'django.contrib.contenttypes',
@@ -41,12 +44,12 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
             'ckeditor',
             'selenosis',
         ]
-        if self.has_grappelli:
+        if cls.has_grappelli:
             apps.insert(0, 'grappelli')
         return apps
 
-    def _pre_setup(self):
-        super(TestStandaloneAdmin, self)._pre_setup()
+    def _instance_pre_setup(self):
+        super(TestStandaloneAdmin, self)._instance_pre_setup()
         self.ckeditor_override = override_settings(
             CKEDITOR_UPLOAD_PATH="%s/files/" % self.temp_media_root)
         self.ckeditor_override.enable()

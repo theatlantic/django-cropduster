@@ -3,7 +3,9 @@ from __future__ import absolute_import
 import os
 
 from django.core.files.storage import default_storage
+from django.test.testcases import LiveServerThread
 from selenosis import AdminSelenosisTestCase
+from selenosis.utils import class_property
 
 from cropduster.models import Image, Size
 from .helpers import CropdusterTestCaseMediaMixin
@@ -13,9 +15,10 @@ from .models import Article, Author, OptionalSizes
 class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
     root_urlconf = 'tests.urls'
+    server_thread_class = LiveServerThread
 
-    @property
-    def available_apps(self):
+    @class_property
+    def available_apps(cls):
         apps = [
             'django.contrib.auth',
             'django.contrib.contenttypes',
@@ -30,7 +33,7 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
             'tests.standalone',
             'selenosis',
         ]
-        if self.has_grappelli:
+        if cls.has_grappelli:
             apps.insert(0, 'grappelli')
         return apps
 

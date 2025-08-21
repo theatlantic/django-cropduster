@@ -71,4 +71,5 @@ def reload_settings(**kwargs):
         cropduster_settings.CROPDUSTER_CREATE_THUMBS = kwargs['value']
 
 
+FORMS_URLFIELD_ASSUME_HTTPS = True
 os.makedirs(CKEDITOR_UPLOAD_PATH)

@@ -18,9 +18,17 @@ ORIG_IMG_PATH = os.path.join(PATH, 'data')
 
 
 class CropdusterTestCaseMediaMixin(object):
+    def __call__(self, result=None):
+        testMethod = getattr(self, self._testMethodName)
+        skipped = (
+            getattr(self.__class__, "__unittest_skip__", False) or
+            getattr(testMethod, "__unittest_skip__", False)
+        )
+        if not skipped:
+            self._instance_pre_setup()
+        return super().__call__(result)
 
-    def _pre_setup(self):
-        super(CropdusterTestCaseMediaMixin, self)._pre_setup()
+    def _instance_pre_setup(self):
         self.temp_media_root = tempfile.mkdtemp(prefix='TEST_MEDIA_ROOT_')
         self.override = override_settings(MEDIA_ROOT=self.temp_media_root)
         self.override.enable()
