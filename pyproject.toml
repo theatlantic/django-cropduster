@@ -46,7 +46,7 @@ namespaces = false
 
 [tool.setuptools.dynamic]
 version = {attr = "cropduster.__version__"}
-readme = {file = ["README.md"]}
+readme = {file = ["README.rst"]}
 
 [project.urls]
 Homepage = "https://github.com/theatlantic/django-cropduster"
