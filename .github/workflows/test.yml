@@ -15,9 +15,9 @@ jobs:
             grappelli: "1"
           - django-version: "3.2"
             python-version: "3.9"
-          # - django-version: "3.2"
-          #   python-version: "3.9"
-          #   s3: "1"
+          - django-version: "3.2"
+            python-version: "3.9"
+            s3: "1"
           - django-version: "3.2"
             python-version: "3.10"
             grappelli: "1"
@@ -33,7 +33,7 @@ jobs:
           - django-version: "5.2"
             python-version: "3.13"
             grappelli: "1"
-            # s3: "1"
+            s3: "1"
 
     runs-on: ubuntu-latest
     name: Django ${{ matrix.django-version }} (Python ${{ matrix.python-version }})${{ matrix.grappelli == '1' && ' + grappelli' || '' }}${{ matrix.s3 == '1' && ' + s3' || '' }}
