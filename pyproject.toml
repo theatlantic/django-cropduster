@@ -42,6 +42,10 @@ dependencies = [
 standalone = [
     "python-xmp-toolkit",
 ]
+# ThumborRenderer signs its URLs with libthumbor; nothing else imports it.
+thumbor = [
+    "libthumbor>=2",
+]
 
 [tool.setuptools.packages.find]
 include = ["cropduster*"]
