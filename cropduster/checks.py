@@ -4,7 +4,8 @@ from django.conf import settings as django_settings
 from django.core import checks
 from django.core.exceptions import ImproperlyConfigured
 
-from cropduster.conf import CROPDUSTER_APP_LABEL, settings as cropduster_settings
+from cropduster.conf import (
+    CROPDUSTER_APP_LABEL, DIALOG_MODES, settings as cropduster_settings)
 
 
 FROZEN_APP_LABEL = 'cropduster'
@@ -73,6 +74,20 @@ def check_api_permission(app_configs=None, **kwargs):
             'CROPDUSTER_API_PERMISSION is %r. It must be the dotted path '
             'to a callable accepting (request, target).' % path),
         id='cropduster.E002')]
+
+
+def check_dialog_mode(app_configs=None, **kwargs):
+    """``cropduster.E003``: the default dialog mode is not recognized."""
+    value = cropduster_settings.CROPDUSTER_DIALOG_MODE
+    if value in DIALOG_MODES:
+        return []
+    return [checks.Error(
+        'CROPDUSTER_DIALOG_MODE must be one of %s, got %r.' % (
+            ', '.join(repr(mode) for mode in DIALOG_MODES), value),
+        hint=(
+            "Use 'auto' to select by viewport size, 'modal' for the in-page "
+            "dialog, or 'window' for the popup."),
+        id='cropduster.E003')]
 
 
 def check_metadata_only_renderer(app_configs=None, **kwargs):

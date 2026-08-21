@@ -9,8 +9,8 @@ from django.core import checks
 from django.contrib.contenttypes.admin import GenericInlineModelAdminChecks
 
 from cropduster.checks import (
-    check_api_permission, check_app_config, check_metadata_only_renderer,
-    check_thumbor_media_url, check_url_renderer)
+    check_api_permission, check_app_config, check_dialog_mode,
+    check_metadata_only_renderer, check_thumbor_media_url, check_url_renderer)
 
 from .models import Article
 from .test_renderers import requires_libthumbor
@@ -274,3 +274,29 @@ class TestApiPermissionCheck(test.SimpleTestCase):
             for check in checks.registry.registry.get_checks()
         }
         self.assertIn('check_api_permission', names)
+
+
+class TestDialogModeCheck(test.SimpleTestCase):
+
+    def test_every_dialog_mode_passes(self):
+        for mode in ('auto', 'modal', 'window'):
+            with self.subTest(mode=mode):
+                with test.override_settings(CROPDUSTER_DIALOG_MODE=mode):
+                    self.assertEqual(check_dialog_mode(), [])
+
+    def test_unknown_dialog_mode_is_e003(self):
+        with test.override_settings(CROPDUSTER_DIALOG_MODE='Modal'):
+            errors = check_dialog_mode()
+
+        self.assertEqual([error.id for error in errors], ['cropduster.E003'])
+        self.assertIn("'auto'", errors[0].msg)
+        self.assertIn("'modal'", errors[0].msg)
+        self.assertIn("'window'", errors[0].msg)
+        self.assertIn("'Modal'", errors[0].msg)
+
+    def test_check_is_registered(self):
+        names = {
+            getattr(check, '__name__', '')
+            for check in checks.registry.registry.get_checks()
+        }
+        self.assertIn('check_dialog_mode', names)

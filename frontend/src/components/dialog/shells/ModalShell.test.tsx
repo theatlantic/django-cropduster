@@ -33,6 +33,7 @@ import {
   cleanupDocument,
   flush,
   mountWidget,
+  setViewport,
   waitFor,
 } from "../../../testing/fixtures";
 import type { MountedFixture } from "../../../testing/fixtures";
@@ -43,12 +44,8 @@ import { currentModal, openModalDialog } from "./ModalShell";
 const ORIGINAL = `${HEADSHOT_DIR}/original.jpg`;
 
 const WIDGET_CONFIG = {
-  dialogMode: "modal" as const,
   csrfToken: "tok",
   urls: {
-    index: "/cropduster/",
-    upload: "/cropduster/upload/",
-    crop: "/cropduster/crop/",
     api: "/cropduster/api/v1/",
   },
 };
@@ -828,5 +825,24 @@ describe("a row renamed while the modal is up", () => {
     // The event names the row as it is called now, not as it was called when
     // the dialog opened.
     expect(prefixes).toEqual(["items-0-image"]);
+  });
+});
+
+describe("a viewport too small for a modal", () => {
+  it("opens the popup instead, and no modal", async () => {
+    const restore = setViewport(830, 550);
+    const open = vi
+      .spyOn(window, "open")
+      .mockReturnValue({ focus: vi.fn() } as unknown as Window);
+    const fixture = await widget();
+
+    fixture.anchor.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await waitFor(() => open.mock.calls.length > 0, {
+      message: "the popup to be opened",
+    });
+
+    expect(currentModal()).toBeNull();
+    expect(open).toHaveBeenCalledOnce();
+    restore();
   });
 });

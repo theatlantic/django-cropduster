@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Article in a tiny iframe</title>
+  <style>
+    body {
+      margin: 0;
+      font: 13px/1.4 -apple-system, "Helvetica Neue", Helvetica, -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+      background: #f4f4f4;
+    }
+    .tiny-iframe-dialog {
+      width: {{ width }}px;
+      margin: 40px auto;
+      background: #fff;
+      border: 1px solid #ccc;
+      box-shadow: 0 3px 9px rgba(0, 0, 0, .3);
+    }
+    .tiny-iframe-dialog h1 {
+      margin: 0;
+      padding: 10px 15px;
+      font-size: 15px;
+      border-bottom: 1px solid #e5e5e5;
+    }
+    .tiny-iframe-dialog iframe {
+      display: block;
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="tiny-iframe-dialog">
+    <h1>Edit article</h1>
+    <iframe id="article-frame" name="article-frame" src="{{ iframe_url }}"
+            width="{{ width }}" height="{{ height }}" scrolling="no"></iframe>
+  </div>
+</body>
+</html>

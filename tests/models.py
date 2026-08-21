@@ -39,6 +39,15 @@ class Article(models.Model):
                                 field_identifier="alt")
 
 
+class WindowDialogField(models.Model):
+    """A field that always opens its dialog in a separate window."""
+
+    slug = models.SlugField()
+    image = CropDusterField(
+        upload_to="test", sizes=[Size('main', w=600, h=480)],
+        dialog_mode="window", related_name="test_window_dialog_image")
+
+
 class OptionalSizes(models.Model):
 
     TEST_SIZES = [

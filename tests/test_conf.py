@@ -152,9 +152,9 @@ class TestRendererSettings(test.SimpleTestCase):
 
 class TestWidgetSettings(test.SimpleTestCase):
 
-    def test_window_is_the_initial_default(self):
+    def test_auto_is_the_default(self):
         self.assertEqual(
-            cropduster_settings.CROPDUSTER_DIALOG_MODE, 'window')
+            cropduster_settings.CROPDUSTER_DIALOG_MODE, 'auto')
         self.assertIsNone(cropduster_settings.CROPDUSTER_DEV_SERVER_URL)
 
     def test_module_attribute_access_is_live(self):
@@ -166,3 +166,23 @@ class TestWidgetSettings(test.SimpleTestCase):
         self.assertIn('CROPDUSTER_DIALOG_MODE', cropduster_conf.SETTING_NAMES)
         self.assertIn(
             'CROPDUSTER_DEV_SERVER_URL', cropduster_conf.SETTING_NAMES)
+
+
+class TestFieldDialogMode(test.SimpleTestCase):
+
+    def field(self, **kwargs):
+        from cropduster.fields import CropDusterField
+
+        return CropDusterField(upload_to='test', **kwargs)
+
+    def test_a_field_that_names_none_defers_to_the_setting(self):
+        self.assertIsNone(self.field().dialog_mode)
+
+    def test_every_presentation_is_accepted(self):
+        for mode in ('auto', 'modal', 'window'):
+            self.assertEqual(self.field(dialog_mode=mode).dialog_mode, mode)
+
+    def test_anything_else_is_refused_where_it_is_declared(self):
+        for value in ('popup', 'Modal', '', 0, True):
+            with self.assertRaises(ImproperlyConfigured):
+                self.field(dialog_mode=value)

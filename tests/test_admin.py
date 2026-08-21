@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import os
 
 from django.core.files.storage import default_storage
+from django.test import override_settings
 from django.test.testcases import LiveServerThread
 from selenosis import AdminSelenosisTestCase
 from selenosis.utils import class_property
@@ -12,6 +13,7 @@ from .helpers import CropdusterTestCaseMediaMixin
 from .models import Article, Author, OptionalSizes
 
 
+@override_settings(CROPDUSTER_DIALOG_MODE='window')
 class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
     root_urlconf = 'tests.urls'
