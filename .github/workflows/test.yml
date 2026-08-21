@@ -49,10 +49,10 @@ jobs:
       NODE_ENV: test
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -65,6 +65,10 @@ jobs:
       run: |
        python3 -m pip install tox tox-gh-actions
 
+    # pytest-retry cannot retry failures from unittest's setUpClass phase,
+    # which is where selenosis starts Chrome and the live server. Retry the
+    # complete tox command once so setup failures receive a second attempt.
+    # In-test Selenium failures still use pytest-retry.
     - name: Run tests
       run: |
         run_tests() {
@@ -74,7 +78,7 @@ jobs:
             tox -- -v --selenosis-driver=chrome-headless
           fi
         }
-        run_tests || run_tests || run_tests
+        run_tests || run_tests
 
     - name: Upload junit xml
       if: always()
