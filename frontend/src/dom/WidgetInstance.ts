@@ -11,6 +11,10 @@ import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 
 import { SELECTORS } from "../constants/classNames";
+import {
+  adoptDialogStyles,
+  releaseDialogStyles,
+} from "../components/dialog/shells/adoptStyles";
 import { FormsetBridge } from "../formset/FormsetBridge";
 import type { WidgetState } from "../formset/FormsetBridge";
 import { Widget } from "../components/widget/Widget";
@@ -52,6 +56,7 @@ function resolveCardContainer(images: HTMLElement | null): HTMLElement | null {
     return null;
   }
   const shadow = images.shadowRoot ?? images.attachShadow({ mode: "open" });
+  adoptDialogStyles(shadow, "card");
   const existing = shadow.querySelector<HTMLElement>(".cropduster-card-root");
   if (existing) {
     return existing;
@@ -124,6 +129,9 @@ export class WidgetInstance implements WidgetHandle {
     const reactRoot = this.#reactRoot;
     this.#reactRoot = null;
     reactRoot?.unmount();
+    if (this.slots.images?.shadowRoot) {
+      releaseDialogStyles(this.slots.images.shadowRoot);
+    }
     this.bridge.destroy();
     registry.remove(this);
   }
