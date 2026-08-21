@@ -8,3 +8,9 @@ test/media
 dist/
 .coverage
 /reports/
+
+# demo project
+/.venv/
+demo/db.sqlite3
+demo/media/
+demo/static/
