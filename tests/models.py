@@ -2,6 +2,7 @@ from django.db import models
 
 from cropduster.fields import ReverseForeignRelation
 from cropduster.models import CropDusterField, Size
+from cropduster.resizing import SizeAlias
 
 
 class Author(models.Model):
@@ -61,6 +62,20 @@ class OrphanedThumbs(models.Model):
 
     slug = models.SlugField()
     image = CropDusterField(upload_to="test", sizes=TEST_SIZES)
+
+
+class AliasedSizes(models.Model):
+
+    TEST_SIZES = [
+        Size('main', w=600, h=480, auto=[
+            Size('main@2x', w=1200, h=960),
+        ]),
+        SizeAlias('lead', 'main'),
+        SizeAlias('boxes.lead', 'main'),
+    ]
+
+    slug = models.SlugField()
+    image = CropDusterField(upload_to='test', sizes=TEST_SIZES)
 
 
 class MultipleFieldsInheritanceParent(models.Model):

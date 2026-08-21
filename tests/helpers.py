@@ -16,6 +16,13 @@ from .utils import repr_rgb
 PATH = os.path.split(__file__)[0]
 ORIG_IMG_PATH = os.path.join(PATH, 'data')
 
+FILESYSTEM_STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {
+        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    },
+}
+
 
 class CropdusterTestCaseMediaMixin(object):
     def __call__(self, result=None):
