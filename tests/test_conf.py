@@ -155,6 +155,7 @@ class TestWidgetSettings(test.SimpleTestCase):
     def test_window_is_the_initial_default(self):
         self.assertEqual(
             cropduster_settings.CROPDUSTER_DIALOG_MODE, 'window')
+        self.assertIsNone(cropduster_settings.CROPDUSTER_DEV_SERVER_URL)
 
     def test_module_attribute_access_is_live(self):
         with test.override_settings(CROPDUSTER_DIALOG_MODE='modal'):
@@ -163,3 +164,5 @@ class TestWidgetSettings(test.SimpleTestCase):
 
     def test_setting_name_is_advertised(self):
         self.assertIn('CROPDUSTER_DIALOG_MODE', cropduster_conf.SETTING_NAMES)
+        self.assertIn(
+            'CROPDUSTER_DEV_SERVER_URL', cropduster_conf.SETTING_NAMES)
