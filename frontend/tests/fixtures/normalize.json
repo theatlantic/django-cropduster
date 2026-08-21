@@ -18,6 +18,12 @@
       "pattern": "(?<=/)(?:19|20)\\d{2}/\\d{2}(?=/)",
       "replacement": "{Y}/{m}",
       "why": "upload_to values contain strftime codes (%Y/%m); the expanded year and month depend on the date the fixture was written."
+    },
+    {
+      "name": "CACHE_BUSTER",
+      "pattern": "(?<=\\?mod=)\\d+",
+      "replacement": "{MOD}",
+      "why": "FileRenderer uses the Image or Thumb date_modified timestamp, which is assigned when the fixture creates its rows."
     }
   ]
 }
