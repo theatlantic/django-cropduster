@@ -7,6 +7,12 @@ from django.test import TestCase
 TestCase.pytestmark = pytest.mark.django_db(transaction=True, reset_sequences=True)
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        '--write-fixtures', action='store_true', default=False,
+        help='Rewrite the committed widget HTML fixtures.')
+
+
 @pytest.fixture(autouse=True)
 def suppress_warnings():
     warnings.simplefilter("error", Warning)

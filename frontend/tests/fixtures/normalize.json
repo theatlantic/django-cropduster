@@ -1,0 +1,23 @@
+{
+  "django": "4.2",
+  "rules": [
+    {
+      "name": "CSRF_CONFIG",
+      "pattern": "(?<=&quot;csrfToken&quot;: &quot;)[^&]*(?=&quot;)",
+      "replacement": "{CSRF}",
+      "why": "django.middleware.csrf.get_token() masks the secret with fresh randomness per call, so the token in data-config differs between renders and between widgets."
+    },
+    {
+      "name": "CSRF_INPUT",
+      "pattern": "(?<=name=\"csrfmiddlewaretoken\" value=\")[^\"]*(?=\")",
+      "replacement": "{CSRF}",
+      "why": "Same as CSRF_CONFIG, for a token rendered as a form input."
+    },
+    {
+      "name": "DATE",
+      "pattern": "(?<=/)(?:19|20)\\d{2}/\\d{2}(?=/)",
+      "replacement": "{Y}/{m}",
+      "why": "upload_to values contain strftime codes (%Y/%m); the expanded year and month depend on the date the fixture was written."
+    }
+  ]
+}

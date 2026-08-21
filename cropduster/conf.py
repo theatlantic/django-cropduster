@@ -122,6 +122,11 @@ class CropDusterSettings:
         return getattr(
             django_settings, 'CROPDUSTER_LEGACY_CSRF_EXEMPT', True)
 
+    @property
+    def CROPDUSTER_DIALOG_MODE(self):
+        """Default crop dialog presentation."""
+        return getattr(django_settings, 'CROPDUSTER_DIALOG_MODE', 'window')
+
     CROPDUSTER_APP_LABEL = CROPDUSTER_APP_LABEL
     CROPDUSTER_DB_PREFIX = CROPDUSTER_DB_PREFIX
     CROPDUSTER_V4_APP_LABEL = CROPDUSTER_V4_APP_LABEL
