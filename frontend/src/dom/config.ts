@@ -7,38 +7,17 @@
  * markup still parses.
  */
 
-import type { Size } from "../crop/geometry";
-
 export type DialogMode = "auto" | "modal" | "window";
 
 export interface WidgetUrls {
-  index: string | null;
-  upload: string | null;
-  crop: string | null;
   /** Null when the project routes 4.x's three views without the API. */
   api: string | null;
-}
-
-export interface WidgetPreviewConfig {
-  url: string;
-  rendererUrl: string | null;
-  srcset: string | null;
-  w: number | null;
-  h: number | null;
 }
 
 export interface WidgetLabels {
   upload: string;
   /** The widget button once an image exists, when it opens the crop stage. */
   edit: string;
-  cropContinue: string;
-  cropGenerate: string;
-  reupload: string;
-}
-
-export interface WidgetFeatures {
-  /** Per-crop override sources are accepted by the API but not shown yet. */
-  overrideSources: boolean;
 }
 
 /**
@@ -54,50 +33,34 @@ export interface WidgetTarget {
 }
 
 export interface WidgetConfig {
-  /** Server-rendered sizes; current values are read from `data-sizes`. */
-  sizes: Size[] | null;
   uploadTo: string;
   mediaUrl: string;
-  fieldIdentifier: string;
-  requireAltText: boolean;
-  preview: WidgetPreviewConfig | null;
   /** Project-wide bounds used by the 4.x completion payload. */
   legacyPreviewBounds: [number, number];
   urls: WidgetUrls;
   dialogMode: DialogMode;
   dispatchInputEvents: boolean;
-  features: WidgetFeatures;
   /** Null for markup that predates the key, or a widget off any model field. */
   target: WidgetTarget | null;
   labels: WidgetLabels;
   csrfToken: string | null;
-  debug: boolean;
 }
 
 export const DEFAULT_LABELS: WidgetLabels = {
   upload: "Upload Image",
   edit: "Edit Crops",
-  cropContinue: "Crop and Continue",
-  cropGenerate: "Crop and Generate Thumbs",
-  reupload: "Re-Upload",
 };
 
 export const DEFAULT_CONFIG: WidgetConfig = {
-  sizes: null,
   uploadTo: "",
   mediaUrl: "",
-  fieldIdentifier: "",
-  requireAltText: false,
-  preview: null,
   legacyPreviewBounds: [800, 500],
-  urls: { index: null, upload: null, crop: null, api: null },
-  dialogMode: "window",
+  urls: { api: null },
+  dialogMode: "auto",
   dispatchInputEvents: true,
-  features: { overrideSources: false },
   target: null,
   labels: DEFAULT_LABELS,
   csrfToken: null,
-  debug: false,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -146,19 +109,6 @@ function target(value: unknown): WidgetTarget | null {
   };
 }
 
-function preview(value: unknown): WidgetPreviewConfig | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-  return {
-    url: str(value.url, ""),
-    rendererUrl: nullableStr(value.rendererUrl),
-    srcset: nullableStr(value.srcset),
-    w: num(value.w),
-    h: num(value.h),
-  };
-}
-
 function legacyPreviewBounds(value: unknown): [number, number] {
   const configured = isRecord(value) ? value : {};
   return [
@@ -172,9 +122,6 @@ function urls(value: unknown): WidgetUrls {
     return { ...DEFAULT_CONFIG.urls };
   }
   return {
-    index: nullableStr(value.index),
-    upload: nullableStr(value.upload),
-    crop: nullableStr(value.crop),
     api: nullableStr(value.api),
   };
 }
@@ -196,18 +143,10 @@ export function parseConfig(raw: string | null | undefined): WidgetConfig {
       urls: { ...DEFAULT_CONFIG.urls },
     };
   }
-  const features = isRecord(parsed.features) ? parsed.features : {};
   const labels = isRecord(parsed.labels) ? parsed.labels : {};
   return {
-    sizes: Array.isArray(parsed.sizes) ? (parsed.sizes as Size[]) : null,
     uploadTo: str(parsed.uploadTo, DEFAULT_CONFIG.uploadTo),
     mediaUrl: str(parsed.mediaUrl, DEFAULT_CONFIG.mediaUrl),
-    fieldIdentifier: str(
-      parsed.fieldIdentifier,
-      DEFAULT_CONFIG.fieldIdentifier,
-    ),
-    requireAltText: bool(parsed.requireAltText, DEFAULT_CONFIG.requireAltText),
-    preview: preview(parsed.preview),
     legacyPreviewBounds: legacyPreviewBounds(parsed.legacyPreviewBounds),
     urls: urls(parsed.urls),
     dialogMode: dialogMode(parsed.dialogMode),
@@ -215,22 +154,12 @@ export function parseConfig(raw: string | null | undefined): WidgetConfig {
       parsed.dispatchInputEvents,
       DEFAULT_CONFIG.dispatchInputEvents,
     ),
-    features: {
-      overrideSources: bool(
-        features.overrideSources,
-        DEFAULT_CONFIG.features.overrideSources,
-      ),
-    },
     target: target(parsed.target),
     labels: {
       upload: str(labels.upload, DEFAULT_LABELS.upload),
       edit: str(labels.edit, DEFAULT_LABELS.edit),
-      cropContinue: str(labels.cropContinue, DEFAULT_LABELS.cropContinue),
-      cropGenerate: str(labels.cropGenerate, DEFAULT_LABELS.cropGenerate),
-      reupload: str(labels.reupload, DEFAULT_LABELS.reupload),
     },
     csrfToken: nullableStr(parsed.csrfToken),
-    debug: bool(parsed.debug, DEFAULT_CONFIG.debug),
   };
 }
 
