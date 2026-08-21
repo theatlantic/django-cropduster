@@ -155,7 +155,17 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
         self.load_admin(author)
 
-        preview_image_el = self.selenium.find_element(By.CSS_SELECTOR, '#headshot-group .cropduster-image-thumb')
+        self.wait_until(
+            lambda d: self.selenium.execute_script(
+                "var images = document.querySelector("
+                "    '#headshot-group .cropduster-images');"
+                "return !!(images && images.shadowRoot && "
+                "    images.shadowRoot.querySelector('.cropduster-image-thumb'));"),
+            message="Timeout waiting for the widget preview to render")
+        images_el = self.selenium.find_element(
+            By.CSS_SELECTOR, '#headshot-group .cropduster-images')
+        preview_image_el = images_el.shadow_root.find_element(
+            By.CSS_SELECTOR, '.cropduster-image-thumb')
         src_image_path = os.path.join(self.TEST_IMG_DIR, 'img.png')
         self.assertImageColorEqual(preview_image_el, src_image_path)
 

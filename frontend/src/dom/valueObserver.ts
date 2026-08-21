@@ -14,6 +14,10 @@ export const OBSERVED_ATTRIBUTES = [
   "value",
   "selected",
   "data-url",
+  "data-renderer-url",
+  "data-renderer-srcset",
+  "data-preview-renderer-url",
+  "data-preview-srcset",
   "data-width",
   "data-height",
 ] as const;

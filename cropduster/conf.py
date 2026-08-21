@@ -127,6 +127,10 @@ class CropDusterSettings:
         """Default crop dialog presentation."""
         return getattr(django_settings, 'CROPDUSTER_DIALOG_MODE', 'window')
 
+    @property
+    def CROPDUSTER_DEV_SERVER_URL(self):
+        return getattr(django_settings, 'CROPDUSTER_DEV_SERVER_URL', None)
+
     CROPDUSTER_APP_LABEL = CROPDUSTER_APP_LABEL
     CROPDUSTER_DB_PREFIX = CROPDUSTER_DB_PREFIX
     CROPDUSTER_V4_APP_LABEL = CROPDUSTER_V4_APP_LABEL

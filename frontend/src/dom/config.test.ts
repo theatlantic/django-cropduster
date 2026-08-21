@@ -11,7 +11,14 @@ describe("parseConfig", () => {
         mediaUrl: "/media/",
         fieldIdentifier: "large",
         requireAltText: true,
-        preview: { url: "/media/p.jpg", w: 800, h: 500 },
+        preview: {
+          url: "/media/p.jpg",
+          rendererUrl: "https://thumb.example.com/unsafe/p.jpg",
+          srcset:
+            "https://thumb.example.com/unsafe/p.jpg, https://thumb.example.com/unsafe/p@2x.jpg 2x",
+          w: 800,
+          h: 500,
+        },
         legacyPreviewBounds: { w: 640, h: 360 },
         urls: {
           index: "/cropduster/",
@@ -39,7 +46,14 @@ describe("parseConfig", () => {
       mediaUrl: "/media/",
       fieldIdentifier: "large",
       requireAltText: true,
-      preview: { url: "/media/p.jpg", w: 800, h: 500 },
+      preview: {
+        url: "/media/p.jpg",
+        rendererUrl: "https://thumb.example.com/unsafe/p.jpg",
+        srcset:
+          "https://thumb.example.com/unsafe/p.jpg, https://thumb.example.com/unsafe/p@2x.jpg 2x",
+        w: 800,
+        h: 500,
+      },
       legacyPreviewBounds: [640, 360],
       urls: {
         index: "/cropduster/",
@@ -53,6 +67,7 @@ describe("parseConfig", () => {
       target: { model: "tests.article", objectId: 41, fieldName: "lead_image" },
       labels: {
         upload: "Choose an image",
+        edit: DEFAULT_CONFIG.labels.edit,
         cropContinue: DEFAULT_CONFIG.labels.cropContinue,
         cropGenerate: DEFAULT_CONFIG.labels.cropGenerate,
         reupload: DEFAULT_CONFIG.labels.reupload,

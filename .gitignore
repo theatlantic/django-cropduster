@@ -7,6 +7,8 @@ build
 ghostdriver.log
 test/media
 dist/
+!cropduster/static/cropduster/dist/
+!cropduster/static/cropduster/dist/**
 .coverage
 /reports/
 
