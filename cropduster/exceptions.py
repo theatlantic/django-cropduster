@@ -1,34 +1,16 @@
-import os
-import sys
-import logging
 import copy
 import errno
+import logging
+import os
+import sys
 
-from django.urls import get_urlconf, get_resolver
+from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpResponse
-from django.utils.safestring import mark_safe
-
 from django.utils.encoding import force_str
+from django.utils.safestring import mark_safe
 
 
 logger = logging.getLogger('cropduster')
-
-
-SentryHandler = raven_client = None
-
-
-try:
-    from sentry.client.handlers import SentryHandler
-except ImportError:
-    try:
-        from raven.contrib.django.models import get_client
-    except ImportError:
-        def get_client(*args, **kwargs):
-            return None
-
-
-if SentryHandler:
-    logger.addHandler(SentryHandler())
 
 
 class FauxTb(object):
@@ -93,7 +75,7 @@ def log_error(request, view, action, errors, exc_info=None):
     if not exc_info:
         try:
             exc_info = full_exc_info()
-        except:
+        except Exception:
             exc_info = None
     if exc_info and not isinstance(exc_info, tuple) or not len(exc_info) or not exc_info[0]:
         exc_info = None
@@ -101,75 +83,13 @@ def log_error(request, view, action, errors, exc_info=None):
     if exc_info:
         log_kwargs["exc_info"] = exc_info
 
-    extra_data = {
+    logger.error(error_msg, extra={
         'errors': errors,
-        'process_id': os.getpid()
-    }
-
-    try:
-        import psutil, math, time, thread
-    except ImportError:
-        pass
-    else:
-        p = psutil.Process(os.getpid())
-        proc_timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(p.create_time))
-        try:
-            create_usec = str(p.create_time - math.floor(p.create_time))[1:5]
-        except:
-            create_usec = ''
-        proc_timestamp += create_usec
-        extra_data['process_create_date'] = proc_timestamp
-        extra_data['thread_id'] = thread.get_ident()
-
-    if isinstance(errors[0], CropDusterUrlException):
-        urlconf = get_urlconf()
-        resolver = get_resolver(urlconf)
-        extra_data['resolver_data'] = {
-            "regex": resolver.regex,
-            "urlconf_name": resolver.urlconf_name,
-            "default_kwargs": resolver.default_kwargs,
-            "namespace": resolver.namespace,
-            "urlconf_module": resolver.urlconf_module
-        }
-
-        resolver_reverse_dict = dict(
-            [(force_str(k), resolver.reverse_dict[k]) for k in resolver.reverse_dict])
-        resolver_namespace_dict = dict(
-            [(force_str(k), resolver.namespace_dict[k]) for k in resolver.namespace_dict])
-
-        extra_data.update({
-            'resolver_data': {
-                "regex": resolver.regex,
-                "urlconf_name": resolver.urlconf_name,
-                "default_kwargs": resolver.default_kwargs,
-                "namespace": resolver.namespace,
-                "urlconf_module": resolver.urlconf_module
-            },
-            'resolver_reverse_dict': resolver_reverse_dict,
-            'resolver_namespace_dict': resolver_namespace_dict,
-            'resolver_app_dict': resolver.app_dict,
-            'resolver_url_patterns': resolver.url_patterns,
-            'urlconf': urlconf,
-            'view': 'cropduster.views.%s' % view,
-        })
-
-    raven_kwargs = {'request': request, 'extra': extra_data, 'data': {'message': error_msg}}
-
-    raven_client = get_client()
-    if raven_client:
-        if exc_info:
-            return raven_client.get_ident(
-                raven_client.captureException(exc_info=exc_info, **raven_kwargs))
-        else:
-            return raven_client.get_ident(
-                raven_client.captureMessage(error_msg, **raven_kwargs))
-    else:
-        extra_data.update({
-            'request': request,
-            'url': request.path_info,
-        })
-        logger.error(error_msg, extra=extra_data, **log_kwargs)
-        return None
+        'process_id': os.getpid(),
+        'request': request,
+        'url': request.path_info,
+        'view': 'cropduster.views.%s' % view,
+    }, **log_kwargs)
 
 
 def json_error(request, view, action, errors=None, forms=None, formsets=None, log=False, exc_info=None):
@@ -236,3 +156,34 @@ class CropDusterFileException(CropDusterException):
 
 class CropDusterResizeException(CropDusterException):
     pass
+
+
+class CropDusterFileMissing(CropDusterFileException):
+    """A referenced image file is missing from storage."""
+
+
+class CropDusterConfigurationError(ImproperlyConfigured):
+    """Cropduster cannot run with the current installation or settings."""
+
+
+class ImageTooSmallError(CropDusterException):
+    """An uploaded image is too small for one or more required sizes.
+
+    The editor sees the value returned by ``str()``, so the message includes
+    both the required and uploaded dimensions.
+    """
+
+    message_template = (
+        "Image must be at least %(min_w)sx%(min_h)s "
+        "(%(min_w)s pixels wide and %(min_h)s pixels high). "
+        "The image you uploaded was %(orig_w)sx%(orig_h)s pixels.")
+
+    def __init__(self, min_size, actual_size):
+        self.min_size = tuple(min_size)
+        self.actual_size = tuple(actual_size)
+        super(ImageTooSmallError, self).__init__(self.message_template % {
+            'min_w': self.min_size[0],
+            'min_h': self.min_size[1],
+            'orig_w': self.actual_size[0],
+            'orig_h': self.actual_size[1],
+        })

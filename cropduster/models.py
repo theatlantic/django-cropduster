@@ -25,6 +25,7 @@ from .fields import (
 from .files import VirtualFieldFile
 from .resizing import Size, Box, Crop, SizeAlias
 from .utils import process_image
+from .utils.fields import get_cropduster_field, get_image_column_field
 from . import settings as cropduster_settings
 
 
@@ -338,18 +339,16 @@ class Image(models.Model):
         # model class has also been updated
         model_class = self.content_type.model_class()
 
-        fields_with_models = [
-            (f, f.model if f.model != model_class else None)
-            for f in model_class._meta.get_fields()
-            if not f.is_relation
-            or f.one_to_one
-            or (f.many_to_one and f.related_model)]
-
-        for field, field_model_class in fields_with_models:
-            field_model_class = field_model_class or model_class
-            if (isinstance(field, CropDusterImageField) and
-                    field.generic_field.field_identifier == self.field_identifier):
-                field_model_class.objects.filter(pk=self.object_id).update(**{field.attname: self.name or ''})
+        cropduster_field = get_cropduster_field(
+            model_class, field_identifier=self.field_identifier)
+        if cropduster_field is not None:
+            column_field = get_image_column_field(model_class, cropduster_field)
+            if column_field is not None:
+                # In multi-table inheritance the column can belong to a
+                # parent model, so the update goes through the model that
+                # declares it.
+                column_field.model.objects.filter(pk=self.object_id).update(
+                    **{column_field.attname: self.name or ''})
 
     def get_image_url(self, size_name='original', tmp=False):
         converted = Image.get_file_for_size(self.image, size_name, tmp=tmp)
@@ -394,31 +393,24 @@ class Image(models.Model):
         if not obj or not image_name:
             return
 
-        def field_matches(f):
-            # Several CropDusterImageFields on one object can hold the
-            # same file name, so the field is matched on field_identifier;
-            # the name check then confirms the field still references the
-            # deleted image.
-            if not isinstance(f, CropDusterImageField):
-                return False
-            if f.generic_field.field_identifier != field_identifier:
-                return False
-            obj_image_name = getattr(getattr(obj, f.name, None), 'name', None)
-            return (obj_image_name == image_name)
+        cropduster_field = get_cropduster_field(
+            type(obj), field_identifier=field_identifier)
+        if cropduster_field is None:
+            return
+        column_field = get_image_column_field(type(obj), cropduster_field)
+        if column_field is None:
+            return
+        obj_image_name = getattr(
+            getattr(obj, column_field.name, None), 'name', None)
+        if obj_image_name != image_name:
+            return
 
-        try:
-            cropduster_field = [f for f in obj._meta.fields if field_matches(f)][0]
-        except IndexError:
-            pass
-        else:
-            # obj can hold stale values for its other fields, so the
-            # column is cleared with a queryset update() instead of
-            # obj.save(). The queryset is built on the model that defines
-            # the field, which can be a concrete parent of obj's class.
-            field_model_class = cropduster_field.model
-            field_model_class._default_manager.filter(pk=obj.pk).update(
-                **{cropduster_field.attname: ''})
-            setattr(obj, cropduster_field.name, '')
+        # obj can hold stale values for its other fields, so the column is
+        # cleared with a queryset update() instead of obj.save(). In
+        # multi-table inheritance the column can belong to a parent model.
+        column_field.model._default_manager.filter(pk=obj.pk).update(
+            **{column_field.attname: ''})
+        setattr(obj, column_field.name, '')
 
     def save_size(self, size, thumb=None, image=None, tmp=False, standalone=False,
                   permissive=False, skip_existing=False, commit=True):

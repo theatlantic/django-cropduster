@@ -1,3 +1,5 @@
+import warnings
+
 from django import forms
 from django.core.exceptions import ValidationError
 from django.forms.models import ModelChoiceIterator
@@ -8,10 +10,9 @@ from django.utils.html import escape, conditional_escape
 
 from generic_plus.forms import BaseGenericFileInlineFormSet, GenericForeignFileWidget
 
+from .conf import settings as cropduster_settings
 from .utils import json
-from cropduster.settings import (
-    CROPDUSTER_PREVIEW_WIDTH as PREVIEW_WIDTH,
-    CROPDUSTER_PREVIEW_HEIGHT as PREVIEW_HEIGHT)
+from .utils.fields import get_cropduster_field
 
 __all__ = ('CropDusterWidget', 'CropDusterThumbFormField', 'CropDusterInlineFormSet')
 
@@ -35,13 +36,17 @@ class CropDusterWidget(GenericForeignFileWidget):
         sizes = self.sizes
         related_object = ctx['instance']
         preview_url = ''
-        preview_w = PREVIEW_WIDTH
-        preview_h = PREVIEW_HEIGHT
+        max_preview_w = cropduster_settings.CROPDUSTER_PREVIEW_WIDTH
+        max_preview_h = cropduster_settings.CROPDUSTER_PREVIEW_HEIGHT
+        preview_w = max_preview_w
+        preview_h = max_preview_h
         if related_object:
             preview_url = related_object.get_image_url(size_name='_preview')
             orig_width, orig_height = related_object.width, related_object.height
             if (orig_width and orig_height):
-                resize_ratio = min(PREVIEW_WIDTH / float(orig_width), PREVIEW_HEIGHT / float(orig_height))
+                resize_ratio = min(
+                    max_preview_w / float(orig_width),
+                    max_preview_h / float(orig_height))
                 if resize_ratio < 1:
                     preview_w = int(round(orig_width * resize_ratio))
                     preview_h = int(round(orig_height * resize_ratio))
@@ -169,25 +174,13 @@ class CropDusterThumbFormField(ModelMultipleChoiceField):
 
 
 def get_cropduster_field_on_model(model, field_identifier):
-    from cropduster.fields import CropDusterField
-
-    opts = model._meta
-    m2m_fields = [f for f in opts.get_fields() if f.many_to_many and not f.auto_created]
-    if hasattr(opts, 'private_fields'):
-        # Django 1.10+
-        private_fields = opts.private_fields
-    else:
-        # Django < 1.10
-        private_fields = opts.virtual_fields
-    m2m_related_fields = set(m2m_fields + private_fields)
-
-    field_match = lambda f: (isinstance(f, CropDusterField)
-        and f.field_identifier == field_identifier)
-
-    try:
-        return [f for f in m2m_related_fields if field_match(f)][0]
-    except IndexError:
-        return None
+    """Deprecated alias for the shared Cropduster field lookup."""
+    warnings.warn(
+        'cropduster.forms.get_cropduster_field_on_model() is deprecated; use '
+        'cropduster.utils.fields.get_cropduster_field(model, '
+        'field_identifier=...) instead.',
+        DeprecationWarning, stacklevel=2)
+    return get_cropduster_field(model, field_identifier=field_identifier)
 
 
 class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
@@ -198,7 +191,8 @@ class CropDusterInlineFormSet(BaseGenericFileInlineFormSet):
     def __init__(self, *args, **kwargs):
         super(CropDusterInlineFormSet, self).__init__(*args, **kwargs)
         if self.instance and not self.data:
-            cropduster_field = get_cropduster_field_on_model(self.instance.__class__, self.field_identifier)
+            cropduster_field = get_cropduster_field(
+                type(self.instance), field_identifier=self.field_identifier)
             if cropduster_field:
                 # An order_by() is required to prevent the queryset result cache
                 # from being removed

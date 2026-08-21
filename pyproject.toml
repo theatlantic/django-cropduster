@@ -9,7 +9,7 @@ authors = [
   { name="The Atlantic", email="programmers@theatlantic.com" },
 ]
 description = "Django image uploader and cropping tool"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Web Environment",
@@ -19,15 +19,11 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Framework :: Django",
-    "Framework :: Django :: 2.2",
-    "Framework :: Django :: 3.2",
     "Framework :: Django :: 4.2",
     "Framework :: Django :: 5.0",
     "Framework :: Django :: 5.1",
@@ -35,9 +31,10 @@ classifiers = [
 ]
 license = { text = "BSD-2-Clause" }
 dependencies = [
-    "Pillow",
+    "Django>=4.2",
+    "Pillow>=9",
     "python-xmp-toolkit",
-    "django-generic-plus>=2.0.3",
+    "django-generic-plus>=4.0.0,<5",
 ]
 
 [tool.setuptools.packages.find]

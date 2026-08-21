@@ -5,7 +5,7 @@ description = "Demo Django project used by the django-cropduster Playwright e2e 
 requires-python = ">=3.10"
 classifiers = ["Private :: Do Not Upload"]
 dependencies = [
-    "django>=4.2,<4.3",
+    "django>=4.2,<6",
     "django-cropduster",
     "django-generic-plus",
     "django-nested-admin>=4.1.6",
