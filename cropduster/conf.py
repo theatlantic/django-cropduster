@@ -105,6 +105,23 @@ class CropDusterSettings:
     def CROPDUSTER_THUMBOR(self):
         return getattr(django_settings, 'CROPDUSTER_THUMBOR', None) or {}
 
+    @property
+    def CROPDUSTER_REMOTE_IMAGE_FETCH(self):
+        """Whether a client may request a server-side download of an image
+        URL."""
+        return getattr(django_settings, 'CROPDUSTER_REMOTE_IMAGE_FETCH', True)
+
+    @property
+    def CROPDUSTER_API_PERMISSION(self):
+        return getattr(
+            django_settings, 'CROPDUSTER_API_PERMISSION',
+            'cropduster.api.permissions.staff_and_object_perm')
+
+    @property
+    def CROPDUSTER_LEGACY_CSRF_EXEMPT(self):
+        return getattr(
+            django_settings, 'CROPDUSTER_LEGACY_CSRF_EXEMPT', True)
+
     CROPDUSTER_APP_LABEL = CROPDUSTER_APP_LABEL
     CROPDUSTER_DB_PREFIX = CROPDUSTER_DB_PREFIX
     CROPDUSTER_V4_APP_LABEL = CROPDUSTER_V4_APP_LABEL
