@@ -1,12 +1,13 @@
 import contextlib
 from operator import attrgetter
 
-import django
 from django import forms
+from django.contrib.contenttypes.admin import GenericInlineModelAdminChecks
+from django.core.exceptions import FieldDoesNotExist
 from django.db import models, transaction, router, DEFAULT_DB_ALIAS
-from django.db.models.fields import Field
 from django.db.models.fields.files import ImageFileDescriptor, ImageFieldFile
 from django.db.models.fields.related import ManyToManyRel, ManyToManyField
+from django.db.models.fields.related_descriptors import create_reverse_many_to_one_manager
 from django.utils.functional import cached_property
 from django.contrib.contenttypes.models import ContentType
 
@@ -20,26 +21,41 @@ from .forms import CropDusterInlineFormSet, CropDusterWidget, CropDusterThumbFor
 from .utils import json
 from .resizing import Box, Crop
 
-try:
-    from django.db.models.fields.related import (
-        create_foreign_related_manager)
-except ImportError:
-    from django.db.models.fields.related_descriptors import (
-        create_reverse_many_to_one_manager)
 
-    class ReverseForeignRelatedObjectsRel(object):
+class CropDusterInlineChecks(GenericInlineModelAdminChecks):
+    """Run admin checks for the inline used by the Cropduster widget.
 
-        def __init__(self, field, related_model):
-            self.field = field
-            self.related_model = related_model
+    Django reports ``admin.E013`` when a ``ManyToManyField`` has a custom
+    through model. ``ReverseForeignRelation`` exposes that field API for a
+    reverse foreign key, but has no through model. Its false ``through`` value
+    only provides the attributes Django reads, so this check removes the
+    resulting false positive.
+    """
 
-    def create_foreign_related_manager(superclass, rel_field, rel_model):
-        return create_reverse_many_to_one_manager(
-            superclass, ReverseForeignRelatedObjectsRel(rel_field, rel_model))
+    def _check_field_spec_item(self, obj, field_name, label):
+        errors = super()._check_field_spec_item(obj, field_name, label)
+        if not errors:
+            return errors
+        try:
+            field = obj.model._meta.get_field(field_name)
+        except FieldDoesNotExist:
+            return errors
+        if not isinstance(field, ReverseForeignRelation):
+            return errors
+        return [e for e in errors if e.id != 'admin.E013']
 
 
-compat_rel = lambda f: getattr(f, 'remote_field' if django.VERSION >= (1, 9) else 'rel')
-compat_rel_to = lambda f: getattr(compat_rel(f), 'model' if django.VERSION >= (1, 9) else 'to')
+class ReverseForeignRelatedObjectsRel(object):
+    """Supply the relation data used by Django's reverse manager factory.
+
+    A ``ReverseForeignRelation`` has no ``ForeignObjectRel`` of the kind that
+    Django creates for a normal reverse accessor. This object provides the two
+    attributes read by ``create_reverse_many_to_one_manager()``.
+    """
+
+    def __init__(self, field, related_model):
+        self.field = field
+        self.related_model = related_model
 
 
 class CropDusterImageFieldFile(ImageFieldFile):
@@ -53,8 +69,8 @@ class CropDusterImageFieldFile(ImageFieldFile):
 
     def _get_new_crop_thumb(self, size):
         # "Imports"
-        Image = compat_rel_to(self.field.db_field)
-        Thumb = compat_rel_to(Image._meta.get_field("thumbs"))
+        Image = self.field.db_field.remote_field.model
+        Thumb = Image._meta.get_field("thumbs").remote_field.model
 
         box = Box(0, 0, self.width, self.height)
         crop_box = Crop(box, self.name)
@@ -74,8 +90,8 @@ class CropDusterImageFieldFile(ImageFieldFile):
 
     def generate_thumbs(self, permissive=False, skip_existing=False):
         # "Imports"
-        Image = compat_rel_to(self.field.db_field)
-        Thumb = compat_rel_to(Image._meta.get_field("thumbs"))
+        Image = self.field.db_field.remote_field.model
+        Thumb = Image._meta.get_field("thumbs").remote_field.model
 
         has_existing_image = self.related_object is not None
 
@@ -163,7 +179,7 @@ class CropDusterField(GenericForeignFileField):
     def formfield(self, **kwargs):
         factory_kwargs = {
             'sizes': kwargs.pop('sizes', None) or self.sizes,
-            'related': compat_rel(self),
+            'related': self.remote_field,
         }
 
         widget = generic_fk_file_widget_factory(CropDusterWidget, **factory_kwargs)
@@ -198,18 +214,16 @@ class CropDusterField(GenericForeignFileField):
                 'sizes': self.sizes,
                 'get_formset': get_formset,
                 'field': self,
+                'checks_class': CropDusterInlineChecks,
             }
         )
 
 
-class CropDusterThumbField(ManyToManyField):
-    pass
-
-
 def create_reverse_foreign_related_manager(
         superclass, rel_field, rel_model, limit_choices_to):
-    attname = compat_rel(rel_field).get_related_field().attname
-    new_superclass = create_foreign_related_manager(superclass, rel_field, rel_model)
+    attname = rel_field.remote_field.get_related_field().attname
+    new_superclass = create_reverse_many_to_one_manager(
+        superclass, ReverseForeignRelatedObjectsRel(rel_field, rel_model))
 
     class RelatedManager(new_superclass):
         def __init__(self, instance):
@@ -240,6 +254,8 @@ def create_reverse_foreign_related_manager(
 
         set.alters_data = True
 
+        # Django 4.2 calls the singular form during prefetch; Django 5.0
+        # deprecated it in favor of get_prefetch_querysets().
         def get_prefetch_queryset(self, instances, queryset=None):
             if queryset is None:
                 return self.get_prefetch_querysets(instances)
@@ -269,9 +285,7 @@ def create_reverse_foreign_related_manager(
                 instance = instances_dict[rel_obj_attr(rel_obj)]
                 setattr(rel_obj, rel_field.name, instance)
             cache_name = rel_field.related_query_name()
-            return (
-                queryset, rel_obj_attr, instance_attr, False, cache_name,
-            ) + (() if django.VERSION < (2, 0) else (False,))
+            return (queryset, rel_obj_attr, instance_attr, False, cache_name, False)
 
     return RelatedManager
 
@@ -294,17 +308,17 @@ class ReverseForeignRelatedObjectsDescriptor(object):
         manager = self.__get__(instance)
         # If the foreign key can support nulls, then completely clear the related set.
         # Otherwise, just move the named objects into the set.
-        rel_field = compat_rel_to(self.field)._meta.get_field(self.field.field_name)
+        rel_field = self.field.remote_field.model._meta.get_field(self.field.field_name)
         if rel_field.null:
             manager.clear()
         manager.add(*value)
 
     @cached_property
     def related_manager_cls(self):
-        rel_model = compat_rel_to(self.field)
+        rel_model = self.field.remote_field.model
         rel_field = rel_model._meta.get_field(self.field.field_name)
         superclass = rel_model._default_manager.__class__
-        limit_choices_to = compat_rel(self.field).limit_choices_to
+        limit_choices_to = self.field.remote_field.limit_choices_to
         return create_reverse_foreign_related_manager(
             superclass, rel_field, rel_model, limit_choices_to)
 
@@ -334,11 +348,11 @@ def rel_through_none(instance):
     Temporarily set instance.rel.through to None, instead of our FalseThrough
     object.
     """
-    through, compat_rel(instance).through = compat_rel(instance).through, None
+    through, instance.remote_field.through = instance.remote_field.through, None
     instance.many_to_many = False
     yield
     instance.many_to_many = True
-    compat_rel(instance).through = through
+    instance.remote_field.through = through
 
 
 class ReverseForeignRelation(ManyToManyField):
@@ -385,27 +399,25 @@ class ReverseForeignRelation(ManyToManyField):
         return True
 
     def m2m_db_table(self):
-        return compat_rel_to(self)._meta.db_table
+        return self.remote_field.model._meta.db_table
 
     def m2m_column_name(self):
-        return compat_rel_to(self)._meta.get_field(self.field_name).attname
+        return self.remote_field.model._meta.get_field(self.field_name).attname
 
     def m2m_reverse_name(self):
-        return compat_rel_to(self)._meta.pk.column
+        return self.remote_field.model._meta.pk.column
 
     def m2m_target_field_name(self):
         return self.model._meta.pk.name
 
     def m2m_reverse_target_field_name(self):
-        return compat_rel_to(self)._meta.pk.name
+        return self.remote_field.model._meta.pk.name
 
     def get_attname_column(self):
         attname, column = super(ReverseForeignRelation, self).get_attname_column()
         return attname, None
 
     def contribute_to_class(self, cls, name, **kwargs):
-        if django.VERSION < (1, 10):
-            kwargs['virtual_only'] = True
         self.model = cls
         super(ManyToManyField, self).contribute_to_class(cls, name, **kwargs)
 
@@ -421,7 +433,7 @@ class ReverseForeignRelation(ManyToManyField):
     def formfield(self, **kwargs):
         kwargs.update({
             'form_class': CropDusterThumbFormField,
-            'queryset': compat_rel_to(self)._default_manager.none(),
+            'queryset': self.remote_field.model._default_manager.none(),
         })
         return super(ManyToManyField, self).formfield(**kwargs)
 
@@ -429,10 +441,10 @@ class ReverseForeignRelation(ManyToManyField):
         """
         Return all objects related to ``objs`` via this ``ReverseForeignRelation``.
         """
-        rel_field_attname = compat_rel_to(self)._meta.get_field(self.field_name).attname
+        rel_field_attname = self.remote_field.model._meta.get_field(self.field_name).attname
         return (
-            compat_rel_to(self)._base_manager.db_manager(using)
-                .complex_filter(compat_rel(self).limit_choices_to)
+            self.remote_field.model._base_manager.db_manager(using)
+                .complex_filter(self.remote_field.limit_choices_to)
                 .filter(**{'%s__in' % rel_field_attname: [obj.pk for obj in objs]}))
 
     def related_query_name(self):
@@ -442,9 +454,9 @@ class ReverseForeignRelation(ManyToManyField):
         return '%s+' % self.opts.object_name.lower()
 
     def _check_relationship_model(self, from_model=None, **kwargs):
-        # Override error in Django 1.7 (fields.E331: "Field specifies a
-        # many-to-many relation through model 'None', which has not been
-        # installed"), which is spurious for a reverse foreign key field.
+        # fields.E331 reports a many-to-many relation whose through model
+        # is not installed. This relation represents a reverse foreign key
+        # and has no through model, so the error does not apply.
         with rel_through_none(self):
             errors = super(ReverseForeignRelation, self)._check_relationship_model(from_model, **kwargs)
         return [e for e in errors if e.id != 'fields.E331']
