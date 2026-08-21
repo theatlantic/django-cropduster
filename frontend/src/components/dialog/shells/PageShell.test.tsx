@@ -15,8 +15,15 @@ import {
   CACHE_BUSTER,
   HEADSHOT_DIR,
   HEADSHOT_SIZES,
+  THUMBOR_MAIN_1X,
+  THUMBOR_MAIN_SRCSET,
+  THUMBOR_PREVIEW_1X,
+  THUMBOR_PREVIEW_SRCSET,
+  THUMBOR_SOURCE_HEIGHT,
+  THUMBOR_SOURCE_WIDTH,
   headshotCrop,
   headshotUpload,
+  thumborHeadshotCrop,
 } from "../../../testing/canonicalFixtures";
 import { mountPageShell } from "./PageShell";
 
@@ -62,6 +69,9 @@ describe("mounting", () => {
     expect(find("crop-button")).toBeNull();
     expect(shadow.querySelector(".upload-file-title")?.textContent).toBe(
       "Upload an image",
+    );
+    expect(find<HTMLImageElement>("cropbox")?.hasAttribute("srcset")).toBe(
+      false,
     );
     expect(find("upload-footer")?.hidden).toBe(true);
     expect(find("upload-button")?.parentElement?.hidden).toBe(true);
@@ -267,8 +277,17 @@ describe("CropDusterDialog", () => {
   });
 
   it("commits the same crop as the button, and returns the legacy payload", async () => {
-    const fetchMock = stubFetch(headshotCrop());
-    const { view, opener } = await openedOnAnImage();
+    const fetchMock = stubFetch(thumborHeadshotCrop());
+    const { view, opener } = await mountDialog({
+      sizes: HEADSHOT_SIZES,
+      elId: "headshot",
+      image: {
+        id: 1,
+        name: `${HEADSHOT_DIR}/original.jpg`,
+        width: THUMBOR_SOURCE_WIDTH,
+        height: THUMBOR_SOURCE_HEIGHT,
+      },
+    });
 
     view.CropDusterDialog!.commit();
     await waitFor(() => fetchMock.mock.calls.length > 0, {
@@ -289,13 +308,14 @@ describe("CropDusterDialog", () => {
 
     // The opener receives the 4.x `CropDuster.complete()` payload.
     expect(opener.CropDuster?.complete).toHaveBeenCalledOnce();
-    const [prefix, payload] = opener.CropDuster!.complete.mock.calls[0]!;
+    const [prefix, payload, rendererMedia] =
+      opener.CropDuster!.complete.mock.calls[0]!;
     expect(prefix).toBe("headshot");
     expect(payload).toMatchObject({
       crop: {
         orig_image: `${HEADSHOT_DIR}/original.jpg`,
-        orig_w: 674,
-        orig_h: 800,
+        orig_w: THUMBOR_SOURCE_WIDTH,
+        orig_h: THUMBOR_SOURCE_HEIGHT,
         thumbs: {
           main: { id: 1, name: "main", width: 220, height: 180 },
           thumb: { id: 2, name: "thumb" },
@@ -303,6 +323,15 @@ describe("CropDusterDialog", () => {
       },
       initial: true,
       preview_url: `/media/${HEADSHOT_DIR}/_preview.jpg`,
+    });
+    expect(rendererMedia).toMatchObject({
+      preview: {
+        url: THUMBOR_PREVIEW_1X,
+        srcset: THUMBOR_PREVIEW_SRCSET,
+      },
+      thumbs: {
+        main: { url: THUMBOR_MAIN_1X, srcset: THUMBOR_MAIN_SRCSET },
+      },
     });
     expect(view.close).toHaveBeenCalledOnce();
   });
@@ -340,11 +369,31 @@ describe("CropDusterDialog", () => {
 
     expect(callback).toHaveBeenCalledOnce();
     expect(callback.mock.calls[0]?.[0]).toBe("cropduster_uiElement_callback");
+    // The CKEditor callback retains its exact 4.x two-argument signature.
+    expect(callback.mock.calls[0]).toHaveLength(2);
     expect(opener.CropDuster?.complete).not.toHaveBeenCalled();
   });
 });
 
 describe("the crop canvas", () => {
+  it("uses the renderer preview and its density candidates", async () => {
+    const { find } = await mountDialog({
+      sizes: HEADSHOT_SIZES,
+      image: {
+        id: 1,
+        name: `${HEADSHOT_DIR}/original.jpg`,
+        width: THUMBOR_SOURCE_WIDTH,
+        height: THUMBOR_SOURCE_HEIGHT,
+      },
+      previewRendererUrl: THUMBOR_PREVIEW_1X,
+      previewSrcset: THUMBOR_PREVIEW_SRCSET,
+    });
+
+    const image = find<HTMLImageElement>("cropbox")!;
+    expect(image.getAttribute("src")).toBe(THUMBOR_PREVIEW_1X);
+    expect(image.getAttribute("srcset")).toBe(THUMBOR_PREVIEW_SRCSET);
+  });
+
   it("maps the preview's pixels back onto the original", async () => {
     const { find, view } = await mountDialog({
       sizes: HEADSHOT_SIZES,

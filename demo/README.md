@@ -19,6 +19,9 @@ Start the development server:
 uv run --project demo python demo/src/manage.py runserver 127.0.0.1:8000
 ```
 
+Set `CROPDUSTER_DIALOG_MODE=modal` when starting the server to open the crop
+dialog over the admin page. The default is `window`.
+
 Open <http://127.0.0.1:8000/admin/> and sign in with username `admin` and
 password `admin`. The Article form is the smallest example. Upload an image in
 either field, step through its crops, save the article, and reopen it to confirm

@@ -7,7 +7,8 @@ import { useEffect } from "react";
 
 import { BUTTON, SELECTORS } from "../../constants/classNames";
 import { readData } from "../../dom/jquery";
-import { show } from "../../compat/globalApi";
+import { registry } from "../../dom/registry";
+import { showWidget } from "../../compat/globalApi";
 import { isStoredImagePath } from "../../lib/filename";
 import { useWidget } from "./context";
 
@@ -60,7 +61,7 @@ export function UploadButton() {
         const separator = url.indexOf("?") >= 0 ? "&" : "?";
         url += `${separator}upload_to=${encodeURI(String(uploadTo))}`;
       }
-      show(prefix, url);
+      showWidget(registry.byRoot(root), prefix, url);
     };
     anchor.addEventListener("click", onClick);
     return () => anchor.removeEventListener("click", onClick);

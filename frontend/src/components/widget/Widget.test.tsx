@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { currentModal } from "../dialog/shells/ModalShell";
 import { defineWidgetElement } from "../../dom/CropDusterWidgetElement";
 import { registry } from "../../dom/registry";
 import {
@@ -15,6 +16,7 @@ import {
   cardQuery,
   cardQueryAll,
   cleanupDocument,
+  flush,
   mountFixture,
   mountWidget,
   waitFor,
@@ -125,6 +127,27 @@ describe("upload button", () => {
     fixture.anchor.dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("opens a modal when the widget requests one", async () => {
+    const fixture = await mountWidget({
+      sizes: [],
+      config: { dialogMode: "modal" },
+    });
+    const open = vi
+      .spyOn(window, "open")
+      .mockReturnValue({ focus: vi.fn() } as unknown as Window);
+
+    fixture.anchor.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const modal = await waitFor(
+      () => document.querySelector("cropduster-dialog"),
+      { message: "the modal to open" },
+    );
+
+    expect(open).not.toHaveBeenCalled();
+    expect(modal.getAttribute("data-state")).toBe("open");
+    currentModal()?.close();
+    await flush();
   });
 });
 
