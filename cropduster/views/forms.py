@@ -36,9 +36,7 @@ def clean_upload_data(data):
             sizes=data.get('sizes'),
             preview_size=(
                 data.get('preview_width'), data.get('preview_height')),
-            # The 4.x upload view writes its own preview, so none is
-            # written here.
-            preview=False,
+            preview=not data.get('standalone'),
             for_size=data.get('for_size'))
     except (ImageTooSmallError, CropDusterImageException) as error:
         raise forms.ValidationError({'image': [str(error)]})
@@ -124,8 +122,8 @@ class CropForm(forms.Form):
 
     def clean_sizes(self):
         try:
-            json.loads(self.cleaned_data.get('sizes', '[]'))
-        except:
+            return json.loads(self.cleaned_data.get('sizes', '[]'))
+        except Exception:
             return []
 
     def clean_thumbs(self):
