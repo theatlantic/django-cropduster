@@ -1,10 +1,12 @@
 import warnings
 
 from django import forms
+from django.conf import settings as django_settings
 from django.core.exceptions import ValidationError
 from django.forms.models import ModelChoiceIterator
 from django.forms.models import ChoiceField, ModelMultipleChoiceField
 from django.forms.utils import flatatt
+from django.urls import NoReverseMatch, reverse
 from django.utils.encoding import force_str
 from django.utils.html import escape, conditional_escape
 
@@ -15,6 +17,19 @@ from .utils import json
 from .utils.fields import get_cropduster_field
 
 __all__ = ('CropDusterWidget', 'CropDusterThumbFormField', 'CropDusterInlineFormSet')
+
+
+def endpoint_urls():
+    try:
+        api = reverse('cropduster-api-state').removesuffix('state/')
+    except NoReverseMatch:
+        api = None
+    return {
+        'index': reverse('cropduster-index'),
+        'upload': reverse('cropduster-upload'),
+        'crop': reverse('cropduster-crop'),
+        'api': api,
+    }
 
 
 class CropDusterWidget(GenericForeignFileWidget):
@@ -30,6 +45,48 @@ class CropDusterWidget(GenericForeignFileWidget):
             'cropduster/js/jsrender.js',
             'cropduster/js/cropduster.js',
         )
+
+    def get_widget_config(self, ctx, bound_field=None):
+        dbfield = getattr(
+            getattr(getattr(bound_field, 'field', None), 'related', None),
+            'field', None)
+        if dbfield is None:
+            dbfield = getattr(self, 'rel_field', None)
+
+        config = dict(ctx.get('config') or {})
+        config.update({
+            'sizes': ctx['size_objects'],
+            'requireAltText': bool(
+                getattr(dbfield, 'require_alt_text', False)),
+            'preview': {
+                'url': ctx['preview_url'],
+                'w': ctx['preview_w'],
+                'h': ctx['preview_h'],
+            },
+            'urls': endpoint_urls(),
+            'dialogMode': cropduster_settings.CROPDUSTER_DIALOG_MODE,
+            'dispatchInputEvents': True,
+            'features': {'overrideSources': False},
+            'target': self.get_target(dbfield, bound_field=bound_field),
+            'debug': bool(django_settings.DEBUG),
+        })
+        return config
+
+    def get_target(self, dbfield, bound_field=None):
+        instance = getattr(
+            getattr(bound_field, 'form', None), 'instance', None)
+        model = type(instance) if instance is not None else getattr(
+            dbfield, 'model', None)
+        field_name = getattr(dbfield, 'name', None)
+        if model is None or not field_name:
+            return None
+        object_id = getattr(instance, 'pk', None)
+        return {
+            'model': model._meta.label_lower,
+            'objectId': object_id if isinstance(object_id, int) else (
+                str(object_id) if object_id is not None else None),
+            'fieldName': field_name,
+        }
 
     def get_context_data(self, name, value, attrs=None, bound_field=None):
         ctx = super(CropDusterWidget, self).get_context_data(name, value, attrs, bound_field)
@@ -61,11 +118,15 @@ class CropDusterWidget(GenericForeignFileWidget):
         sizes = [s for s in sizes if not getattr(s, 'is_alias', False)]
 
         ctx.update({
+            'size_objects': sizes,
             'sizes': json.dumps(sizes),
             'preview_url': preview_url,
             'preview_w': preview_w,
             'preview_h': preview_h,
         })
+        ctx['widget_config'] = self.get_widget_config(
+            ctx, bound_field=bound_field)
+        ctx['widget_config_json'] = json.dumps(ctx['widget_config'])
         return ctx
 
 
