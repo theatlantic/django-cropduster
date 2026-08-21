@@ -33,8 +33,14 @@ license = { text = "BSD-2-Clause" }
 dependencies = [
     "Django>=4.2",
     "Pillow>=9",
-    "python-xmp-toolkit",
     "django-generic-plus>=4.0.0,<5",
+]
+
+[project.optional-dependencies]
+# Standalone mode stores crop geometry in XMP metadata and needs both libxmp
+# and the exempi shared library alongside it.
+standalone = [
+    "python-xmp-toolkit",
 ]
 
 [tool.setuptools.packages.find]

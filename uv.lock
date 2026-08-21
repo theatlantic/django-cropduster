@@ -62,6 +62,10 @@ dependencies = [
     { name = "django" },
     { name = "django-generic-plus" },
     { name = "pillow" },
+]
+
+[package.optional-dependencies]
+standalone = [
     { name = "python-xmp-toolkit" },
 ]
 
@@ -70,8 +74,9 @@ requires-dist = [
     { name = "django", specifier = ">=4.2" },
     { name = "django-generic-plus", specifier = ">=4.0.0,<5" },
     { name = "pillow", specifier = ">=9" },
-    { name = "python-xmp-toolkit" },
+    { name = "python-xmp-toolkit", marker = "extra == 'standalone'" },
 ]
+provides-extras = ["standalone"]
 
 [[package]]
 name = "django-generic-plus"

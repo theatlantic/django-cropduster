@@ -7,16 +7,11 @@ import os
 import time
 from datetime import datetime
 
-from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
-from django.core.files.storage import FileSystemStorage
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
-from django.core.files.storage import default_storage, FileSystemStorage
 
 import PIL.Image
-
-from generic_plus.utils import get_relative_media_url
 
 from .exceptions import CropDusterResizeException
 from .fields import (
@@ -24,6 +19,7 @@ from .fields import (
     CropDusterSimpleImageField)
 from .files import VirtualFieldFile
 from .resizing import Size, Box, Crop, SizeAlias
+from .standalone import require_standalone
 from .utils import process_image
 from .utils.fields import get_cropduster_field, get_image_column_field
 from . import settings as cropduster_settings
@@ -90,11 +86,12 @@ class Thumb(models.Model):
                 # save new file without tmp suffix
                 tmp_image_path = self.image.get_image_path(self.name, tmp=True)
                 image_path = self.image.get_image_path(self.name)
-                with default_storage.open(tmp_image_path) as tmp_file:
-                    with default_storage.open(image_path, 'wb') as f:
+                storage = self.image.storage
+                with storage.open(tmp_image_path) as tmp_file:
+                    with storage.open(image_path, 'wb') as f:
                         f.write(tmp_file.read())
                 # delete tmp file
-                default_storage.delete(tmp_image_path)
+                storage.delete(tmp_image_path)
             except (IOError, OSError):
                 pass
         return super(Thumb, self).save(*args, **kwargs)
@@ -179,9 +176,6 @@ class Thumb(models.Model):
         return crop
 
 
-image_storage = FileSystemStorage()
-
-
 def generate_filename(instance, filename):
     return filename
 
@@ -220,6 +214,11 @@ class Image(models.Model):
 
     def __str__(self):
         return self.get_image_url()
+
+    @property
+    def storage(self):
+        """The storage that contains this image and all of its renditions."""
+        return self._meta.get_field('image').storage
 
     # TODO: deprecated
     @property
@@ -300,7 +299,7 @@ class Image(models.Model):
         size_name = size_name or 'original'
         if size_name != 'original' and not self.has_thumb(size_name):
             return 0
-        return os.path.getsize(self.get_image_path(size_name))
+        return self.storage.size(self.get_image_path(size_name))
 
     def get_image_filename(self, size_name='original'):
         size_name = size_name or 'original'
@@ -369,7 +368,7 @@ class Image(models.Model):
                 return (thumb.width, thumb.height)
 
         # Get the original size
-        if not self.image or not default_storage.exists(self.image.name):
+        if not self.image or not self.storage.exists(self.image.name):
             return (0, 0)
         elif self.width and self.height:
             return (self.width, self.height)
@@ -424,12 +423,12 @@ class Image(models.Model):
                 image.filename = f.name
 
         if standalone:
-            if not StandaloneImage:
-                raise ImproperlyConfigured("standalone mode used, but not installed.")
+            require_standalone()
             return self._save_standalone_thumb(size, image, thumb, commit=commit)
 
         for sz in Size.flatten([size]):
-            if self.pk and skip_existing and default_storage.exists(self.get_image_path(sz.name)):
+            if (self.pk and skip_existing
+                    and self.storage.exists(self.get_image_path(sz.name))):
                 try:
                     existing_thumb = self.thumbs.get(name=sz.name)
                 except Thumb.DoesNotExist:
@@ -476,14 +475,14 @@ class Image(models.Model):
         thumb_image = thumb_crop.create_image(thumb_path, width=thumb.width, height=thumb.height)
         thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
         md5 = hashlib.md5()
-        with default_storage.open(thumb_path, mode='rb') as f:
+        with self.storage.open(thumb_path, mode='rb') as f:
             image_contents = f.read()
         md5.update(image_contents)
         thumb.name = md5.hexdigest()[0:9]
         new_path = self.get_image_path(thumb.name)
-        with default_storage.open(new_path, 'wb') as f:
+        with self.storage.open(new_path, 'wb') as f:
             f.write(image_contents)
-        default_storage.delete(thumb_path)
+        self.storage.delete(thumb_path)
 
         if not thumb.pk:
             try:
@@ -499,8 +498,7 @@ class Image(models.Model):
         return thumb
 
     def image_file_open(self):
-        storage = self._meta.get_field("image").storage
-        return storage.open(self.image.name, "rb")
+        return self.storage.open(self.image.name, 'rb')
 
     def _save_thumb(self, size, image=None, thumb=None, ref_thumb=None, tmp=False, commit=True):
         if not image:
@@ -526,7 +524,7 @@ class Image(models.Model):
         if cropduster_settings.CROPDUSTER_CREATE_THUMBS:
             thumb_image = thumb_crop.create_image(thumb_path, width=thumb.width, height=thumb.height)
 
-        if StandaloneImage and cropduster_settings.CROPDUSTER_CREATE_THUMBS:
+        if cropduster_settings.CROPDUSTER_CREATE_THUMBS:
             thumb_image.crop.add_xmp_to_crop(thumb_path, size, original_image=image)
 
         if commit:
@@ -534,4 +532,7 @@ class Image(models.Model):
         return thumb
 
 
-from cropduster.standalone.models import StandaloneImage
+# Re-exported for ``from cropduster.models import StandaloneImage``. Only the
+# metadata module needs libxmp, so the model is registered with or without
+# the optional standalone dependencies.
+from cropduster.standalone.models import StandaloneImage  # noqa: E402
