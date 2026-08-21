@@ -1,4 +1,22 @@
-"""Select the backend that converts ``Thumb`` rows to image URLs."""
+"""Select the backend that converts ``Thumb`` rows to image URLs.
+
+:class:`~cropduster.renderers.file.FileRenderer` returns URLs for rendition
+files written by Cropduster. :class:`~cropduster.renderers.thumbor.ThumborRenderer`
+returns Thumbor URLs that render from the original, so it does not require
+those files when ``CROPDUSTER_CREATE_THUMBS`` is false.
+
+The backend is chosen by ``CROPDUSTER_URL_RENDERER``, either as a dotted path
+or as a dict::
+
+    CROPDUSTER_URL_RENDERER = {
+        "BACKEND": "cropduster.renderers.ThumborRenderer",
+        "OPTIONS": {"server": "https://thumb.example.com/"},
+    }
+
+``OPTIONS`` are passed to the backend constructor. Instances are cached by
+specification, and the cache is cleared on ``setting_changed`` so that
+``override_settings`` takes effect.
+"""
 
 from django.utils.module_loading import import_string
 
@@ -7,7 +25,8 @@ from cropduster.exceptions import CropDusterConfigurationError
 
 
 __all__ = (
-    'BaseRenderer', 'FileRenderer', 'get_renderer', 'reset_renderer_cache')
+    'BaseRenderer', 'FileRenderer', 'ThumborRenderer',
+    'get_renderer', 'reset_renderer_cache')
 
 
 DEFAULT_RENDERER = "cropduster.renderers.FileRenderer"
@@ -77,6 +96,16 @@ class BaseRenderer(object):
     def preview_url(self, image, **opts):
         """Return the downscaled preview URL used by the crop UI."""
         raise NotImplementedError
+
+    def preview_srcset(self, image, *, width, height):
+        """Return a higher-density preview candidate, or ``None``.
+
+        A stored-file renderer has only the one ``_preview`` file, so the
+        default is ``None``. A renderer that can create a larger preview on
+        demand may override this method after checking that the original has
+        enough pixels.
+        """
+        return None
 
     def original_url(self, image, **opts):
         """Return the URL of the uncropped original."""
@@ -155,3 +184,4 @@ def reset_renderer_cache(**kwargs):
 
 
 from .file import FileRenderer  # noqa: E402
+from .thumbor import ThumborRenderer  # noqa: E402

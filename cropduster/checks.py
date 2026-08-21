@@ -1,5 +1,6 @@
 """System checks for Cropduster."""
 
+from django.conf import settings as django_settings
 from django.core import checks
 from django.core.exceptions import ImproperlyConfigured
 
@@ -65,6 +66,50 @@ def check_metadata_only_renderer(app_configs=None, **kwargs):
             type(renderer).__module__, type(renderer).__name__),
         hint=(
             'Point CROPDUSTER_URL_RENDERER at a renderer whose '
-            'supports_metadata_only is True, or turn '
+            'supports_metadata_only is True '
+            '(cropduster.renderers.ThumborRenderer), or turn '
             'CROPDUSTER_CREATE_THUMBS back on.'),
         id='cropduster.W002')]
+
+
+PROBE_NAME = 'w001-probe.jpg'
+
+
+def check_thumbor_media_url(app_configs=None, **kwargs):
+    """``cropduster.W001``: ThumborRenderer cannot strip the storage URL
+    prefix."""
+    from cropduster.renderers import ThumborRenderer
+    from cropduster.renderers.thumbor import normalize_prefix
+    from cropduster.utils.storage import get_image_storage
+
+    renderer = _get_renderer()[0]
+    if not isinstance(renderer, ThumborRenderer):
+        return []
+
+    candidates = [
+        renderer.media_url,
+        str(django_settings.MEDIA_URL),
+        *renderer.extra_media_urls,
+    ]
+    try:
+        probe_url = get_image_storage().url(PROBE_NAME)
+    except Exception:
+        return []
+
+    if any(
+            prefix and probe_url.startswith(normalize_prefix(prefix))
+            for prefix in candidates):
+        return []
+
+    return [checks.Warning(
+        "cropduster's image storage emits URLs that no CROPDUSTER_THUMBOR "
+        'prefix matches, so Thumbor receives whole URLs to fetch.',
+        hint=(
+            'The storage renders %r as %r, which starts with none of the '
+            'prefixes ThumborRenderer strips: %s. Set '
+            "CROPDUSTER_THUMBOR['MEDIA_URL'] to the prefix the storage emits, "
+            'or list every prefix it can emit in '
+            "CROPDUSTER_THUMBOR['EXTRA_MEDIA_URLS']." % (
+                PROBE_NAME, probe_url,
+                ', '.join(repr(candidate) for candidate in candidates))),
+        id='cropduster.W001')]

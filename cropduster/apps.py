@@ -15,7 +15,7 @@ class CropdusterConfig(AppConfig):
     def ready(self):
         from cropduster.checks import (
             check_app_config, check_metadata_only_renderer,
-            check_url_renderer)
+            check_thumbor_media_url, check_url_renderer)
         from cropduster.conf import settings as cropduster_settings
         from cropduster.renderers import reset_renderer_cache
 
@@ -24,3 +24,4 @@ class CropdusterConfig(AppConfig):
         checks.register(check_app_config)
         checks.register(check_url_renderer)
         checks.register(check_metadata_only_renderer)
+        checks.register(check_thumbor_media_url)
