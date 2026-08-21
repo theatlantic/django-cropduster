@@ -94,6 +94,13 @@ class CropDusterSettings:
     def CROPDUSTER_CREATE_THUMBS(self):
         return getattr(django_settings, 'CROPDUSTER_CREATE_THUMBS', True)
 
+    @property
+    def CROPDUSTER_URL_RENDERER(self):
+        from cropduster.renderers import DEFAULT_RENDERER
+
+        return getattr(
+            django_settings, 'CROPDUSTER_URL_RENDERER', DEFAULT_RENDERER)
+
     CROPDUSTER_APP_LABEL = CROPDUSTER_APP_LABEL
     CROPDUSTER_DB_PREFIX = CROPDUSTER_DB_PREFIX
     CROPDUSTER_V4_APP_LABEL = CROPDUSTER_V4_APP_LABEL
