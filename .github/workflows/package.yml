@@ -1,0 +1,39 @@
+# Build the wheel and sdist on every push and pull request. This catches
+# missing assets and invalid package metadata before a release tag.
+#
+# The frontend bundle is committed, so this job does not install Node. The
+# Frontend workflow separately verifies that the committed bundle matches its
+# TypeScript source.
+
+name: Package
+
+on: [push, pull_request]
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    name: Build and check the sdist and wheel
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade build twine
+
+      - name: Build
+        run: python -m build
+
+      - name: Check
+        run: python scripts/check_dist.py
+
+      # An artifact check, not a dependency check: `--no-deps` verifies that
+      # the wheel itself installs and imports.
+      - name: Install and import
+        run: |
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install --no-deps dist/*.whl
+          /tmp/smoke/bin/python -c "import cropduster; print(cropduster.__version__)"
