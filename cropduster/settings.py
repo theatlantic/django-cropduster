@@ -1,55 +1,41 @@
-import math
-import PIL
-import shutil
-from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
+"""Preserve the 4.x ``cropduster.settings`` import paths.
+
+``cropduster.settings.CROPDUSTER_CREATE_THUMBS`` and
+``from cropduster.settings import CROPDUSTER_PREVIEW_WIDTH`` remain valid.
+Module ``__getattr__`` (PEP 562) forwards attribute access to the settings
+object, which reads the current value from ``django.conf.settings``. A value
+bound to a local name is still a snapshot, so Cropduster reads changing
+settings through the module.
+
+The module exports ``CROPDUSTER_APP_LABEL`` and ``CROPDUSTER_DB_PREFIX`` as
+ordinary attributes because they are read once at import and never change.
+Existing migrations also import
+``cropduster.settings.CROPDUSTER_DB_PREFIX`` directly.
+"""
+
+from cropduster.conf import (  # noqa: F401
+    CROPDUSTER_APP_LABEL,
+    CROPDUSTER_DB_PREFIX,
+    CROPDUSTER_V4_APP_LABEL,
+    CROPDUSTER_V4_DB_PREFIX,
+    SETTING_NAMES as _SETTING_NAMES,
+    default_jpeg_quality,
+    get_jpeg_quality,
+    settings as _settings,
+)
 
 
-CROPDUSTER_MEDIA_ROOT = getattr(settings, 'CROPDUSTER_MEDIA_ROOT', settings.MEDIA_ROOT)
-
-try:
-    CROPDUSTER_APP_LABEL = getattr(settings, 'CROPDUSTER_V4_APP_LABEL')
-except AttributeError:
-    CROPDUSTER_APP_LABEL = getattr(settings, 'CROPDUSTER_APP_LABEL', 'cropduster')
-
-try:
-    CROPDUSTER_DB_PREFIX = getattr(settings, 'CROPDUSTER_V4_DB_PREFIX')
-except AttributeError:
-    CROPDUSTER_DB_PREFIX = getattr(settings, 'CROPDUSTER_DB_PREFIX', 'cropduster4')
-
-CROPDUSTER_PREVIEW_WIDTH = getattr(settings, 'CROPDUSTER_PREVIEW_WIDTH', 800)
-CROPDUSTER_PREVIEW_HEIGHT = getattr(settings, 'CROPDUSTER_PREVIEW_HEIGHT', 500)
+# Names resolved through ``__getattr__`` are not module globals; ``__all__``
+# lists them so ``import *`` and ``dir()`` expose the supported settings.
+__all__ = ('default_jpeg_quality', 'get_jpeg_quality') + _SETTING_NAMES
 
 
-def default_jpeg_quality(width, height):
-    p = math.sqrt(width * height)
-    if p >= 1750:
-        return 80
-    elif p >= 1000:
-        return 85
-    else:
-        return 90
-
-CROPDUSTER_JPEG_QUALITY = getattr(settings, 'CROPDUSTER_JPEG_QUALITY', default_jpeg_quality)
+def __getattr__(name):
+    try:
+        return getattr(_settings, name)
+    except AttributeError:
+        raise AttributeError("module %r has no attribute %r" % (__name__, name))
 
 
-def get_jpeg_quality(width, height):
-    if callable(CROPDUSTER_JPEG_QUALITY):
-        return CROPDUSTER_JPEG_QUALITY(width, height)
-    elif isinstance(CROPDUSTER_JPEG_QUALITY, (int, float)):
-        return CROPDUSTER_JPEG_QUALITY
-    else:
-        raise ImproperlyConfigured(
-            "CROPDUSTER_JPEG_QUALITY setting must be either a callable "
-            "or a numeric value, got type %s" % (type(CROPDUSTER_JPEG_QUALITY).__name__))
-
-JPEG_SAVE_ICC_SUPPORTED = getattr(settings, 'JPEG_SAVE_ICC_SUPPORTED', True)
-
-CROPDUSTER_GIFSICLE_PATH = getattr(settings, 'CROPDUSTER_GIFSICLE_PATH', None)
-
-if CROPDUSTER_GIFSICLE_PATH is None:
-    # Try to find executable in the PATH
-    CROPDUSTER_GIFSICLE_PATH = shutil.which("gifsicle")
-
-CROPDUSTER_RETAIN_METADATA = getattr(settings, 'CROPDUSTER_RETAIN_METADATA', False)
-CROPDUSTER_CREATE_THUMBS = getattr(settings, 'CROPDUSTER_CREATE_THUMBS', True)
+def __dir__():
+    return sorted(set(globals()) | set(__all__))
