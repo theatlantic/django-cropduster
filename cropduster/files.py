@@ -4,6 +4,7 @@ import os
 import re
 import hashlib
 
+from django.core.exceptions import SuspiciousOperation
 from django.core.files.images import get_image_dimensions
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.conf import settings
@@ -14,7 +15,29 @@ from urllib.request import urlopen
 
 from generic_plus.utils import get_relative_media_url
 
+from cropduster.conf import settings as cropduster_settings
 from cropduster.utils.storage import get_image_storage
+
+
+REMOTE_FETCH_REFUSED = (
+    'Fetching an image from a URL is disabled. Set '
+    'CROPDUSTER_REMOTE_IMAGE_FETCH to True to allow %s to be downloaded, '
+    'or name an image that is already in storage.')
+
+REMOTE_IMAGE_RE = re.compile(r'^https?://')
+
+
+def normalize_stored_image_name(path):
+    """Return a storage-relative image name, or ``None`` for a remote URL."""
+    if not path:
+        return None
+    if '%' in path:
+        path = unquote_plus(path)
+    if path.startswith(settings.MEDIA_URL):
+        return get_relative_media_url(path, clean_slashes=False)
+    if REMOTE_IMAGE_RE.search(path):
+        return None
+    return path
 
 
 class VirtualFieldFile(FieldFile):
@@ -80,23 +103,16 @@ class ImageFile(VirtualFieldFile):
             self.name = None
             return
 
-        if '%' in path:
-            path = unquote_plus(path)
-
-        if path.startswith(settings.MEDIA_URL):
-            # Strips leading MEDIA_URL, if starts with
-            self._path = get_relative_media_url(path, clean_slashes=False)
-        elif re.search(r'^https?://', path):
+        stored_name = normalize_stored_image_name(path)
+        if stored_name is None:
             # url on other server? download it.
             self._path = self.download_image_url(path)
-        elif path.startswith('//'):
-            # urlopen() raises ValueError for protocol-relative URLs, and
-            # safe_join() rejects them as storage paths because the joined
-            # path is outside MEDIA_ROOT.
+        elif stored_name.startswith('//'):
+            # urlopen() cannot fetch a protocol-relative URL, and storage
+            # rejects it because it resolves outside MEDIA_ROOT.
             self._path = None
-        else:
-            if get_image_storage().exists(path):
-                self._path = path
+        elif get_image_storage().exists(stored_name):
+            self._path = stored_name
 
         if not self._path:
             self.name = None
@@ -110,6 +126,9 @@ class ImageFile(VirtualFieldFile):
     def download_image_url(self, url):
         from cropduster.models import StandaloneImage
         from cropduster.services.upload import store_upload
+
+        if not cropduster_settings.CROPDUSTER_REMOTE_IMAGE_FETCH:
+            raise SuspiciousOperation(REMOTE_FETCH_REFUSED % url)
 
         image_contents = urlopen(url).read()
         md5_hash = hashlib.md5()
