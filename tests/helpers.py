@@ -24,7 +24,159 @@ FILESYSTEM_STORAGES = {
 }
 
 
-class CropdusterTestCaseMediaMixin(object):
+_PAGE_HOST_JS = """
+var host = document.querySelector('#cropduster-app');
+"""
+
+_DIALOG_FIND_SCRIPT = _PAGE_HOST_JS + """
+if (!host || !host.shadowRoot) { return null; }
+return host.shadowRoot.querySelector(arguments[0]);
+"""
+
+_DIALOG_RENDERED_SCRIPT = _PAGE_HOST_JS + """
+return !!(host && host.shadowRoot && host.shadowRoot.firstElementChild);
+"""
+
+_DIALOG_VALUE_SCRIPT = _PAGE_HOST_JS + """
+if (!host || !host.shadowRoot) { return null; }
+var el = host.shadowRoot.querySelector(arguments[0]);
+return el ? el.value : null;
+"""
+
+_DIALOG_TEXT_SCRIPT = _PAGE_HOST_JS + """
+if (!host || !host.shadowRoot) { return null; }
+var el = host.shadowRoot.querySelector(arguments[0]);
+return el ? el.textContent : null;
+"""
+
+_DIALOG_RECT_SCRIPT = _PAGE_HOST_JS + """
+if (!host || !host.shadowRoot) { return null; }
+var el = host.shadowRoot.querySelector(arguments[0]);
+if (!el) { return null; }
+var rect = el.getBoundingClientRect();
+return {
+    "x": rect.left, "y": rect.top,
+    "width": rect.width, "height": rect.height};
+"""
+
+
+def _displayed(element):
+    from selenium.common.exceptions import StaleElementReferenceException
+
+    try:
+        return element.is_displayed()
+    except StaleElementReferenceException:
+        return False
+
+
+def _enabled(element):
+    from selenium.common.exceptions import StaleElementReferenceException
+
+    try:
+        classes = (element.get_attribute('class') or '').split()
+        return element.is_enabled() and 'disabled' not in classes
+    except StaleElementReferenceException:
+        return False
+
+
+class CropDusterDialogMixin(object):
+    """Find controls inside the page dialog's open shadow root."""
+
+    dialog_timeout = 10
+
+    def dialog_query(self, css):
+        return self.selenium.execute_script(_DIALOG_FIND_SCRIPT, css)
+
+    def wait_for_dialog(self, timeout=None):
+        self.wait_until(
+            lambda driver: driver.execute_script(_DIALOG_RENDERED_SCRIPT),
+            timeout=timeout if timeout is not None else self.dialog_timeout,
+            message="Timeout waiting for the crop dialog to render")
+
+    def dialog_find(self, css, timeout=None, visible=True):
+        found = []
+
+        def ready(_driver):
+            element = self.dialog_query(css)
+            if element is None or (visible and not _displayed(element)):
+                return False
+            found.append(element)
+            return True
+
+        self.wait_until(
+            ready, timeout=timeout if timeout is not None else self.dialog_timeout,
+            message="Timeout waiting for dialog element at selector='%s'" % css)
+        return found[-1]
+
+    def dialog_click(self, css, timeout=None):
+        from selenium.common.exceptions import StaleElementReferenceException
+
+        def click(_driver):
+            element = self.dialog_query(css)
+            if element is None or not _displayed(element) or not _enabled(element):
+                return False
+            try:
+                element.click()
+            except StaleElementReferenceException:
+                return False
+            return True
+
+        self.wait_until(
+            click, timeout=timeout if timeout is not None else self.dialog_timeout,
+            message=(
+                "Timeout waiting for clickable dialog element at selector='%s'" % css))
+
+    def dialog_send_keys(self, css, value, timeout=None):
+        from selenium.common.exceptions import ElementNotInteractableException
+
+        element = self.dialog_find(css, timeout=timeout, visible=False)
+        try:
+            element.send_keys(value)
+        except ElementNotInteractableException:
+            self.selenium.execute_script(
+                "arguments[0].style.setProperty('display', 'block', 'important');"
+                "arguments[0].style.setProperty('visibility', 'visible', 'important');"
+                "arguments[0].style.setProperty('opacity', '1', 'important');"
+                "arguments[0].style.setProperty('width', 'auto', 'important');"
+                "arguments[0].style.setProperty('height', 'auto', 'important');",
+                element)
+            element.send_keys(value)
+        return element
+
+    def dialog_value(self, css):
+        return self.selenium.execute_script(_DIALOG_VALUE_SCRIPT, css)
+
+    def dialog_text(self, css):
+        return self.selenium.execute_script(_DIALOG_TEXT_SCRIPT, css)
+
+    def dialog_rect(self, css):
+        return self.selenium.execute_script(_DIALOG_RECT_SCRIPT, css)
+
+    def dialog_upload(self, value, timeout=None):
+        self.dialog_send_keys('#id_image', value, timeout=timeout)
+        return self.dialog_find('#image-container', timeout=timeout)
+
+    def dialog_can_commit(self):
+        return bool(self.selenium.execute_script(
+            "return !!(window.CropDusterDialog"
+            " && window.CropDusterDialog.canCommit"
+            " && window.CropDusterDialog.canCommit());"))
+
+    def dialog_populate_all_crops(self):
+        total = int(self.dialog_text('#thumb-total-count') or 0)
+        for index in range(total):
+            self.dialog_click('#crop-preview-%d' % index)
+        self.wait_until(
+            lambda d: self.dialog_can_commit(),
+            timeout=self.dialog_timeout,
+            message="Timeout waiting for every crop to be populated")
+
+    def dialog_save(self):
+        self.dialog_populate_all_crops()
+        self.dialog_click('#crop-button')
+
+
+class CropdusterTestCaseMediaMixin(CropDusterDialogMixin):
     def __call__(self, result=None):
         testMethod = getattr(self, self._testMethodName)
         skipped = (

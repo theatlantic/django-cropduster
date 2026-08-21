@@ -11,7 +11,8 @@ import time
 import unittest
 
 from django.contrib.contenttypes.models import ContentType
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.core.files.base import ContentFile
+from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 
 from cropduster.exceptions import CropDusterConfigurationError
 from cropduster.forms import CropDusterThumbWidget
@@ -19,6 +20,9 @@ from cropduster.models import Image, Thumb
 from cropduster.renderers import (
     BaseRenderer, FileRenderer, ThumborRenderer, get_renderer)
 from cropduster.renderers.thumbor import _warn_legacy_setting
+from cropduster.resizing import Size
+from cropduster.utils import json
+from cropduster.views import CropDusterIndex
 
 from .helpers import CropdusterTestCaseMediaMixin, FILESYSTEM_STORAGES
 from .models import Author
@@ -518,6 +522,51 @@ class TestThumborRenderer(GoldenFixtureMixin, TestCase):
     def test_image_get_url_by_size_name(self):
         self.assertEqual(self.image.get_url('square'), SQUARE_1X)
         self.assertIsNone(self.image.get_url('nonesuch'))
+
+    def test_page_dialog_config_carries_renderer_urls_and_srcsets(self):
+        self.image.width = 2480
+        self.image.height = 1600
+        self.image.save(update_fields=('width', 'height'))
+        self.image.storage.save(
+            self.image.get_image_path('_preview'), ContentFile(b'preview'))
+        sizes = [
+            Size('thumb', w=300, h=150, auto=[
+                Size('thumb@2x', w=600, h=300)]),
+            Size('square', w=400, h=400),
+        ]
+        request = RequestFactory().get('/cropduster/', {
+            'id': self.image.pk,
+            'thumbs': ','.join(str(thumb.pk) for thumb in (
+                self.thumb, self.thumb_2x, self.square)),
+            'sizes': json.dumps(sizes),
+        })
+        view = CropDusterIndex()
+        view.request = request
+        view.upload_to = None
+        # This fixture asserts URL construction without writing source bytes.
+        # Supply the dimensions the view would otherwise read from that file.
+        view.__dict__['image'] = (
+            ORIGINAL_NAME, self.image.width, self.image.height, self.image.pk)
+        view.__dict__['db_image'] = self.image
+
+        with self.assertNumQueries(1):
+            config = view.dialog_config()
+
+        self.assertEqual(
+            config['preview']['url'], self.image.get_image_url('_preview'))
+        self.assertEqual(
+            config['preview']['rendererUrl'],
+            'https://thumb.org/unsafe/fit-in/775x500/'
+            'media/z/blue/original.jpg')
+        self.assertEqual(
+            config['preview']['srcset'],
+            'https://thumb.org/unsafe/fit-in/1550x1000/'
+            'media/z/blue/original.jpg 2x')
+        self.assertEqual(config['thumbs'][0]['renderer_url'], THUMB_1X)
+        self.assertEqual(config['thumbs'][0]['srcset'], THUMB_SRCSET)
+        self.assertNotIn('renderer_url', config['cropThumbs']['thumb@2x'])
+        self.assertNotIn('srcset', config['cropThumbs']['thumb@2x'])
+
     def test_a_signing_key_signs(self):
         renderer = ThumborRenderer(security_key='sesame')
         url = renderer.url(self.thumb, image=self.image)
