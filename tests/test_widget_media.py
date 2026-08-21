@@ -2,7 +2,8 @@ import os
 import re
 
 from django import forms
-from django.test import SimpleTestCase, override_settings
+from django.contrib.auth.models import User
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 
 from cropduster.forms import CropDusterWidget, ModuleScript
 from tests.models import Author
@@ -32,6 +33,19 @@ class WidgetMediaTest(SimpleTestCase):
         self.assertNotIn('admin/js/jquery.init.js', paths)
         self.assertNotIn('cropduster/js/jsrender.js', paths)
         self.assertNotIn('cropduster/js/cropduster.js', paths)
+
+    def test_subclass_media_appends_after_the_bundle(self):
+        class Subclass(CropDusterWidget):
+            class Media:
+                js = ('project/extra.js',)
+
+        self.assertEqual(
+            list(Subclass(field=None).media._js),
+            ['cropduster/dist/cropduster.js', 'project/extra.js'])
+
+    def test_production_media_renders_an_ordinary_script(self):
+        self.assertEqual(widget().media.render_js(), [
+            '<script src="/static/cropduster/dist/cropduster.js"></script>'])
 
     @override_settings(
         DEBUG=True,
@@ -129,3 +143,47 @@ class WidgetLicenseTest(SimpleTestCase):
         self.assertEqual(
             len(re.findall(r'(?im)^copyright \(c\)', notices)), 4)
         self.assertEqual(len(re.findall(r'(?im)^permission ', notices)), 4)
+
+
+@override_settings(
+    DEBUG=True,
+    CROPDUSTER_DEV_SERVER_URL='http://localhost:5173/')
+class DevServerPageTest(TestCase):
+
+    def setUp(self):
+        super().setUp()
+        user = User.objects.create_superuser(
+            'test', 'test@test.com', 'password')
+        self.client = Client()
+        self.client.force_login(user)
+
+    def page(self):
+        response = self.client.get('/admin/tests/author/add/')
+        self.assertEqual(response.status_code, 200)
+        return response.content.decode('utf-8')
+
+    def test_dev_scripts_reach_the_admin_page_as_modules(self):
+        html = self.page()
+        for src in (
+                'http://localhost:5173/@vite/client',
+                'http://localhost:5173/src/entry.tsx'):
+            self.assertIn(
+                '<script type="module" src="%s"></script>' % src, html)
+            self.assertNotIn('<script src="%s"></script>' % src, html)
+
+    def test_the_react_refresh_preamble_precedes_the_entry(self):
+        # Without the preamble, @vitejs/plugin-react raises "can't detect
+        # preamble" from every transformed module and the entry never runs.
+        html = self.page()
+        self.assertIn(
+            "import RefreshRuntime from 'http://localhost:5173/@react-refresh'",
+            html)
+        self.assertIn('window.__vite_plugin_react_preamble_installed__', html)
+        self.assertLess(
+            html.index('@react-refresh'),
+            html.index('src/entry.tsx'))
+
+    def test_the_built_bundle_is_not_loaded_with_the_dev_server(self):
+        html = self.page()
+        self.assertNotIn('cropduster/dist/cropduster.js', html)
+        self.assertNotIn('cropduster/dist/cropduster.css', html)
