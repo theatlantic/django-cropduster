@@ -17,3 +17,8 @@ dist/
 demo/db.sqlite3
 demo/media/
 demo/static/
+
+# browser test output
+e2e/.auth/
+test-results/
+playwright-report/
