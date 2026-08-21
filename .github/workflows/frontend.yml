@@ -41,7 +41,8 @@ jobs:
             -- cropduster/static/cropduster/dist)
           if [ -n "$stray" ]; then
             echo "$stray"
-            echo "The build wrote files the repository does not have."
-            echo "Commit them if they belong in the package."
+            echo "The build wrote files the repository does not have. Commit" \
+                 "them (and add them to scripts/check_dist.py's" \
+                 "REQUIRED_FILES if they belong in the wheel)."
             exit 1
           fi

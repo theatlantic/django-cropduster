@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -29,7 +29,7 @@ classifiers = [
     "Framework :: Django :: 5.1",
     "Framework :: Django :: 5.2",
 ]
-license = { text = "BSD-2-Clause" }
+license = "BSD-2-Clause"
 dependencies = [
     "Django>=4.2",
     "Pillow>=9",
@@ -47,9 +47,15 @@ thumbor = [
     "libthumbor>=2",
 ]
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.packages.find]
 include = ["cropduster*"]
 namespaces = false
+
+[tool.setuptools.package-data]
+cropduster = ["**/templates/**/*", "**/static/**/*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "cropduster.__version__"}
