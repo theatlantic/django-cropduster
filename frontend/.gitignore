@@ -1,0 +1,7 @@
+node_modules/
+coverage/
+playwright-report/
+playwright/.cache/
+test-results/
+blob-report/
+*.tsbuildinfo

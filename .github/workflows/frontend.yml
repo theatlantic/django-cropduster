@@ -1,0 +1,47 @@
+name: Frontend
+
+on: [push, pull_request]
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    name: Typecheck, lint, test, build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefix frontend
+
+      - name: Typecheck
+        run: npm run typecheck --prefix frontend
+
+      - name: Lint
+        run: npm run lint --prefix frontend
+
+      - name: Test
+        run: npm test --prefix frontend
+
+      - name: Build
+        run: npm run build --prefix frontend
+
+      - name: Check the committed bundle is up to date
+        run: git diff --exit-code cropduster/static/cropduster/dist
+
+      # `git diff` does not report untracked output, so check the directory too.
+      - name: Check the bundle directory has nothing uncommitted in it
+        run: |
+          stray=$(git status --porcelain --untracked-files=all \
+            -- cropduster/static/cropduster/dist)
+          if [ -n "$stray" ]; then
+            echo "$stray"
+            echo "The build wrote files the repository does not have."
+            echo "Commit them if they belong in the package."
+            exit 1
+          fi
