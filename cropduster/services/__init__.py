@@ -7,7 +7,8 @@ from .paths import unique_upload_dir
 
 __all__ = (
     'CropResult', 'PreviewInfo', 'ThumbOutcome', 'ThumbRequest',
-    'UploadResult', 'adopt_standalone', 'apply_crops', 'store_upload',
+    'UploadResult', 'adopt_standalone', 'apply_crops', 'build_payload',
+    'legacy_crop_response', 'payload_to_legacy', 'store_upload',
     'unique_upload_dir')
 
 
@@ -20,6 +21,9 @@ _LAZY_IMPORTS = {
     'UploadResult': 'upload',
     'adopt_standalone': 'upload',
     'store_upload': 'upload',
+    'build_payload': 'payload',
+    'legacy_crop_response': 'payload',
+    'payload_to_legacy': 'payload',
 }
 
 
