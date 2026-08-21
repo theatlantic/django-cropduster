@@ -47,6 +47,24 @@ class CropdusterTestCaseMediaMixin(object):
         self.TEST_IMG_DIR = ORIG_IMG_PATH
         self.TEST_IMG_DIR_RELATIVE = os.path.join(random, 'data')
 
+    def save_form(self):
+        """Wait for the response page before returning from an admin save.
+
+        django-selenosis waits for any body, including the one being submitted.
+        The body marker distinguishes the response even at the same URL.
+        """
+        marker = '__cropduster_before_save_' + uuid.uuid4().hex
+        self.selenium.execute_script('document.body[arguments[0]] = true;', marker)
+        result = super(CropdusterTestCaseMediaMixin, self).save_form()
+        self.wait_until(
+            lambda driver: driver.execute_script(
+                'return !!document.body && '
+                '!Object.prototype.hasOwnProperty.call(document.body, arguments[0]);',
+                marker),
+            message='Timeout waiting for the admin save response page')
+        self.initialize_page()
+        return result
+
     def assertImageColorEqual(self, element, image):
         self.selenium.execute_script('arguments[0].scrollIntoView()', element)
         scroll_top = -1 * self.selenium.execute_script(
