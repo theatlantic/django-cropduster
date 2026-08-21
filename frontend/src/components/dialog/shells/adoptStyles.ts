@@ -3,8 +3,9 @@
 import reactCropCss from "react-image-crop/dist/ReactCrop.css?inline";
 import cardCss from "../../../styles/card.css?inline";
 import dialogCss from "../../../styles/dialog.css?inline";
+import modalCss from "../../../styles/modal.css?inline";
 
-export type DialogStyleMode = "page" | "card";
+export type DialogStyleMode = "page" | "modal" | "card";
 
 interface ManagedStyles {
   sheets: CSSStyleSheet[];
@@ -15,18 +16,20 @@ interface ManagedStyles {
 export interface DialogStyleSources {
   reactCrop: string;
   dialog: string;
+  modal: string;
   card: string;
 }
 
 /** Styles owned by this module, retained so an HMR update can replace them. */
 const managedStyles = new WeakMap<ShadowRoot, ManagedStyles>();
 
-/** Iterable so HMR can refresh roots; hosts remove themselves on teardown. */
+/** Iterable so HMR can refresh roots; modals remove themselves when they close. */
 const dialogRoots = new Map<ShadowRoot, DialogStyleMode>();
 
 const current: DialogStyleSources = {
   reactCrop: reactCropCss,
   dialog: dialogCss,
+  modal: modalCss,
   card: cardCss,
 };
 
@@ -128,7 +131,11 @@ function sourcesFor(mode: DialogStyleMode): string[] {
   if (mode === "card") {
     return [current.card];
   }
-  return [current.reactCrop, current.dialog];
+  const sources = [current.reactCrop, current.dialog];
+  if (mode === "modal") {
+    sources.push(current.modal);
+  }
+  return sources;
 }
 
 /** Adopt the current dialog styles and keep this root live during CSS HMR. */
@@ -140,7 +147,7 @@ export function adoptDialogStyles(
   adoptStyles(root, sourcesFor(mode));
 }
 
-/** Stop retaining a root once its host is being removed. */
+/** Stop retaining a modal root once its host is being removed. */
 export function releaseDialogStyles(root: ShadowRoot): void {
   dialogRoots.delete(root);
 }
@@ -178,12 +185,14 @@ if (import.meta.hot) {
     [
       "react-image-crop/dist/ReactCrop.css?inline",
       "../../../styles/dialog.css?inline",
+      "../../../styles/modal.css?inline",
       "../../../styles/card.css?inline",
     ],
-    ([nextReactCrop, nextDialog, nextCard]) => {
+    ([nextReactCrop, nextDialog, nextModal, nextCard]) => {
       refreshDialogStyles({
         reactCrop: cssDefault(nextReactCrop, current.reactCrop),
         dialog: cssDefault(nextDialog, current.dialog),
+        modal: cssDefault(nextModal, current.modal),
         card: cssDefault(nextCard, current.card),
       });
     },
