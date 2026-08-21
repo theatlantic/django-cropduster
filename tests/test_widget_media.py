@@ -88,10 +88,19 @@ class LegacyWidgetShimTest(SimpleTestCase):
     def test_jsrender_is_empty(self):
         self.assertEqual(self.read('jsrender.js').strip(), '')
 
-    def test_the_old_popup_assets_are_still_present(self):
+    def test_the_old_popup_assets_are_removed(self):
         for name in (
-                'js/upload.js', 'js/jquery.jcrop.js', 'js/jquery.form.js',
-                'js/json2.js', 'css/upload.css', 'css/jquery.jcrop.css'):
+                'js/upload.js', 'js/jquery.jcrop.js', 'js/jquery.jcrop.min.js',
+                'js/jquery.form.js', 'js/jquery.class.js', 'js/json2.js',
+                'css/upload.css', 'css/jquery.jcrop.css', 'css/jcrop.gif',
+                'img/arrows.png', 'img/progressbar.gif',
+                'img/cropduster_icon_upload_hover.png',
+                'img/cropduster_icon_upload_select.png'):
+            path = os.path.join(STATIC_DIR, *name.split('/'))
+            self.assertFalse(os.path.exists(path), name)
+
+    def test_legacy_paths_still_used_by_compatibility_code_remain(self):
+        for name in ('css/cropduster.css', 'img/blank.gif'):
             path = os.path.join(STATIC_DIR, *name.split('/'))
             self.assertTrue(os.path.exists(path), name)
             self.assertGreater(os.path.getsize(path), 0, name)
