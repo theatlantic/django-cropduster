@@ -37,6 +37,7 @@ import django
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import SuspiciousOperation
 from django.db.models import Q
 from django.forms.models import modelformset_factory
 from django.http import HttpResponse
@@ -155,7 +156,12 @@ class CropDusterIndex(View):
             return self.image_file.get_for_size('original')
 
     def get(self, *args, **kwargs):
-        orig_image = self.orig_image
+        try:
+            orig_image = self.orig_image
+        except SuspiciousOperation as error:
+            return json_error(
+                self.request, 'upload', action='reading the image',
+                errors=[force_str(error)])
         try:
             orig_w = getattr(orig_image, 'width', None) or 0
             orig_h = getattr(orig_image, 'height', None) or 0
