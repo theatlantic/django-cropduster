@@ -1,10 +1,20 @@
-from __future__ import division
+import re
 
 from . import jsonutils as json
 from ..resizing import Size
 
 
-__all__ = ('get_min_size',)
+__all__ = ('get_min_size', 'sanitize_size_name')
+
+
+def sanitize_size_name(name):
+    """Return a size name safe for template and JSON dictionary keys.
+
+    Size names are unrestricted, and names such as ``main@2x`` cannot be
+    accessed as template variables. Characters outside ``[A-Za-z0-9_-]`` are
+    replaced with underscores.
+    """
+    return re.sub(r'[^\w\-]', '_', name)
 
 
 def get_min_size(sizes):

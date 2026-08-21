@@ -3,9 +3,11 @@ from unittest import mock
 from django import test
 from django.apps import apps
 from django.contrib import admin
+from django.core import checks
 from django.contrib.contenttypes.admin import GenericInlineModelAdminChecks
 
-from cropduster.checks import check_app_config
+from cropduster.checks import (
+    check_app_config, check_metadata_only_renderer, check_url_renderer)
 
 from .models import Article
 
@@ -60,3 +62,45 @@ class TestInlineAdminChecks(test.SimpleTestCase):
 
         errors = unfiltered_cls(Article, admin.site).check()
         self.assertEqual([error.id for error in errors], ['admin.E013'])
+
+
+class TestUrlRendererCheck(test.SimpleTestCase):
+
+    def test_default_renderer_passes(self):
+        self.assertEqual(check_url_renderer(), [])
+
+    def test_unimportable_backend_is_e001(self):
+        with test.override_settings(CROPDUSTER_URL_RENDERER='nope.Renderer'):
+            errors = check_url_renderer()
+        self.assertEqual([error.id for error in errors], ['cropduster.E001'])
+
+    def test_invalid_file_renderer_options_are_e001(self):
+        spec = {
+            'BACKEND': 'cropduster.renderers.FileRenderer',
+            'OPTIONS': {'nope': True},
+        }
+        with test.override_settings(CROPDUSTER_URL_RENDERER=spec):
+            errors = check_url_renderer()
+        self.assertEqual([error.id for error in errors], ['cropduster.E001'])
+
+
+class TestMetadataOnlyCheck(test.SimpleTestCase):
+
+    def test_writing_thumbs_passes(self):
+        self.assertEqual(check_metadata_only_renderer(), [])
+
+    def test_file_renderer_is_w002_without_derivative_files(self):
+        with test.override_settings(CROPDUSTER_CREATE_THUMBS=False):
+            errors = check_metadata_only_renderer()
+        self.assertEqual([error.id for error in errors], ['cropduster.W002'])
+
+
+class TestRendererCheckRegistration(test.SimpleTestCase):
+
+    def test_renderer_checks_are_registered(self):
+        names = {
+            getattr(check, '__name__', '')
+            for check in checks.registry.registry.get_checks()
+        }
+        self.assertIn('check_url_renderer', names)
+        self.assertIn('check_metadata_only_renderer', names)

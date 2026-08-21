@@ -128,3 +128,21 @@ class TestGifsiclePathCache(test.SimpleTestCase):
 
         self.assertEqual(
             cropduster_settings.CROPDUSTER_GIFSICLE_PATH, discovered)
+
+
+class TestRendererSettings(test.SimpleTestCase):
+
+    def test_default(self):
+        self.assertEqual(
+            cropduster_settings.CROPDUSTER_URL_RENDERER,
+            'cropduster.renderers.FileRenderer')
+
+    def test_module_attribute_access_is_live(self):
+        with test.override_settings(
+                CROPDUSTER_URL_RENDERER='custom.Renderer'):
+            self.assertEqual(
+                cropduster_settings_module.CROPDUSTER_URL_RENDERER,
+                'custom.Renderer')
+
+    def test_setting_name_is_advertised(self):
+        self.assertIn('CROPDUSTER_URL_RENDERER', cropduster_conf.SETTING_NAMES)
