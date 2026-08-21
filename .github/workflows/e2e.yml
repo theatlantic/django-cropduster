@@ -1,0 +1,90 @@
+# Run the Playwright suite against the demo project.
+#
+# The demo serves the committed frontend bundle. The Frontend workflow
+# separately verifies that rebuilding the TypeScript source produces that
+# bundle, so this job does not build it.
+#
+# This workflow has only been checked against its local paths and commands.
+# The first GitHub run will verify runner-specific package installation,
+# browser installation, and both demo-server ports.
+
+name: E2E
+
+on: [push, pull_request]
+
+defaults:
+  run:
+    working-directory: django-cropduster
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    name: Playwright (demo project)
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: django-cropduster
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: django-cropduster/frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: django-cropduster/frontend/package-lock.json
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: django-cropduster/uv.lock
+
+      # Match the system dependencies installed by the Python test workflow:
+      # exempi for XMP metadata and gifsicle for animated GIFs.
+      - name: Install system dependencies
+        run: |
+          sudo .github/workflows/apt-get-update.sh
+          sudo apt-get install -y exempi gifsicle
+
+      - name: Install node dependencies
+        run: npm ci --prefix frontend
+
+      # The demo is a workspace member, so django-cropduster is installed as
+      # an editable package.
+      - name: Sync the demo project
+        run: uv sync --project demo
+
+      - name: Read the Playwright version
+        id: playwright
+        run: |
+          version=$(node -p "require('./frontend/node_modules/@playwright/test/package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the browser
+        id: browser-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install chromium
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        working-directory: django-cropduster/frontend
+        run: npx playwright install --with-deps chromium
+
+      # The browser is cached, but the shared libraries it needs are not.
+      - name: Install the browser's system libraries
+        if: steps.browser-cache.outputs.cache-hit == 'true'
+        working-directory: django-cropduster/frontend
+        run: npx playwright install-deps chromium
+
+      # Playwright starts both demo servers (`auto` on 8017 and `window` on
+      # 8018), then migrates and seeds the shared database.
+      - name: Run the e2e suite
+        run: npm run test:e2e --prefix frontend
+
+      - name: Upload the report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: django-cropduster/frontend/playwright-report/
+          retention-days: 7

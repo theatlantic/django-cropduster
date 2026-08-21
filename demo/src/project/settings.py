@@ -87,7 +87,21 @@ MEDIA_ROOT = str(DEMO_DIR / "media")
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 CROPDUSTER_CREATE_THUMBS = True
+CROPDUSTER_DEV_SERVER_URL = os.environ.get("CROPDUSTER_DEV_SERVER_URL") or None
 CROPDUSTER_DIALOG_MODE = os.environ.get("CROPDUSTER_DIALOG_MODE") or "auto"
+
+# Route crop URLs through a local Thumbor for renderer verification, e.g.
+#   docker run -d -p 8888:80 -e LOADER=thumbor.loaders.file_loader \
+#     -e FILE_LOADER_ROOT_PATH=/data/loader -e ALLOW_UNSAFE_URL=True \
+#     -v "$PWD/demo/media:/data/loader/media" minimalcompact/thumbor
+#   CROPDUSTER_DEMO_THUMBOR=http://localhost:8888/ <runserver>
+if os.environ.get("CROPDUSTER_DEMO_THUMBOR"):
+    CROPDUSTER_URL_RENDERER = "cropduster.renderers.ThumborRenderer"
+    CROPDUSTER_THUMBOR = {
+        "SERVER": os.environ["CROPDUSTER_DEMO_THUMBOR"],
+        "MEDIA_URL": MEDIA_URL,
+        "SECURITY_KEY": "",
+    }
 
 # Allow `/tiny-iframe/` to embed the admin from the same origin.
 X_FRAME_OPTIONS = "SAMEORIGIN"
