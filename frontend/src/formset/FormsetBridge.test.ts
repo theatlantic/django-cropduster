@@ -3,6 +3,22 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FormsetBridge } from "./FormsetBridge";
 import type { LegacyCompletePayload } from "./legacyPayload";
 import { cleanupDocument, flush, mountFixture } from "../testing/fixtures";
+import {
+  THUMBOR_MAIN_1X,
+  THUMBOR_MAIN_SRCSET,
+  THUMBOR_PREVIEW_1X,
+  THUMBOR_PREVIEW_SRCSET,
+} from "../testing/canonicalFixtures";
+
+const RENDERER_MEDIA = {
+  preview: {
+    url: THUMBOR_PREVIEW_1X,
+    srcset: THUMBOR_PREVIEW_SRCSET,
+  },
+  thumbs: {
+    main: { url: THUMBOR_MAIN_1X, srcset: THUMBOR_MAIN_SRCSET },
+  },
+};
 
 afterEach(cleanupDocument);
 
@@ -84,9 +100,19 @@ describe("readState", () => {
     const fixture = mountFixture({
       image: "img/uploads/photo.jpg",
       imageId: "7",
+      previewRendererUrl: THUMBOR_PREVIEW_1X,
+      previewSrcset: THUMBOR_PREVIEW_SRCSET,
       withElement: false,
       thumbs: [
-        { id: 11, name: "main", width: 220, height: 180, url: "/m.jpg" },
+        {
+          id: 11,
+          name: "main",
+          width: 220,
+          height: 180,
+          url: "/m.jpg",
+          rendererUrl: "https://thumb.org/unsafe/220x180/m.jpg",
+          rendererSrcset: THUMBOR_MAIN_SRCSET,
+        },
         {
           id: 12,
           name: "thumb",
@@ -109,6 +135,8 @@ describe("readState", () => {
       deleted: false,
       preview: {
         url: "/media/img/_preview.jpg",
+        rendererUrl: THUMBOR_PREVIEW_1X,
+        srcset: THUMBOR_PREVIEW_SRCSET,
         width: "800",
         height: "500",
       },
@@ -120,6 +148,8 @@ describe("readState", () => {
         width: 220,
         height: 180,
         url: "/m.jpg",
+        rendererUrl: "https://thumb.org/unsafe/220x180/m.jpg",
+        rendererSrcset: THUMBOR_MAIN_SRCSET,
         tmp: true,
       },
     ]);
@@ -137,6 +167,33 @@ describe("readState", () => {
     await flush();
     expect(seen).toHaveBeenCalledTimes(1);
     expect(bridge.getSnapshot().origImage).toBe("img/other.jpg");
+    bridge.destroy();
+  });
+
+  it("notices renderer density attributes changed by another script", async () => {
+    const fixture = mountFixture({
+      withElement: false,
+      thumbs: [{ id: 11, name: "main", url: "/m.jpg" }],
+    });
+    const bridge = new FormsetBridge(fixture.root);
+    const seen = vi.fn();
+    bridge.subscribe(seen);
+
+    fixture
+      .field("thumbs")!
+      .querySelector("option")!
+      .setAttribute("data-renderer-srcset", THUMBOR_MAIN_SRCSET);
+    fixture.dataField.setAttribute(
+      "data-preview-srcset",
+      THUMBOR_PREVIEW_SRCSET,
+    );
+
+    await flush();
+    expect(seen).toHaveBeenCalledTimes(1);
+    expect(bridge.getSnapshot().thumbs[0]?.rendererSrcset).toBe(
+      THUMBOR_MAIN_SRCSET,
+    );
+    expect(bridge.getSnapshot().preview.srcset).toBe(THUMBOR_PREVIEW_SRCSET);
     bridge.destroy();
   });
 
@@ -233,6 +290,28 @@ describe("writeComplete", () => {
     bridge.destroy();
   });
 
+  it("threads renderer media through to the formset", () => {
+    const fixture = mountFixture({ withElement: false });
+    const bridge = new FormsetBridge(fixture.root);
+
+    bridge.writeComplete(payload(), RENDERER_MEDIA);
+
+    expect(
+      bridge.getSnapshot().thumbs.map((thumb) => ({
+        url: thumb.rendererUrl,
+        srcset: thumb.rendererSrcset,
+      })),
+    ).toEqual([
+      { url: THUMBOR_MAIN_1X, srcset: THUMBOR_MAIN_SRCSET },
+      { url: null, srcset: null },
+    ]);
+    expect(bridge.getSnapshot().preview).toMatchObject({
+      rendererUrl: THUMBOR_PREVIEW_1X,
+      srcset: THUMBOR_PREVIEW_SRCSET,
+    });
+    bridge.destroy();
+  });
+
   it("can be told not to dispatch events", () => {
     const fixture = mountFixture({ withElement: false });
     const bridge = new FormsetBridge(fixture.root, {
@@ -272,6 +351,31 @@ describe("setThumbOptions", () => {
     expect([...select.selectedOptions].map((o) => o.value)).toEqual([
       "11",
       "12",
+    ]);
+    bridge.destroy();
+  });
+
+  it("adds renderer attributes only for the names the dialog supplied", () => {
+    const fixture = mountFixture({ withElement: false });
+    const bridge = new FormsetBridge(fixture.root);
+
+    bridge.setThumbOptions(
+      {
+        main: { id: 11, name: "main", width: 220, height: 180, url: "/m.jpg" },
+        thumb: { id: 12, name: "thumb", width: 90, height: 60, url: "/t.jpg" },
+      },
+      RENDERER_MEDIA.thumbs,
+    );
+
+    const options = [
+      ...fixture.field("thumbs")!.querySelectorAll("option"),
+    ].map((option) => ({
+      url: option.getAttribute("data-renderer-url"),
+      srcset: option.getAttribute("data-renderer-srcset"),
+    }));
+    expect(options).toEqual([
+      { url: THUMBOR_MAIN_1X, srcset: THUMBOR_MAIN_SRCSET },
+      { url: null, srcset: null },
     ]);
     bridge.destroy();
   });

@@ -14,6 +14,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.test import SimpleTestCase, TestCase, override_settings
 
 from cropduster.exceptions import CropDusterConfigurationError
+from cropduster.forms import CropDusterThumbWidget
 from cropduster.models import Image, Thumb
 from cropduster.renderers import (
     BaseRenderer, FileRenderer, ThumborRenderer, get_renderer)
@@ -700,3 +701,58 @@ class TestThumborConfiguration(SimpleTestCase):
             renderer = ThumborRenderer(server='https://other.example.com/')
 
         self.assertEqual(renderer.server, 'https://other.example.com/')
+
+
+@override_settings(STORAGES=FILESYSTEM_STORAGES)
+class TestThumbWidgetOptionAttrs(GoldenFixtureMixin, TestCase):
+    """The option attributes the change form renders for each crop.
+
+    ``data-url`` contains the stored file URL, byte-identical to 4.x, because
+    downstream scripts read renditions from that exact attribute. The widget's
+    summary card displays ``data-renderer-url``, which routes through the
+    configured renderer.
+    """
+
+    def attrs(self, thumb):
+        return CropDusterThumbWidget().get_option_attrs(thumb)
+
+    def test_data_url_is_the_bare_stored_file(self):
+        self.assertEqual(
+            self.attrs(self.thumb)['data-url'], '/media/z/blue/thumb.jpg')
+
+    def test_file_renderer_url_carries_the_cache_buster(self):
+        self.assertEqual(
+            self.attrs(self.thumb)['data-renderer-url'],
+            '/media/z/blue/thumb.jpg?mod=%d' % self.mod(self.thumb))
+
+    def test_file_renderer_srcset_names_only_existing_crop_rows(self):
+        self.assertEqual(
+            self.attrs(self.thumb)['data-renderer-srcset'], "%s, %s 2x" % (
+                '/media/z/blue/thumb.jpg?mod=%d' % self.mod(self.thumb),
+                '/media/z/blue/thumb%%402x.jpg?mod=%d' % self.mod(self.thumb_2x)))
+
+    def test_option_srcsets_load_siblings_once(self):
+        widget = CropDusterThumbWidget()
+
+        with self.assertNumQueries(1):
+            widget.get_option_attrs(self.thumb)
+            widget.get_option_attrs(self.thumb_2x)
+
+    @requires_libthumbor
+    def test_thumbor_url_is_the_renderer_url(self):
+        with override_settings(**THUMBOR_SETTINGS):
+            attrs = self.attrs(self.thumb)
+
+        self.assertTrue(attrs['data-url'].endswith('/z/blue/thumb.jpg'))
+        self.assertNotIn('thumb.org', attrs['data-url'])
+        self.assertEqual(attrs['data-renderer-url'], THUMB_1X)
+        self.assertEqual(attrs['data-renderer-srcset'], THUMB_SRCSET)
+
+    @requires_libthumbor
+    def test_a_thumb_the_renderer_cannot_serve_omits_the_attribute(self):
+        bare = Thumb.objects.create(image=self.image, name='bare')
+        with override_settings(**THUMBOR_SETTINGS):
+            attrs = self.attrs(bare)
+
+        self.assertNotIn('data-renderer-url', attrs)
+        self.assertNotIn('data-renderer-srcset', attrs)

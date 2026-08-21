@@ -144,15 +144,21 @@ describe("readData / writeData", () => {
 
 describe("triggerOnAll", () => {
   it("fires on every instance with positional arguments", () => {
-    const log: FakeCall[] = [];
-    const a = fakeJQuery(log).$;
-    const b = fakeJQuery(log).$;
-    globals.django = { jQuery: a };
-    globals.grp = { jQuery: b };
+    const a = fakeJQuery();
+    const b = fakeJQuery();
+    globals.django = { jQuery: a.$ };
+    globals.grp = { jQuery: b.$ };
+    globals.jQuery = a.$;
     triggerOnAll(document, "cropduster:update", ["lead_image", { ok: true }]);
-    expect(log).toHaveLength(2);
-    expect(log[0]?.type).toBe("cropduster:update");
-    expect(log[0]?.args).toEqual(["lead_image", { ok: true }]);
+    const expected = [
+      {
+        target: document,
+        type: "cropduster:update",
+        args: ["lead_image", { ok: true }],
+      },
+    ];
+    expect(a.log).toEqual(expected);
+    expect(b.log).toEqual(expected);
   });
 
   it("keeps going when one instance throws", () => {
