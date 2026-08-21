@@ -53,6 +53,28 @@ def check_url_renderer(app_configs=None, **kwargs):
         id='cropduster.E001')]
 
 
+def check_api_permission(app_configs=None, **kwargs):
+    """``cropduster.E002``: the API permission setting is not callable."""
+    from cropduster.api.permissions import get_permission_check
+
+    path = cropduster_settings.CROPDUSTER_API_PERMISSION
+    try:
+        permission = get_permission_check()
+    except (ImportError, AttributeError, TypeError, ValueError) as error:
+        problem = str(error)
+    else:
+        if callable(permission):
+            return []
+        problem = '%r is not callable.' % (permission,)
+    return [checks.Error(
+        "cropduster's API permission callable could not be loaded: %s"
+        % problem,
+        hint=(
+            'CROPDUSTER_API_PERMISSION is %r. It must be the dotted path '
+            'to a callable accepting (request, target).' % path),
+        id='cropduster.E002')]
+
+
 def check_metadata_only_renderer(app_configs=None, **kwargs):
     """``cropduster.W002``: metadata-only mode needs an on-demand renderer."""
     if cropduster_settings.CROPDUSTER_CREATE_THUMBS:

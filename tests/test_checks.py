@@ -9,7 +9,7 @@ from django.core import checks
 from django.contrib.contenttypes.admin import GenericInlineModelAdminChecks
 
 from cropduster.checks import (
-    check_app_config, check_metadata_only_renderer,
+    check_api_permission, check_app_config, check_metadata_only_renderer,
     check_thumbor_media_url, check_url_renderer)
 
 from .models import Article
@@ -240,3 +240,37 @@ class TestRendererCheckRegistration(test.SimpleTestCase):
         self.assertIn('check_url_renderer', names)
         self.assertIn('check_metadata_only_renderer', names)
         self.assertIn('check_thumbor_media_url', names)
+
+
+class TestApiPermissionCheck(test.SimpleTestCase):
+
+    def test_both_permission_checks_that_ship_can_be_loaded(self):
+        self.assertEqual(check_api_permission(), [])
+        with test.override_settings(
+                CROPDUSTER_API_PERMISSION=(
+                    'cropduster.api.permissions.login_required_only')):
+            self.assertEqual(check_api_permission(), [])
+
+    def test_unimportable_permission_is_e002(self):
+        with test.override_settings(
+                CROPDUSTER_API_PERMISSION='not.there.permission'):
+            errors = check_api_permission()
+        self.assertEqual([error.id for error in errors], ['cropduster.E002'])
+
+    def test_non_callable_permission_is_e002(self):
+        with test.override_settings(
+                CROPDUSTER_API_PERMISSION='cropduster.api.permissions.__all__'):
+            errors = check_api_permission()
+        self.assertEqual([error.id for error in errors], ['cropduster.E002'])
+
+    def test_non_string_permission_is_e002(self):
+        with test.override_settings(CROPDUSTER_API_PERMISSION=42):
+            errors = check_api_permission()
+        self.assertEqual([error.id for error in errors], ['cropduster.E002'])
+
+    def test_check_is_registered(self):
+        names = {
+            getattr(check, '__name__', '')
+            for check in checks.registry.registry.get_checks()
+        }
+        self.assertIn('check_api_permission', names)

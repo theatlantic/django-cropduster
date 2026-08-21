@@ -885,6 +885,16 @@ class TestCopyImage(AttachTestCase):
 
         self.assertEqual(result.image.name, self.source)
 
+    @test.override_settings(CROPDUSTER_REMOTE_IMAGE_FETCH=False)
+    def test_it_is_not_fetched_back_when_downloading_is_turned_off(self):
+        self.storage().delete(self.attached.image.name)
+        other = Article.objects.create(title='Copied to')
+
+        with mock.patch.object(
+                Image, 'url', 'https://cdn.example.com/gone/original.jpg'):
+            with self.assertRaises(CropDusterFileMissing):
+                copy_image(self.attached.image, other, 'lead_image')
+
     def test_reuse_keeps_the_row_the_field_already_has(self):
         result = copy_image(
             self.attached.image, self.article, 'lead_image', reuse=True)

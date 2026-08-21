@@ -1,4 +1,33 @@
 from django.conf import settings
+from django.views.decorators.csrf import csrf_protect
+
+from cropduster.conf import settings as cropduster_settings
+
+
+class LegacyCsrfView:
+    """Read ``CROPDUSTER_LEGACY_CSRF_EXEMPT`` on every request rather than
+    at import."""
+
+    def __init__(self, view):
+        self.view = view
+        self.protected = csrf_protect(self._call_view)
+        for attr in ('__name__', '__qualname__', '__module__', '__doc__'):
+            try:
+                setattr(self, attr, getattr(view, attr))
+            except AttributeError:
+                pass
+
+    @property
+    def csrf_exempt(self):
+        return cropduster_settings.CROPDUSTER_LEGACY_CSRF_EXEMPT
+
+    def _call_view(self, request, *args, **kwargs):
+        return self.view(request, *args, **kwargs)
+
+    def __call__(self, request, *args, **kwargs):
+        if self.csrf_exempt:
+            return self.view(request, *args, **kwargs)
+        return self.protected(request, *args, **kwargs)
 
 
 def get_admin_base_template():
