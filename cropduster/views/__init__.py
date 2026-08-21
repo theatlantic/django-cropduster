@@ -48,6 +48,7 @@ from django.utils.encoding import force_str
 from django.utils.functional import cached_property
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.clickjacking import xframe_options_exempt
+from django.views.generic import View
 
 import PIL.Image
 
@@ -55,14 +56,11 @@ from generic_plus.utils import get_relative_media_url
 
 from cropduster.files import ImageFile
 from cropduster.models import Thumb, Size, StandaloneImage, Image
-from cropduster.settings import (
-    CROPDUSTER_PREVIEW_WIDTH as PREVIEW_WIDTH,
-    CROPDUSTER_PREVIEW_HEIGHT as PREVIEW_HEIGHT)
+from cropduster.conf import settings as cropduster_settings
 from cropduster.utils import (
     json, is_animated_gif, has_animated_gif_support, process_image)
 from cropduster.exceptions import json_error, CropDusterResizeException, full_exc_info
 
-from .base import View
 from .forms import CropForm, ThumbForm, ThumbFormSet, UploadForm
 from .utils import get_admin_base_template, FakeQuerySet
 
@@ -91,10 +89,13 @@ class CropDusterIndex(View):
     @cached_property
     def preview_size(self):
         # This error checking might be too aggressive...
-        preview_width, preview_height = PREVIEW_WIDTH, PREVIEW_HEIGHT
+        default_size = (
+            cropduster_settings.CROPDUSTER_PREVIEW_WIDTH,
+            cropduster_settings.CROPDUSTER_PREVIEW_HEIGHT)
+        preview_width, preview_height = default_size
         preview_size = self.request.GET.get('preview_size', '').split('x')
         if len(preview_size) != 2:
-            preview_size = (PREVIEW_WIDTH, PREVIEW_HEIGHT)
+            preview_size = default_size
         try:
             preview_width = int(preview_size[0])
         except (ValueError, TypeError):
@@ -275,8 +276,12 @@ def upload(request):
             "has been made static.")
 
     tmp_image = Image(image=orig_image)
-    preview_w = form_data.get('preview_width') or PREVIEW_WIDTH
-    preview_h = form_data.get('preview_height') or PREVIEW_HEIGHT
+    preview_w = (
+        form_data.get('preview_width')
+        or cropduster_settings.CROPDUSTER_PREVIEW_WIDTH)
+    preview_h = (
+        form_data.get('preview_height')
+        or cropduster_settings.CROPDUSTER_PREVIEW_HEIGHT)
 
     # First pass resize if it's too large
     resize_ratio = min(preview_w / w, preview_h / h)
@@ -517,11 +522,15 @@ def crop(request):
             thumb_data['id'] = thumb_data['id'].pk
 
     preview_url = db_image.get_image_url('_preview')
-    preview_w = PREVIEW_WIDTH
-    preview_h = PREVIEW_HEIGHT
+    max_preview_w = cropduster_settings.CROPDUSTER_PREVIEW_WIDTH
+    max_preview_h = cropduster_settings.CROPDUSTER_PREVIEW_HEIGHT
+    preview_w = max_preview_w
+    preview_h = max_preview_h
     orig_width, orig_height = crop_data['orig_w'], crop_data['orig_h']
     if (orig_width and orig_height):
-        resize_ratio = min(PREVIEW_WIDTH / float(orig_width), PREVIEW_HEIGHT / float(orig_height))
+        resize_ratio = min(
+            max_preview_w / float(orig_width),
+            max_preview_h / float(orig_height))
         if resize_ratio < 1:
             preview_w = int(round(orig_width * resize_ratio))
             preview_h = int(round(orig_height * resize_ratio))

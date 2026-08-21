@@ -8,35 +8,28 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - django-version: "2.2"
-            python-version: "3.8"
-          - django-version: "2.2"
-            python-version: "3.8"
-            grappelli: "1"
-          - django-version: "3.2"
-            python-version: "3.9"
-          - django-version: "3.2"
-            python-version: "3.9"
-            s3: "1"
-          - django-version: "3.2"
-            python-version: "3.10"
-            grappelli: "1"
           - django-version: "4.2"
             python-version: "3.10"
           - django-version: "4.2"
+            python-version: "3.12"
+            grappelli: "1"
+          - django-version: "5.0"
             python-version: "3.11"
-            grappelli: "1"
           - django-version: "5.1"
+            python-version: "3.12"
+            grappelli: "1"
+          - django-version: "5.2"
             python-version: "3.12"
           - django-version: "5.2"
             python-version: "3.12"
+            toxenv: "py312-dj52-migrations"
           - django-version: "5.2"
             python-version: "3.13"
             grappelli: "1"
             s3: "1"
 
     runs-on: ubuntu-latest
-    name: Django ${{ matrix.django-version }} (Python ${{ matrix.python-version }})${{ matrix.grappelli == '1' && ' + grappelli' || '' }}${{ matrix.s3 == '1' && ' + s3' || '' }}
+    name: Django ${{ matrix.django-version }} (Python ${{ matrix.python-version }})${{ matrix.grappelli == '1' && ' + grappelli' || '' }}${{ matrix.s3 == '1' && ' + s3' || '' }}${{ matrix.toxenv && format(' + {0}', matrix.toxenv) || '' }}
     env:
       PYTHON: ${{ matrix.python-version }}
       DJANGO: ${{ matrix.django-version }}
@@ -65,15 +58,20 @@ jobs:
 
     - name: Run tests
       run: |
-        tox -- -v --selenosis-driver=chrome-headless || \
-        tox -- -v --selenosis-driver=chrome-headless || \
-        tox -- -v --selenosis-driver=chrome-headless
+        run_tests() {
+          if [ -n "${{ matrix.toxenv }}" ]; then
+            tox -e "${{ matrix.toxenv }}" -- -v --selenosis-driver=chrome-headless
+          else
+            tox -- -v --selenosis-driver=chrome-headless
+          fi
+        }
+        run_tests || run_tests || run_tests
 
     - name: Upload junit xml
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: junit-reports-django-${{ matrix.django-version }}-python${{ matrix.python-version }})${{ matrix.grappelli == '1' && '-grappelli' || '' }}${{ matrix.s3 == '1' && '-s3' || '' }}-${{ github.sha }}
+        name: junit-reports-django-${{ matrix.django-version }}-python${{ matrix.python-version }}${{ matrix.grappelli == '1' && '-grappelli' || '' }}${{ matrix.s3 == '1' && '-s3' || '' }}${{ matrix.toxenv && format('-{0}', matrix.toxenv) || '' }}-${{ github.sha }}
         path: reports/*.xml
         overwrite: true
 

@@ -34,7 +34,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "django", specifier = ">=4.2,<4.3" },
+    { name = "django", specifier = ">=4.2,<6" },
     { name = "django-cropduster", editable = "." },
     { name = "django-generic-plus" },
     { name = "django-nested-admin", specifier = ">=4.1.6" },
@@ -59,6 +59,7 @@ wheels = [
 name = "django-cropduster"
 source = { editable = "." }
 dependencies = [
+    { name = "django" },
     { name = "django-generic-plus" },
     { name = "pillow" },
     { name = "python-xmp-toolkit" },
@@ -66,21 +67,19 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "django-generic-plus", specifier = ">=2.0.3" },
-    { name = "pillow" },
+    { name = "django", specifier = ">=4.2" },
+    { name = "django-generic-plus", specifier = ">=4.0.0,<5" },
+    { name = "pillow", specifier = ">=9" },
     { name = "python-xmp-toolkit" },
 ]
 
 [[package]]
 name = "django-generic-plus"
-version = "3.1.0"
+version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "python-monkey-business" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/66/93/c5c3d1a36e2e7b9ae7502056aaa8b8bc1f6c435c05acb7b27d7cfaca661f/django_generic_plus-3.1.0.tar.gz", hash = "sha256:0d6f22ae405e2bcd57acb144f3ffccd39984263a044c9842a4bc1351fb98e71a", size = 25670, upload-time = "2025-08-11T15:50:05.148Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9e/de/97c0e680ad46edcc3a896dca781dd8b1e9ec395701efd3b694ce630edf01/django_generic_plus-4.0.0.tar.gz", hash = "sha256:f232b783f093f0d27303cc379caaa0cc41ae06f6dee27fd62a3e7fceaa46b8ba", size = 37129, upload-time = "2026-08-31T18:49:41.531Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/bc/2ff2f6821a244567202e2ed5c03351d39046ff44826eb41ccfc69a60c7c7/django_generic_plus-3.1.0-py2.py3-none-any.whl", hash = "sha256:02e0c77819b018dc09fb4af1da7479fa37f0ef57d6c6251b6bfe86add130bd7c", size = 32449, upload-time = "2025-08-11T15:50:04.209Z" },
+    { url = "https://files.pythonhosted.org/packages/b4/f2/c58ff890dbe84d02a51bd59e2890888898ea16756c09f26f56abab5bdf4d/django_generic_plus-4.0.0-py3-none-any.whl", hash = "sha256:f17cd473a381bfc8ecd4aaf8a2f45bcd8e8e684fa15d8660032bc69a58bea698", size = 48050, upload-time = "2026-08-31T18:49:06.046Z" },
 ]
 
 [[package]]

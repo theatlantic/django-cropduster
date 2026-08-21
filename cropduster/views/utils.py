@@ -17,12 +17,7 @@ class FakeQuerySet(object):
         self.queryset = queryset
 
     def __iter__(self):
-        obj_iter = iter(self.objs)
-        while True:
-            try:
-                yield obj_iter.next()
-            except StopIteration:
-                break
+        return iter(self.objs)
 
     def __len__(self):
         return len(self.objs)
