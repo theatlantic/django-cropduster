@@ -435,6 +435,17 @@ class Image(models.Model):
                     thumb, image=self, thumbs=thumbs, **opts)
         return None
 
+    def best_thumb_for_size(self, size, *, hint=None, image_size=None):
+        """Return an unsaved Thumb fitted to this image and size."""
+        from cropduster.services.crops import choose_crop, thumb_for_size
+
+        best_crop = None
+        if hint is not None:
+            best_crop = choose_crop(
+                self, size, hint=hint, image_size=image_size)
+        return thumb_for_size(
+            self, size, best_crop=best_crop, image_size=image_size)
+
     def get_image_size(self, size_name=None):
         """
         Returns tuple of a thumbnail's size (width, height).

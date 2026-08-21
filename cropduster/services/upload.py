@@ -84,7 +84,7 @@ class UploadResult:
 
 
 def store_upload(file, *, upload_to=None, sizes=None, preview_size=None,
-                 preview=True, standalone=False, for_size=None, storage=None):
+                 preview=True, standalone=False, for_size=None):
     """
     Validate ``file``, write it to storage, and describe what was stored.
 
@@ -104,9 +104,6 @@ def store_upload(file, *, upload_to=None, sizes=None, preview_size=None,
     :param for_size: validate the minimum dimensions against the one size of
         that name rather than all of them. This permits a replacement source
         for one crop even if it cannot satisfy unrelated sizes.
-    :param storage: where to write. Defaults to the storage ``Image.image``
-        declares.
-
     :raises ImageTooSmallError: the image is smaller than ``sizes`` require.
     :raises CropDusterImageException: the file is not a usable image.
     """
@@ -115,7 +112,7 @@ def store_upload(file, *, upload_to=None, sizes=None, preview_size=None,
         # optional dependency does not leave an incomplete upload.
         require_standalone()
 
-    storage = storage or get_image_storage()
+    storage = get_image_storage()
     sizes = normalize_sizes(sizes)
 
     file.seek(0)

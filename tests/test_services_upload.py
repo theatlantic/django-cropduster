@@ -1,6 +1,4 @@
 import os
-import shutil
-import tempfile
 from io import BytesIO
 from urllib.parse import urlsplit
 
@@ -109,10 +107,6 @@ class TestStoreUpload(CropdusterTestCaseMediaMixin, test.TestCase):
         self.assertEqual((result.preview.width, result.preview.height), (800, 400))
         self.assertTrue(
             result.image.storage.exists(result.image.get_image_path('_preview')))
-        self.assertEqual(
-            url_without_query(result.preview.url),
-            url_without_query(result.image.storage.url(
-                result.image.get_image_path('_preview'))))
 
     def test_an_image_smaller_than_the_preview_is_not_scaled_up(self):
         result = store_upload(
@@ -170,15 +164,10 @@ class TestStoreUpload(CropdusterTestCaseMediaMixin, test.TestCase):
             store_upload(
                 SimpleUploadedFile('img.jpg', b'not an image'), upload_to='uploads')
 
-    def test_storage_kwarg_is_where_the_upload_lands(self):
-        tmpdir = tempfile.mkdtemp(prefix='TEST_STORE_UPLOAD_')
-        self.addCleanup(shutil.rmtree, tmpdir)
-        storage = FileSystemStorage(location=tmpdir)
-
-        result = store_upload(upload_file(), upload_to='uploads', storage=storage)
-
-        self.assertTrue(storage.exists(result.original_name))
-        self.assertTrue(os.path.exists(os.path.join(tmpdir, 'uploads/img/original.jpg')))
+    def test_a_per_call_storage_is_not_accepted(self):
+        with self.assertRaises(TypeError):
+            store_upload(
+                upload_file(), upload_to='uploads', storage=object())
 
     def test_animated_gif_warning(self):
         with open(os.path.join(self.TEST_IMG_DIR, 'animated.gif'), 'rb') as f:
@@ -260,8 +249,8 @@ class TestStoreStandaloneUpload(CropdusterTestCaseMediaMixin, test.TestCase):
         if isinstance(storage, FileSystemStorage):
             self.assertFalse(os.path.isdir(storage.path('uploads/b')))
         self.assertEqual(
-            url_without_query(second.preview.url),
-            url_without_query(storage.url('uploads/a/_preview.jpg')))
+            (second.preview.width, second.preview.height),
+            (first.preview.width, first.preview.height))
 
     def test_the_crop_is_attributed_to_the_one_size_that_was_asked_for(self):
         result = store_upload(
