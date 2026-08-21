@@ -1,12 +1,9 @@
 django-cropduster
 #################
 
-**django-cropduster** is a project that makes a form field available
-that uses the `Jcrop jQuery
-plugin <https://github.com/tapmodo/Jcrop>`_. It is a drop-in
-replacement for django's ``ImageField`` and allows users to generate
-multiple crops from images, using predefined sizes and aspect ratios.
-**django-cropduster** was created by developers at `The
+**django-cropduster** provides a drop-in replacement for Django's
+``ImageField`` that can generate multiple crops at predefined sizes and aspect
+ratios. It was created by developers at `The
 Atlantic <http://www.theatlantic.com/>`_. It is compatible with python
 2.7 and 3.4, and Django versions 1.4 - 1.8.
 
@@ -58,5 +55,6 @@ License <http://opensource.org/licenses/BSD-2-Clause>`_. View the
 ``LICENSE`` file under the root directory for complete license and
 copyright information.
 
-The Jcrop jQuery library included is used under the `MIT
-License <https://github.com/tapmodo/Jcrop/blob/master/MIT-LICENSE.txt>`_.
+The admin JavaScript bundle includes React, ReactDOM, and react-image-crop.
+Their license notices are in
+``cropduster/static/cropduster/dist/LICENSES.txt``.
