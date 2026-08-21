@@ -1,0 +1,193 @@
+{
+ "Article.ALT_IMAGE_SIZES": [
+  {
+   "__type__": "Size",
+   "h": 300,
+   "label": "Wide",
+   "max_h": null,
+   "max_w": null,
+   "min_h": 300,
+   "min_w": 600,
+   "name": "wide",
+   "required": true,
+   "retina": 0,
+   "w": 600
+  }
+ ],
+ "Article.LEAD_IMAGE_SIZES": [
+  {
+   "__type__": "Size",
+   "auto": [
+    {
+     "__type__": "Size",
+     "h": 90,
+     "label": "Thumb",
+     "max_h": null,
+     "max_w": null,
+     "min_h": 90,
+     "min_w": 110,
+     "name": "thumb",
+     "required": true,
+     "retina": 0,
+     "w": 110
+    }
+   ],
+   "h": 480,
+   "label": "Main",
+   "max_h": null,
+   "max_w": null,
+   "min_h": 480,
+   "min_w": 600,
+   "name": "main",
+   "required": true,
+   "retina": 0,
+   "w": 600
+  },
+  {
+   "__type__": "Size",
+   "h": null,
+   "label": "No Height",
+   "max_h": null,
+   "max_w": null,
+   "min_h": 1,
+   "min_w": 600,
+   "name": "no_height",
+   "required": true,
+   "retina": 0,
+   "w": 600
+  }
+ ],
+ "Author.HEADSHOT_SIZES": [
+  {
+   "__type__": "Size",
+   "auto": [
+    {
+     "__type__": "Size",
+     "h": 90,
+     "label": "Thumb",
+     "max_h": null,
+     "max_w": null,
+     "min_h": 90,
+     "min_w": 110,
+     "name": "thumb",
+     "required": true,
+     "retina": 0,
+     "w": 110
+    }
+   ],
+   "h": 180,
+   "label": "Main",
+   "max_h": null,
+   "max_w": null,
+   "min_h": 180,
+   "min_w": 220,
+   "name": "main",
+   "required": true,
+   "retina": 0,
+   "w": 220
+  }
+ ],
+ "MultipleFields.main": [
+  {
+   "__type__": "Size",
+   "h": 480,
+   "label": "Main",
+   "max_h": null,
+   "max_w": null,
+   "min_h": 480,
+   "min_w": 600,
+   "name": "main",
+   "required": true,
+   "retina": 0,
+   "w": 600
+  }
+ ],
+ "OptionalSizes.TEST_SIZES": [
+  {
+   "__type__": "Size",
+   "auto": [
+    {
+     "__type__": "Size",
+     "h": 960,
+     "label": "Optional",
+     "max_h": null,
+     "max_w": null,
+     "min_h": 960,
+     "min_w": 1200,
+     "name": "optional",
+     "required": false,
+     "retina": 0,
+     "w": 1200
+    }
+   ],
+   "h": 480,
+   "label": "Main",
+   "max_h": null,
+   "max_w": null,
+   "min_h": 480,
+   "min_w": 600,
+   "name": "main",
+   "required": true,
+   "retina": 0,
+   "w": 600
+  }
+ ],
+ "OrphanedThumbs.TEST_SIZES": [
+  {
+   "__type__": "Size",
+   "auto": [
+    {
+     "__type__": "Size",
+     "h": 960,
+     "label": "Main@2X",
+     "max_h": null,
+     "max_w": null,
+     "min_h": 960,
+     "min_w": 1200,
+     "name": "main@2x",
+     "required": true,
+     "retina": 0,
+     "w": 1200
+    }
+   ],
+   "h": 480,
+   "label": "Main",
+   "max_h": null,
+   "max_w": null,
+   "min_h": 480,
+   "min_w": 600,
+   "name": "main",
+   "required": true,
+   "retina": 0,
+   "w": 600
+  },
+  {
+   "__type__": "Size",
+   "auto": [
+    {
+     "__type__": "Size",
+     "h": 960,
+     "label": "Secondary@2X",
+     "max_h": null,
+     "max_w": null,
+     "min_h": 960,
+     "min_w": 1200,
+     "name": "secondary@2x",
+     "required": true,
+     "retina": 0,
+     "w": 1200
+    }
+   ],
+   "h": 480,
+   "label": "Secondary",
+   "max_h": null,
+   "max_w": null,
+   "min_h": 480,
+   "min_w": 600,
+   "name": "secondary",
+   "required": true,
+   "retina": 0,
+   "w": 600
+  }
+ ]
+}
