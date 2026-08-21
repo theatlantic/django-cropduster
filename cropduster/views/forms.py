@@ -7,7 +7,6 @@ import PIL.Image
 
 from django import forms
 from django.core.exceptions import ObjectDoesNotExist
-from django.core.files.storage import default_storage
 from django.conf import settings
 from django.forms.forms import NON_FIELD_ERRORS
 from django.forms.models import BaseModelFormSet
@@ -16,9 +15,11 @@ from django.utils.encoding import force_str
 from django.utils.html import conditional_escape
 from django.utils.safestring import mark_safe
 
+from cropduster.files import VirtualFieldFile
 from cropduster.models import Thumb
 from cropduster.utils import (json, get_upload_foldername, get_min_size,
     get_image_extension)
+from cropduster.utils.storage import get_image_storage
 
 
 class ErrorDict(_ErrorDict):
@@ -82,11 +83,11 @@ def clean_upload_data(data):
     orig_file_path = os.path.join(folder_path, 'original' + extension)
     image.seek(0)
     md5_hash = hashlib.md5()
-    default_storage.save(orig_file_path, image)
-    with default_storage.open(orig_file_path) as f:
+    storage = get_image_storage()
+    orig_file_path = storage.save(orig_file_path, image)
+    with storage.open(orig_file_path) as f:
         md5_hash.update(f.read())
-        f.seek(0)
-        data['image'] = f
+    data['image'] = VirtualFieldFile(orig_file_path, storage=storage)
     data['md5'] = md5_hash.hexdigest()
 
     return data

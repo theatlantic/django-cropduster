@@ -9,9 +9,8 @@ import tempfile
 import PIL.Image
 
 from django.core.exceptions import ImproperlyConfigured
-from django.core.files.storage import default_storage
-
-from .settings import CROPDUSTER_RETAIN_METADATA
+from .conf import settings as cropduster_settings
+from .utils.storage import get_image_storage
 
 
 __all__ = ('Size', 'Box', 'Crop')
@@ -221,10 +220,12 @@ class Box(object):
 
 class Crop(object):
 
-    def __init__(self, box, image):
+    def __init__(self, box, image, storage=None):
+        self.storage = storage or get_image_storage()
         if isinstance(image, str):
-            self._fh = default_storage.open(image, mode='rb')
+            self._fh = self.storage.open(image, mode='rb')
             image = PIL.Image.open(self._fh)
+            image.filename = self._fh.name
 
         self.box = box
         self.image = image
@@ -242,7 +243,7 @@ class Crop(object):
 
         temp_file = tempfile.NamedTemporaryFile(suffix=get_image_extension(self.image), delete=False)
         temp_filename = temp_file.name
-        with default_storage.open(self.image.filename, mode='rb') as f:
+        with self.storage.open(self.image.filename, mode='rb') as f:
             temp_file.write(f.read())
         temp_file.seek(0)
         image = PIL.Image.open(temp_filename)
@@ -255,7 +256,9 @@ class Crop(object):
             im = im.crop(crop_args)
             return smart_resize(im, final_w=width, final_h=height)
 
-        new_image = process_image(image, output_filename, crop_and_resize_callback)
+        new_image = process_image(
+            image, output_filename, crop_and_resize_callback,
+            storage=self.storage)
         new_image.crop = self
         temp_file.close()
         os.unlink(temp_filename)
@@ -356,7 +359,8 @@ class Crop(object):
             elif y1 > self.bounds.y1:
                 y1 -= 1
 
-        return Crop(Box(x1, y1, x2, y2), self.image)
+        return Crop(
+            Box(x1, y1, x2, y2), self.image, storage=self.storage)
 
     def add_xmp_to_crop(self, cropped_image_path, size, original_image=None):
         try:
@@ -368,14 +372,16 @@ class Crop(object):
         if not libxmp or not cropped_image_path:
             return
 
-        if original_image and CROPDUSTER_RETAIN_METADATA:
-            original_metadata = get_xmp_from_storage(original_image.filename)
+        if original_image and cropduster_settings.CROPDUSTER_RETAIN_METADATA:
+            original_metadata = get_xmp_from_storage(
+                original_image.filename, storage=self.storage)
         else:
             original_metadata = None
 
         xmp_meta = self.generate_xmp(size, original_metadata=original_metadata)
 
-        put_xmp_to_storage(xmp_meta, cropped_image_path)
+        put_xmp_to_storage(
+            xmp_meta, cropped_image_path, storage=self.storage)
 
     def generate_xmp(self, size, original_metadata=None):
         from cropduster.standalone.metadata import libxmp
@@ -386,7 +392,7 @@ class Crop(object):
         NS_CROP = "http://ns.thealtantic.com/cropduster/1.0/"
 
         md5 = hashlib.md5()
-        with default_storage.open(self.image.filename, mode='rb') as f:
+        with self.storage.open(self.image.filename, mode='rb') as f:
             md5.update(f.read())
         digest = md5.hexdigest()
 

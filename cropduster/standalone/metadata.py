@@ -34,6 +34,9 @@ if not libxmp:
 
     def file_to_dict(f):
         return {}
+
+    def object_to_dict(meta):
+        return {}
 else:
     try:
         exempi = libxmp._exempi
@@ -53,9 +56,9 @@ else:
         get_format_info.restype = ctypes.c_bool
 
     try:
-        from libxmp.utils import file_to_dict
+        from libxmp.utils import file_to_dict, object_to_dict
     except ImportError:
-        from libxmp import file_to_dict
+        from libxmp import file_to_dict, object_to_dict
 
 
 class EnumerationMeta(type):
@@ -177,20 +180,53 @@ class MetadataDict(dict):
         respectively
     """
 
-    def __init__(self, file_path):
-        try:
-            # Don't use temporary files if we're using FileSystemStorage
-            with open(default_storage.path(file_path), mode='rb') as f:
-                self.file_path = f.name
-        except:
-            self.tmp_file = tempfile.NamedTemporaryFile()
-            with default_storage.open(file_path) as f:
-                self.tmp_file.write(f.read())
-                self.tmp_file.flush()
-                self.tmp_file.seek(0)
-            self.file_path = self.tmp_file.name
+    tmp_file = None
+
+    def __init__(self, file_path, storage=default_storage):
+        self.storage = storage
+        self.file_path = self._local_path(file_path)
         ns_dict = file_to_dict(self.file_path)
         self.clean(ns_dict)
+
+    @classmethod
+    def from_string(cls, xmp_string):
+        """Parse an XMP packet without reading an image file.
+
+        ``crop_thumb`` remains unavailable because it needs the image
+        dimensions. ``crop_size`` and other values stored in the packet remain
+        available.
+        """
+        self = cls.__new__(cls)
+        self.storage = None
+        self.file_path = None
+        meta = libxmp.XMPMeta()
+        meta.parse_from_str(xmp_string)
+        self.clean(object_to_dict(meta))
+        return self
+
+    def _local_path(self, file_path):
+        """Return a local path that exempi can open.
+
+        Exempi can only read a filesystem path. When ``Storage.path()`` is
+        not implemented or returns a path that does not exist, the stored
+        bytes are copied to a temporary file. Reading through
+        ``Storage.open()`` also preserves the storage backend's error for a
+        missing file.
+        """
+        try:
+            local_path = self.storage.path(file_path)
+        except NotImplementedError:
+            pass
+        else:
+            if os.path.exists(local_path):
+                return local_path
+
+        self.tmp_file = tempfile.NamedTemporaryFile()
+        with self.storage.open(file_path) as f:
+            self.tmp_file.write(f.read())
+            self.tmp_file.flush()
+            self.tmp_file.seek(0)
+        return self.tmp_file.name
 
     def clean(self, ns_dict):
         for ns, values in ns_dict.items():
@@ -273,10 +309,10 @@ class MetadataDict(dict):
         from cropduster.models import Thumb
 
         try:
-            pil_img = PIL.Image.open(self.file_path)
-        except:
+            with PIL.Image.open(self.file_path) as pil_img:
+                orig_w, orig_h = pil_img.size
+        except Exception:
             return None
-        orig_w, orig_h = pil_img.size
         dimensions = self.get('Regions', {}).get('AppliedToDimensions', None)
 
         if not isinstance(dimensions, dict):
@@ -313,7 +349,7 @@ class MetadataImageFile(ImageFile):
     def __init__(self, *args, **kwargs):
         super(MetadataImageFile, self).__init__(*args, **kwargs)
         if self:
-            self.metadata = MetadataDict(self.name)
+            self.metadata = MetadataDict(self.name, storage=self.storage)
 
 
 def get_xmp_from_file(file_path):
@@ -351,7 +387,7 @@ def put_xmp_to_file(xmp_meta, file_path):
 def put_xmp_to_storage(xmp_meta, file_path, storage=default_storage):
     tmp = tempfile.NamedTemporaryFile(delete=False)
     try:
-        with default_storage.open(file_path, mode='rb') as f:
+        with storage.open(file_path, mode='rb') as f:
             tmp.write(f.read())
         tmp.close()
         put_xmp_to_file(xmp_meta, tmp.name)

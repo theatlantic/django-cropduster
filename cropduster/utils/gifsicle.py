@@ -1,9 +1,9 @@
 import logging
-import os
 import subprocess
 
-from cropduster.settings import CROPDUSTER_GIFSICLE_PATH
-from django.core.files.storage import default_storage
+from cropduster.conf import settings as cropduster_settings
+
+from .storage import get_image_storage
 
 
 logger = logging.getLogger(__name__)
@@ -11,14 +11,16 @@ logger = logging.getLogger(__name__)
 
 class GifsicleImage(object):
 
-    def __init__(self, im):
-        if not CROPDUSTER_GIFSICLE_PATH:
+    def __init__(self, im, storage=None):
+        gifsicle_path = cropduster_settings.CROPDUSTER_GIFSICLE_PATH
+        if not gifsicle_path:
             raise Exception(
                 "Cannot use GifsicleImage without the gifsicle binary in the PATH")
 
+        self.storage = storage or get_image_storage()
         self.pil_image = im
         self.size = im.size
-        self.cmd_args = [CROPDUSTER_GIFSICLE_PATH, '-O3', '-I', '-I', '-w']
+        self.cmd_args = [gifsicle_path, '-O3', '-I', '-I', '-w']
         self.crop_args = []
         self.resize_args = []
 
@@ -48,7 +50,7 @@ class GifsicleImage(object):
 
     def save(self, buf, **kwargs):
         proc = subprocess.Popen(self.args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        with default_storage.open(self.pil_image.filename, 'rb') as f:
+        with self.storage.open(self.pil_image.filename, 'rb') as f:
             out, err = proc.communicate(input=f.read())
         logger.debug(err)
         buf.write(out)

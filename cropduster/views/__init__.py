@@ -37,7 +37,6 @@ import django
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
-from django.core.files.storage import default_storage
 from django.db.models import Q
 from django.forms.models import modelformset_factory
 from django.http import HttpResponse
@@ -57,8 +56,10 @@ from generic_plus.utils import get_relative_media_url
 from cropduster.files import ImageFile
 from cropduster.models import Thumb, Size, StandaloneImage, Image
 from cropduster.conf import settings as cropduster_settings
+from cropduster.standalone import NOT_INSTALLED_MESSAGE, standalone_available
 from cropduster.utils import (
     json, is_animated_gif, has_animated_gif_support, process_image)
+from cropduster.utils.storage import get_image_storage
 from cropduster.exceptions import json_error, CropDusterResizeException, full_exc_info
 
 from .forms import CropForm, ThumbForm, ThumbFormSet, UploadForm
@@ -261,10 +262,15 @@ def upload(request):
     form_data = form.cleaned_data
     is_standalone = bool(form_data.get('standalone'))
 
+    if is_standalone and not standalone_available():
+        return json_error(
+            request, 'upload', action='uploading file',
+            errors=[NOT_INSTALLED_MESSAGE])
+
     orig_file_path = form_data['image'].name
     orig_image = get_relative_media_url(orig_file_path)
 
-    with default_storage.open(orig_image, mode='rb') as f:
+    with get_image_storage().open(orig_image, mode='rb') as f:
         img = PIL.Image.open(BytesIO(f.read()))
         img.filename = f.name
 
@@ -350,7 +356,7 @@ def upload(request):
         img = PIL.Image.open(BytesIO(f.read()))
         img.filename = f.name
     preview_file_path = cropduster_image.get_image_path('_preview')
-    if not default_storage.exists(preview_file_path):
+    if not cropduster_image.storage.exists(preview_file_path):
         process_image(img, preview_file_path, fit_preview)
 
     thumb = cropduster_image.save_size(size, standalone=True, commit=False)
@@ -396,6 +402,12 @@ def crop(request):
                 log=True, exc_info=full_exc_info())
 
     crop_data = copy.deepcopy(crop_form.cleaned_data)
+    standalone_mode = crop_data['standalone']
+
+    if standalone_mode and not standalone_available():
+        return json_error(
+            request, 'crop', action='cropping image',
+            errors=[NOT_INSTALLED_MESSAGE])
 
     if crop_data.get('image_id'):
         db_image = Image.objects.get(pk=crop_data['image_id'])
@@ -425,8 +437,6 @@ def crop(request):
 
     thumbs_with_crops = [t for t in cropped_thumbs if t.crop_w and t.crop_h]
     thumbs_data = [f.cleaned_data for f in thumb_formset]
-
-    standalone_mode = crop_data['standalone']
 
     # Address a standalone mode issue where, because the thumbs don't have a pk value,
     # Django no longer returns them in Formset.save() if they are in initial_forms
@@ -483,7 +493,8 @@ def crop(request):
             thumb_path = db_image.get_image_path(thumb.name, tmp=False)
             tmp_thumb_path = db_image.get_image_path(thumb.name, tmp=True)
 
-            if default_storage.exists(thumb_path):
+            storage = db_image.storage
+            if storage.exists(thumb_path):
                 # A missing tmp rendition is regenerated from the saved
                 # one so that Thumb.save() writes the same pixels back
                 # when the parent form saves. An existing tmp rendition
@@ -491,15 +502,15 @@ def crop(request):
                 # never when it is current: it then holds the re-crop's
                 # pixels, and the saved rendition still holds the
                 # previous crop's.
-                if not default_storage.exists(tmp_thumb_path):
+                if not storage.exists(tmp_thumb_path):
                     refresh_tmp = True
                 elif thumb_form.cleaned_data.get('changed'):
                     refresh_tmp = False
                 else:
                     refresh_tmp = not tmp_rendition_is_current(thumb)
                 if refresh_tmp:
-                    with default_storage.open(thumb_path) as f:
-                        with default_storage.open(tmp_thumb_path, 'wb') as tmp_file:
+                    with storage.open(thumb_path) as f:
+                        with storage.open(tmp_thumb_path, 'wb') as tmp_file:
                             tmp_file.write(f.read())
 
         if not thumb.pk and not thumb.crop_w and not thumb.crop_h:
