@@ -109,7 +109,7 @@ class ImageFile(VirtualFieldFile):
 
     def download_image_url(self, url):
         from cropduster.models import StandaloneImage
-        from cropduster.views.forms import clean_upload_data
+        from cropduster.services.upload import store_upload
 
         image_contents = urlopen(url).read()
         md5_hash = hashlib.md5()
@@ -123,12 +123,12 @@ class ImageFile(VirtualFieldFile):
 
         parse_result = urlparse(url)
 
-        fake_upload = SimpleUploadedFile(os.path.basename(parse_result.path), image_contents)
-        file_data = clean_upload_data({
-            'image': fake_upload,
-            'upload_to': self.upload_to,
-        })
-        return get_relative_media_url(file_data['image'].name)
+        result = store_upload(
+            SimpleUploadedFile(
+                os.path.basename(parse_result.path), image_contents),
+            upload_to=self.upload_to,
+            preview_size=(self.preview_width, self.preview_height))
+        return result.original_name
 
     def __nonzero__(self):
         """When evaluated as boolean, base on whether self._path is not None"""

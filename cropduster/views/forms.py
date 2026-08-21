@@ -1,13 +1,5 @@
-from __future__ import division
-
-import os
-import hashlib
-
-import PIL.Image
-
 from django import forms
 from django.core.exceptions import ObjectDoesNotExist
-from django.conf import settings
 from django.forms.forms import NON_FIELD_ERRORS
 from django.forms.models import BaseModelFormSet
 from django.forms.utils import ErrorDict as _ErrorDict
@@ -15,11 +7,11 @@ from django.utils.encoding import force_str
 from django.utils.html import conditional_escape
 from django.utils.safestring import mark_safe
 
+from cropduster.exceptions import CropDusterImageException, ImageTooSmallError
 from cropduster.files import VirtualFieldFile
 from cropduster.models import Thumb
-from cropduster.utils import (json, get_upload_foldername, get_min_size,
-    get_image_extension)
-from cropduster.utils.storage import get_image_storage
+from cropduster.services.upload import store_upload
+from cropduster.utils import json
 
 
 class ErrorDict(_ErrorDict):
@@ -37,58 +29,23 @@ class ErrorDict(_ErrorDict):
 
 
 def clean_upload_data(data):
-    image = data['image']
-    image.seek(0)
     try:
-        pil_image = PIL.Image.open(image)
-    except IOError as e:
-        if e.errno:
-            error_msg = force_str(e)
-        else:
-            error_msg = "Invalid or unsupported image file"
-        raise forms.ValidationError({"image": [error_msg]})
-    else:
-        extension = get_image_extension(pil_image)
+        result = store_upload(
+            data['image'],
+            upload_to=data.get('upload_to') or None,
+            sizes=data.get('sizes'),
+            preview_size=(
+                data.get('preview_width'), data.get('preview_height')),
+            # The 4.x upload view writes its own preview, so none is
+            # written here.
+            preview=False,
+            for_size=data.get('for_size'))
+    except (ImageTooSmallError, CropDusterImageException) as error:
+        raise forms.ValidationError({'image': [str(error)]})
 
-    upload_to = data['upload_to'] or None
-
-    (w, h) = (orig_w, orig_h) = pil_image.size
-    sizes = data.get('sizes')
-    if sizes:
-        (min_w, min_h) = get_min_size(sizes)
-
-        if (orig_w < min_w or orig_h < min_h):
-            raise forms.ValidationError({"image": [(
-                "Image must be at least %(min_w)sx%(min_h)s "
-                "(%(min_w)s pixels wide and %(min_h)s pixels high). "
-                "The image you uploaded was %(orig_w)sx%(orig_h)s pixels.") % {
-                    "min_w": min_w,
-                    "min_h": min_h,
-                    "orig_w": orig_w,
-                    "orig_h": orig_h
-                }]})
-
-    if w <= 0:
-        raise forms.ValidationError({"image": ["Invalid image: width is %d" % w]})
-    elif h <= 0:
-        raise forms.ValidationError({"image": ["Invalid image: height is %d" % h]})
-
-    # On filesystem storage get_upload_foldername() reserves the directory
-    # on disk, so the allocation happens only after the validations pass;
-    # an earlier call would create an empty directory for every rejected
-    # upload.
-    folder_path = get_upload_foldername(image.name, upload_to=upload_to)
-
-    # File is good, get rid of the tmp file
-    orig_file_path = os.path.join(folder_path, 'original' + extension)
-    image.seek(0)
-    md5_hash = hashlib.md5()
-    storage = get_image_storage()
-    orig_file_path = storage.save(orig_file_path, image)
-    with storage.open(orig_file_path) as f:
-        md5_hash.update(f.read())
-    data['image'] = VirtualFieldFile(orig_file_path, storage=storage)
-    data['md5'] = md5_hash.hexdigest()
+    data['image'] = VirtualFieldFile(result.original_name)
+    data['md5'] = result.md5
+    data['upload_result'] = result
 
     return data
 
