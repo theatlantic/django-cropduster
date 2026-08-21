@@ -1,0 +1,19 @@
+[project]
+name = "cropduster-demo"
+version = "0.0.0"
+description = "Demo Django project used by the django-cropduster Playwright e2e suite"
+requires-python = ">=3.10"
+classifiers = ["Private :: Do Not Upload"]
+dependencies = [
+    "django>=4.2,<4.3",
+    "django-cropduster",
+    "django-generic-plus",
+    "django-nested-admin>=4.1.6",
+    "Pillow",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+django-cropduster = { workspace = true }
