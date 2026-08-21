@@ -1,0 +1,96 @@
+{
+  "_meta": {
+    "description": "A standalone client's upload: POST /cropduster/upload/ with only image, standalone=1 and upload_to. Requires cropduster.standalone (python-xmp-toolkit + exempi). The response contains crop.image_id, crop.sizes and a one-element thumbs list whose name is the md5 prefix of the generated crop.",
+    "normalize": {
+      "applies_to": "raw response body text, before json.loads",
+      "function": "tests.data.legacy_wire.record.normalize",
+      "not_normalized": [
+        "md5 digests (inputs are fixed files; digests are reproducible)",
+        "database primary keys (each scenario runs against a flushed database with reset sequences)"
+      ],
+      "rules": [
+        {
+          "name": "DATE",
+          "pattern": "(?<=/)(?:19|20)\\d{2}/\\d{2}(?=/)",
+          "replacement": "{Y}/{m}",
+          "why": "upload_to values contain strftime codes (%Y/%m); the expanded year/month depends on the recording date."
+        },
+        {
+          "name": "DIR",
+          "pattern": "(?<=/)[^/\"\\\\]+(?=/[A-Za-z0-9_@.\\-]+\\.(?:jpe?g|png|gif|tiff?|webp)\\b)",
+          "replacement": "{DIR}",
+          "why": "get_upload_foldername() appends a -N suffix when a directory of that name already exists, so the slug depends on storage state."
+        },
+        {
+          "name": "MTIME",
+          "pattern": "(?<=[?&])(?:_|t|v|ts|mtime)=\\d{9,}",
+          "replacement": "{MTIME}",
+          "why": "mtime-based cache-busting query params on generated media URLs."
+        },
+        {
+          "name": "ERROR_ID",
+          "pattern": " id=\\\\?\"id_[^\"\\\\]*_error\\\\?\"",
+          "replacement": "",
+          "why": "Django 5.2 added ErrorList(field_id=...), which renders id=\"id_<auto_id>_error\" on the <ul class=\"errorlist\"> of a field error; earlier versions render no id at all."
+        }
+      ]
+    },
+    "request": {
+      "files": {
+        "image": "tests/data/img.jpg"
+      },
+      "method": "POST",
+      "path": "/cropduster/upload/",
+      "post": {
+        "standalone": "1",
+        "upload_to": "img/posts/%Y/%m"
+      }
+    },
+    "response": {
+      "content_type": "application/json",
+      "status_code": 200
+    },
+    "scenario": "standalone_upload",
+    "setup": "Field-for-field replay of a downstream rich-text editor's standalone upload POST.",
+    "source": {
+      "request": "Not recorded from 4.15.0: the 5.0 dialog's own POST, built by tests/data/legacy_wire/record.py from the dialog config the client reads, and frozen beside the response it was answered with.",
+      "response": {
+        "cropduster_version": "4.15.0",
+        "django_version": "5.2.17",
+        "git_ref": "4.x",
+        "git_rev": "32167545c4ff386e2bfcca805fe9c78ffcb778cb",
+        "settings_module": "tests.settings"
+      }
+    }
+  },
+  "response": {
+    "crop": {
+      "image_id": 1,
+      "orig_h": 800,
+      "orig_image": "img/posts/{Y}/{m}/{DIR}/original.jpg",
+      "orig_w": 674,
+      "sizes": "[{\"name\": \"crop\", \"w\": null, \"h\": null, \"min_w\": 1, \"min_h\": 1, \"max_w\": null, \"max_h\": null, \"retina\": 0, \"label\": \"Crop\", \"required\": true, \"__type__\": \"Size\"}]"
+    },
+    "height": 800,
+    "orig_h": 800,
+    "orig_image": "img/posts/{Y}/{m}/{DIR}/original.jpg",
+    "orig_w": 674,
+    "thumbs": [
+      {
+        "changed": true,
+        "crop_h": 800,
+        "crop_w": 674,
+        "crop_x": 0,
+        "crop_y": 0,
+        "height": 800,
+        "id": null,
+        "name": "0e4ab476e",
+        "size": "{\"name\": \"crop\", \"w\": null, \"h\": null, \"min_w\": 1, \"min_h\": 1, \"max_w\": null, \"max_h\": null, \"retina\": 0, \"label\": \"Crop\", \"required\": true, \"__type__\": \"Size\"}",
+        "width": 674
+      }
+    ],
+    "url": "/media/img/posts/{Y}/{m}/{DIR}/_preview.jpg",
+    "warning": [],
+    "width": 674
+  }
+}
