@@ -1,8 +1,10 @@
 from django.contrib import admin
-from .models import Author, Article, OptionalSizes, OrphanedThumbs
+from .models import (
+    Article, Author, OptionalSizes, OrphanedThumbs, WindowDialogField)
 
 
 admin.site.register(Author)
 admin.site.register(Article)
 admin.site.register(OptionalSizes)
 admin.site.register(OrphanedThumbs)
+admin.site.register(WindowDialogField)

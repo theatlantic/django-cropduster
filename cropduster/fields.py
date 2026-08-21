@@ -3,7 +3,7 @@ from operator import attrgetter
 
 from django import forms
 from django.contrib.contenttypes.admin import GenericInlineModelAdminChecks
-from django.core.exceptions import FieldDoesNotExist
+from django.core.exceptions import FieldDoesNotExist, ImproperlyConfigured
 from django.db import models, transaction, router, DEFAULT_DB_ALIAS
 from django.db.models.fields.files import ImageFileDescriptor, ImageFieldFile
 from django.db.models.fields.related import ManyToManyRel, ManyToManyField
@@ -17,6 +17,7 @@ from generic_plus.forms import (
     generic_fk_file_widget_factory)
 
 import cropduster.settings
+from .conf import DIALOG_MODES
 from .forms import CropDusterInlineFormSet, CropDusterWidget, CropDusterThumbFormField
 from .utils import json
 from .resizing import Box, Crop
@@ -157,6 +158,14 @@ class CropDusterSimpleImageField(models.ImageField):
     descriptor_class = CropDusterImageFileDescriptor
 
 
+def _validate_dialog_mode(value):
+    if value is None or value in DIALOG_MODES:
+        return value
+    raise ImproperlyConfigured(
+        "dialog_mode must be one of %s, or None; got %r."
+        % (', '.join(repr(mode) for mode in DIALOG_MODES), value))
+
+
 class CropDusterField(GenericForeignFileField):
 
     file_field_cls = CropDusterImageField
@@ -174,6 +183,7 @@ class CropDusterField(GenericForeignFileField):
             'upload_to': kwargs.pop('upload_to', None) or '',
         })
         self.require_alt_text = kwargs.pop('require_alt_text', False)
+        self.dialog_mode = _validate_dialog_mode(kwargs.pop('dialog_mode', None))
         super(CropDusterField, self).__init__(to, verbose_name=verbose_name, **kwargs)
 
     def formfield(self, **kwargs):

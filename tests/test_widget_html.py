@@ -167,17 +167,14 @@ def prefix_haystack(config):
     """
     ``config`` as JSON, minus the values that are not formset prefixes.
 
-    ``uploadTo`` and the preview URLs are built from the field's ``upload_to``,
-    and the test models name theirs after the field they belong to. Their
-    overlap with the formset prefix is a property of the fixtures, not the
-    widget putting a prefix where one does not belong. ``target.fieldName`` is
-    the model field's own name, which a top-level widget's prefix is equal to
-    and which no amount of cloning or reordering changes.
+    ``uploadTo`` is built from the field's ``upload_to``, and the test models
+    name theirs after the field they belong to. Its overlap with the formset
+    prefix is a property of the fixtures, not the widget putting a prefix where
+    one does not belong. ``target.fieldName`` is the model field's own name,
+    which a top-level widget's prefix is equal to and which no amount of cloning
+    or reordering changes.
     """
     scrubbed = {key: value for key, value in config.items() if key != 'uploadTo'}
-    scrubbed['preview'] = {
-        key: value for key, value in config['preview'].items()
-        if key not in ('url', 'rendererUrl', 'srcset')}
     scrubbed['target'] = {
         key: value for key, value in (config['target'] or {}).items()
         if key != 'fieldName'}
@@ -344,22 +341,17 @@ class WidgetHtmlTestBase(CropdusterTestCaseMediaMixin, TransactionTestCase):
     # -- data-config -------------------------------------------------------
 
     EXPECTED_CONFIG_KEYS = {
-        'sizes', 'uploadTo', 'mediaUrl', 'fieldIdentifier', 'requireAltText',
-        'preview', 'legacyPreviewBounds', 'urls', 'dialogMode',
-        'dispatchInputEvents', 'features', 'target', 'csrfToken', 'debug',
+        'uploadTo', 'mediaUrl', 'legacyPreviewBounds', 'urls', 'dialogMode',
+        'dispatchInputEvents', 'target', 'csrfToken',
     }
 
     def assert_config_keys(self, markup, prefix):
         config = widget_config(parse(markup))
 
         self.assertEqual(set(config), self.EXPECTED_CONFIG_KEYS)
-        self.assertEqual(
-            set(config['preview']), {'url', 'rendererUrl', 'srcset', 'w', 'h'})
         self.assertEqual(set(config['legacyPreviewBounds']), {'w', 'h'})
-        self.assertEqual(set(config['urls']), {'index', 'upload', 'crop', 'api'})
-        self.assertEqual(set(config['features']), {'overrideSources'})
+        self.assertEqual(set(config['urls']), {'api'})
         self.assertEqual(set(config['target']), {'model', 'objectId', 'fieldName'})
-        self.assertIsInstance(config['sizes'], list)
 
         raw = parse(markup).xpath('.//cropduster-widget')[0].get('data-config')
 
@@ -406,35 +398,18 @@ class WidgetHtmlTest(WidgetHtmlTestBase):
         self.assert_dom_selectors(widgets[1], 'alt_image')
         self.assert_config_keys(widgets[1], 'alt_image')
 
-        self.assertFalse(widget_config(parse(widgets[0]))['fieldIdentifier'])
-        self.assertEqual(widget_config(parse(widgets[1]))['fieldIdentifier'], 'alt')
-
         lead_tree = parse(widgets[0])
-        lead_config = widget_config(lead_tree)
         lead_data, = lead_tree.xpath('.//input[@name="lead_image"]')
-        self.assertTrue(
-            lead_config['preview']['rendererUrl'].startswith(
-                lead_config['preview']['url']))
-        self.assertIsNone(lead_config['preview']['srcset'])
-        self.assertEqual(
-            lead_data.get('data-preview-renderer-url'),
-            lead_config['preview']['rendererUrl'])
+        self.assertTrue(lead_data.get('data-preview-renderer-url'))
         self.assertEqual(lead_data.get('data-preview-srcset'), '')
 
         self.assert_fixture('article_change_lead_and_alt', widgets)
 
-    def test_config_urls_are_reversed(self):
+    def test_config_api_url_is_reversed(self):
         widgets = self.render("/admin/tests/author/add/")
         self.assertEqual(widget_config(parse(widgets[0]))['urls'], {
-            'index': '/cropduster/',
-            'upload': '/cropduster/upload/',
-            'crop': '/cropduster/crop/',
             'api': '/cropduster/api/v1/',
         })
-
-    def test_config_require_alt_text_follows_the_field(self):
-        widgets = self.render("/admin/tests/author/add/")
-        self.assertIs(widget_config(parse(widgets[0]))['requireAltText'], False)
 
     def test_config_csrf_token_is_null_without_a_request(self):
         """
@@ -453,10 +428,9 @@ class WidgetHtmlTest(WidgetHtmlTestBase):
         self.assertIn('csrfToken', config)
         self.assertIsNone(config['csrfToken'])
 
-    @override_settings(CROPDUSTER_DIALOG_MODE="window")
     def test_config_dialog_mode_follows_the_setting(self):
         widgets = self.render("/admin/tests/author/add/")
-        self.assertEqual(widget_config(parse(widgets[0]))['dialogMode'], 'window')
+        self.assertEqual(widget_config(parse(widgets[0]))['dialogMode'], 'auto')
 
     @override_settings(CROPDUSTER_PREVIEW_WIDTH=640,
                        CROPDUSTER_PREVIEW_HEIGHT=360)
@@ -468,6 +442,18 @@ class WidgetHtmlTest(WidgetHtmlTestBase):
 
     @override_settings(CROPDUSTER_DIALOG_MODE="modal")
     def test_config_dialog_mode_can_request_the_modal(self):
+        widgets = self.render("/admin/tests/author/add/")
+        self.assertEqual(widget_config(parse(widgets[0]))['dialogMode'], 'modal')
+
+    def test_config_dialog_mode_follows_the_field_when_it_declares_one(self):
+        widgets = self.render("/admin/tests/windowdialogfield/add/")
+        self.assertEqual(widget_config(parse(widgets[0]))['dialogMode'], 'window')
+
+    @override_settings(CROPDUSTER_DIALOG_MODE="modal")
+    def test_config_dialog_mode_prefers_the_field_over_the_setting(self):
+        widgets = self.render("/admin/tests/windowdialogfield/add/")
+        self.assertEqual(widget_config(parse(widgets[0]))['dialogMode'], 'window')
+
         widgets = self.render("/admin/tests/author/add/")
         self.assertEqual(widget_config(parse(widgets[0]))['dialogMode'], 'modal')
 
