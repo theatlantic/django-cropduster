@@ -6,29 +6,14 @@ describe("parseConfig", () => {
   it("reads the payload the server renders", () => {
     const config = parseConfig(
       JSON.stringify({
-        sizes: [{ name: "main", w: 220, h: 180 }],
         uploadTo: "img/uploads/%Y_%m",
         mediaUrl: "/media/",
-        fieldIdentifier: "large",
-        requireAltText: true,
-        preview: {
-          url: "/media/p.jpg",
-          rendererUrl: "https://thumb.example.com/unsafe/p.jpg",
-          srcset:
-            "https://thumb.example.com/unsafe/p.jpg, https://thumb.example.com/unsafe/p@2x.jpg 2x",
-          w: 800,
-          h: 500,
-        },
         legacyPreviewBounds: { w: 640, h: 360 },
         urls: {
-          index: "/cropduster/",
-          upload: "/cropduster/upload/",
-          crop: "/cropduster/crop/",
           api: "/cropduster/api/v1/",
         },
         dialogMode: "window",
         dispatchInputEvents: false,
-        features: { overrideSources: true },
         target: {
           model: "tests.article",
           objectId: 41,
@@ -36,55 +21,34 @@ describe("parseConfig", () => {
         },
         labels: { upload: "Choose an image" },
         csrfToken: "abc123",
-        debug: true,
       }),
     );
 
     expect(config).toEqual({
-      sizes: [{ name: "main", w: 220, h: 180 }],
       uploadTo: "img/uploads/%Y_%m",
       mediaUrl: "/media/",
-      fieldIdentifier: "large",
-      requireAltText: true,
-      preview: {
-        url: "/media/p.jpg",
-        rendererUrl: "https://thumb.example.com/unsafe/p.jpg",
-        srcset:
-          "https://thumb.example.com/unsafe/p.jpg, https://thumb.example.com/unsafe/p@2x.jpg 2x",
-        w: 800,
-        h: 500,
-      },
       legacyPreviewBounds: [640, 360],
       urls: {
-        index: "/cropduster/",
-        upload: "/cropduster/upload/",
-        crop: "/cropduster/crop/",
         api: "/cropduster/api/v1/",
       },
       dialogMode: "window",
       dispatchInputEvents: false,
-      features: { overrideSources: true },
       target: { model: "tests.article", objectId: 41, fieldName: "lead_image" },
       labels: {
         upload: "Choose an image",
         edit: DEFAULT_CONFIG.labels.edit,
-        cropContinue: DEFAULT_CONFIG.labels.cropContinue,
-        cropGenerate: DEFAULT_CONFIG.labels.cropGenerate,
-        reupload: DEFAULT_CONFIG.labels.reupload,
       },
       csrfToken: "abc123",
-      debug: true,
     });
   });
 
   it("falls back to defaults for a missing, empty or broken attribute", () => {
     for (const raw of [null, undefined, "", "not json", "[]", '"a string"']) {
       const config = parseConfig(raw);
-      expect(config.dialogMode).toBe("window");
+      expect(config.dialogMode).toBe("auto");
       expect(config.dispatchInputEvents).toBe(true);
       expect(config.labels.upload).toBe("Upload Image");
       expect(config.urls.api).toBeNull();
-      expect(config.sizes).toBeNull();
       expect(config.legacyPreviewBounds).toEqual([800, 500]);
     }
   });
@@ -92,23 +56,17 @@ describe("parseConfig", () => {
   it("ignores values of the wrong type", () => {
     const config = parseConfig(
       JSON.stringify({
-        sizes: "nope",
         dialogMode: "sideways",
         dispatchInputEvents: "yes",
-        preview: "none",
         urls: 3,
-        features: null,
         legacyPreviewBounds: "large",
         csrfToken: 7,
       }),
     );
 
-    expect(config.sizes).toBeNull();
-    expect(config.dialogMode).toBe("window");
+    expect(config.dialogMode).toBe("auto");
     expect(config.dispatchInputEvents).toBe(true);
-    expect(config.preview).toBeNull();
     expect(config.urls).toEqual(DEFAULT_CONFIG.urls);
-    expect(config.features.overrideSources).toBe(false);
     expect(config.legacyPreviewBounds).toEqual([800, 500]);
     expect(config.csrfToken).toBeNull();
   });

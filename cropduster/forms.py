@@ -72,9 +72,6 @@ def endpoint_urls():
     except NoReverseMatch:
         api = None
     return {
-        'index': reverse('cropduster-index'),
-        'upload': reverse('cropduster-upload'),
-        'crop': reverse('cropduster-crop'),
         'api': api,
     }
 
@@ -97,27 +94,18 @@ class CropDusterWidget(GenericForeignFileWidget):
             dbfield = getattr(self, 'rel_field', None)
 
         config = dict(ctx.get('config') or {})
+        config.pop('fieldIdentifier', None)
         config.update({
-            'sizes': ctx['size_objects'],
-            'requireAltText': bool(
-                getattr(dbfield, 'require_alt_text', False)),
-            'preview': {
-                'url': ctx['preview_url'],
-                'rendererUrl': ctx['preview_renderer_url'],
-                'srcset': ctx['preview_srcset'],
-                'w': ctx['preview_w'],
-                'h': ctx['preview_h'],
-            },
             'legacyPreviewBounds': {
                 'w': cropduster_settings.CROPDUSTER_PREVIEW_WIDTH,
                 'h': cropduster_settings.CROPDUSTER_PREVIEW_HEIGHT,
             },
             'urls': endpoint_urls(),
-            'dialogMode': cropduster_settings.CROPDUSTER_DIALOG_MODE,
+            'dialogMode': (
+                getattr(dbfield, 'dialog_mode', None)
+                or cropduster_settings.CROPDUSTER_DIALOG_MODE),
             'dispatchInputEvents': True,
-            'features': {'overrideSources': False},
             'target': self.get_target(dbfield, bound_field=bound_field),
-            'debug': bool(django_settings.DEBUG),
         })
         return config
 
