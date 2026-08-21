@@ -1,0 +1,164 @@
+{
+  "_meta": {
+    "description": "The crop POST upload.js sends after the upload above: crop-* fields from the upload response plus a one-form thumbs-* formset carrying the default centered crop (0, 125, 674, 551). The response carries the generated 'main' thumb and its auto child 'thumb'.",
+    "normalize": {
+      "applies_to": "raw response body text, before json.loads",
+      "function": "tests.data.legacy_wire.record.normalize",
+      "not_normalized": [
+        "md5 digests (inputs are fixed files; digests are reproducible)",
+        "database primary keys (each scenario runs against a flushed database with reset sequences)"
+      ],
+      "rules": [
+        {
+          "name": "DATE",
+          "pattern": "(?<=/)(?:19|20)\\d{2}/\\d{2}(?=/)",
+          "replacement": "{Y}/{m}",
+          "why": "upload_to values contain strftime codes (%Y/%m); the expanded year/month depends on the recording date."
+        },
+        {
+          "name": "DIR",
+          "pattern": "(?<=/)[^/\"\\\\]+(?=/[A-Za-z0-9_@.\\-]+\\.(?:jpe?g|png|gif|tiff?|webp)\\b)",
+          "replacement": "{DIR}",
+          "why": "get_upload_foldername() appends a -N suffix when a directory of that name already exists, so the slug depends on storage state."
+        },
+        {
+          "name": "MTIME",
+          "pattern": "(?<=[?&])(?:_|t|v|ts|mtime)=\\d{9,}",
+          "replacement": "{MTIME}",
+          "why": "mtime-based cache-busting query params on generated media URLs."
+        },
+        {
+          "name": "ERROR_ID",
+          "pattern": " id=\\\\?\"id_[^\"\\\\]*_error\\\\?\"",
+          "replacement": "",
+          "why": "Django 5.2 added ErrorList(field_id=...), which renders id=\"id_<auto_id>_error\" on the <ul class=\"errorlist\"> of a field error; earlier versions render no id at all."
+        }
+      ]
+    },
+    "request": {
+      "files": {},
+      "method": "POST",
+      "path": "/cropduster/crop/",
+      "post": {
+        "crop": "Crop and Generate Thumbs",
+        "crop-image_id": "",
+        "crop-orig_h": "800",
+        "crop-orig_image": "author/headshots/{Y}/{m}/{DIR}/original.jpg",
+        "crop-orig_w": "674",
+        "crop-sizes": "[{\"name\": \"main\", \"w\": 220, \"h\": 180, \"min_w\": 220, \"min_h\": 180, \"max_w\": null, \"max_h\": null, \"retina\": 0, \"label\": \"Main\", \"required\": true, \"__type__\": \"Size\", \"auto\": [{\"name\": \"thumb\", \"w\": 110, \"h\": 90, \"min_w\": 110, \"min_h\": 90, \"max_w\": null, \"max_h\": null, \"retina\": 0, \"label\": \"Thumb\", \"required\": true, \"__type__\": \"Size\"}]}]",
+        "crop-thumbs": "",
+        "thumbs-0-crop_h": "551",
+        "thumbs-0-crop_w": "674",
+        "thumbs-0-crop_x": "0",
+        "thumbs-0-crop_y": "125",
+        "thumbs-0-height": "",
+        "thumbs-0-id": "",
+        "thumbs-0-name": "main",
+        "thumbs-0-size": "{\"name\": \"main\", \"w\": 220, \"h\": 180, \"min_w\": 220, \"min_h\": 180, \"max_w\": null, \"max_h\": null, \"retina\": 0, \"label\": \"Main\", \"required\": true, \"__type__\": \"Size\", \"auto\": [{\"name\": \"thumb\", \"w\": 110, \"h\": 90, \"min_w\": 110, \"min_h\": 90, \"max_w\": null, \"max_h\": null, \"retina\": 0, \"label\": \"Thumb\", \"required\": true, \"__type__\": \"Size\"}]}",
+        "thumbs-0-thumbs": "",
+        "thumbs-0-width": "",
+        "thumbs-INITIAL_FORMS": "0",
+        "thumbs-MAX_NUM_FORMS": "1000",
+        "thumbs-MIN_NUM_FORMS": "0",
+        "thumbs-TOTAL_FORMS": "1"
+      }
+    },
+    "response": {
+      "content_type": "application/json",
+      "status_code": 200
+    },
+    "scenario": "crop_author_headshot",
+    "setup": "Preceded by the upload_author_headshot request in the same session and MEDIA_ROOT.",
+    "source": {
+      "request": "Not recorded from 4.15.0: the 5.0 dialog's own POST, built by tests/data/legacy_wire/record.py from the dialog config the client reads, and frozen beside the response it was answered with.",
+      "response": {
+        "cropduster_version": "4.15.0",
+        "django_version": "5.2.17",
+        "git_ref": "4.x",
+        "git_rev": "32167545c4ff386e2bfcca805fe9c78ffcb778cb",
+        "settings_module": "tests.settings"
+      }
+    }
+  },
+  "response": {
+    "crop": {
+      "image_id": null,
+      "orig_h": 800,
+      "orig_image": "author/headshots/{Y}/{m}/{DIR}/original.jpg",
+      "orig_w": 674,
+      "sizes": null,
+      "standalone": false,
+      "thumbs": {
+        "main": {
+          "height": 180,
+          "id": 1,
+          "name": "main",
+          "url": "/media/author/headshots/{Y}/{m}/{DIR}/main_tmp.jpg",
+          "width": 220
+        },
+        "thumb": {
+          "height": 90,
+          "id": 2,
+          "name": "thumb",
+          "url": "/media/author/headshots/{Y}/{m}/{DIR}/thumb_tmp.jpg",
+          "width": 110
+        }
+      }
+    },
+    "initial": true,
+    "preview_h": 500,
+    "preview_url": "/media/author/headshots/{Y}/{m}/{DIR}/_preview.jpg",
+    "preview_w": 421,
+    "thumbs": [
+      {
+        "changed": true,
+        "crop_h": 551,
+        "crop_w": 674,
+        "crop_x": 0,
+        "crop_y": 125,
+        "height": 180,
+        "id": 1,
+        "name": "main",
+        "size": {
+          "__type__": "Size",
+          "auto": [
+            {
+              "__type__": "Size",
+              "h": 90,
+              "label": "Thumb",
+              "max_h": null,
+              "max_w": null,
+              "min_h": 90,
+              "min_w": 110,
+              "name": "thumb",
+              "required": true,
+              "retina": 0,
+              "w": 110
+            }
+          ],
+          "h": 180,
+          "label": "Main",
+          "max_h": null,
+          "max_w": null,
+          "min_h": 180,
+          "min_w": 220,
+          "name": "main",
+          "required": true,
+          "retina": 0,
+          "w": 220
+        },
+        "thumbs": {
+          "main": {
+            "height": 180,
+            "id": 1,
+            "name": "main",
+            "url": "/media/author/headshots/{Y}/{m}/{DIR}/main_tmp.jpg",
+            "width": 220
+          }
+        },
+        "url": "/media/author/headshots/{Y}/{m}/{DIR}/main.jpg",
+        "width": 220
+      }
+    ]
+  }
+}
