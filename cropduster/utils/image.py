@@ -1,5 +1,3 @@
-from __future__ import division
-
 from io import BytesIO
 import os
 import warnings
@@ -8,12 +6,10 @@ import math
 import PIL.Image
 from PIL import ImageFile, JpegImagePlugin
 
-from django.core.files.storage import default_storage
-
-from cropduster.settings import (
-    get_jpeg_quality, JPEG_SAVE_ICC_SUPPORTED, CROPDUSTER_GIFSICLE_PATH)
+from cropduster.conf import settings as cropduster_settings
 
 from .gifsicle import GifsicleImage
+from .storage import get_image_storage
 
 
 __all__ = (
@@ -119,20 +115,22 @@ def is_animated_gif(im):
 
 
 def has_animated_gif_support():
-    return bool(CROPDUSTER_GIFSICLE_PATH)
+    return bool(cropduster_settings.CROPDUSTER_GIFSICLE_PATH)
 
 
-def process_image(im, save_filename=None, callback=lambda i: i, nq=0, save_params=None):
+def process_image(im, save_filename=None, callback=lambda i: i, nq=0, save_params=None,
+                  storage=None):
+    storage = storage or get_image_storage()
     is_animated = is_animated_gif(im)
     images = [im]
 
     if is_animated:
-        if not CROPDUSTER_GIFSICLE_PATH:
+        if not cropduster_settings.CROPDUSTER_GIFSICLE_PATH:
             warnings.warn(
                 "This server does not have animated gif support; your uploaded image "
                 "has been made static.")
         else:
-            images = [GifsicleImage(im)]
+            images = [GifsicleImage(im, storage=storage)]
 
     new_images = [callback(i) for i in images]
 
@@ -142,15 +140,16 @@ def process_image(im, save_filename=None, callback=lambda i: i, nq=0, save_param
     if save_filename:
         save_params = save_params or {}
         if im.format == 'JPEG':
-            save_params.setdefault('quality', get_jpeg_quality(new_images[0].size[0], new_images[0].size[1]))
-        if im.format in ('JPEG', 'PNG') and JPEG_SAVE_ICC_SUPPORTED:
+            save_params.setdefault('quality', cropduster_settings.get_jpeg_quality(
+                new_images[0].size[0], new_images[0].size[1]))
+        if im.format in ('JPEG', 'PNG') and cropduster_settings.JPEG_SAVE_ICC_SUPPORTED:
             save_params.setdefault('icc_profile', im.info.get('icc_profile'))
         img = new_images[0]
         buf = BytesIO()
         img.save(buf, format=im.format, **save_params)
-        with default_storage.open(save_filename, 'wb') as f:
+        with storage.open(save_filename, 'wb') as f:
             f.write(buf.getvalue())
-        with default_storage.open(save_filename, mode='rb') as f:
+        with storage.open(save_filename, mode='rb') as f:
             content = f.read()
             pil_image = PIL.Image.open(BytesIO(content))
         pil_image.filename = save_filename
