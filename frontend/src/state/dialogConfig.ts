@@ -56,7 +56,7 @@ export interface DialogUrls {
   api: string | null;
 }
 
-/** Parameters for loading an existing image from `api/v1/state/`. */
+/** Parameters for loading an existing image from `POST api/v1/state/`. */
 export type DialogHydrateParams = Record<string, string>;
 
 export interface DialogConfig {

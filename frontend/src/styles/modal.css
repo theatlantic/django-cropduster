@@ -1,0 +1,80 @@
+/**
+ * The modal's own chrome, adopted into its shadow root on top of `dialog.css`.
+ *
+ * The host is a light-DOM `<cropduster-dialog>` appended to `document.body`;
+ * it only mounts the shadow root. The panel is a native `<dialog>` opened
+ * with `showModal()`, so the browser centers it in the top layer, above any
+ * page z-index, and draws the backdrop.
+ *
+ * The panel is 4.x's popup, 960x650, shrunk to whatever a smaller viewport can
+ * hold. A field may request the modal explicitly at any viewport size, so the
+ * panel and its scrollable contents still have to fit a smaller page.
+ */
+
+.cropduster-modal-panel {
+  flex-direction: column;
+  width: 960px;
+  max-width: calc(100% - 32px);
+  height: 650px;
+  max-height: calc(100% - 32px);
+  padding: 0;
+  overflow: hidden;
+  background: #fff;
+  border: 0;
+  border-radius: 4px;
+  box-shadow: 0 6px 30px rgb(0 0 0 / 35%);
+}
+
+/* Author rules outrank the browser's `dialog:not([open]) { display: none }`,
+   so an unconditional `display: flex` would show the panel while closed.
+   Scoping it to `[open]` keeps the panel hidden between `close()` and the
+   unmount a microtask later. */
+.cropduster-modal-panel[open] {
+  display: flex;
+}
+
+.cropduster-modal-panel::backdrop {
+  background: var(--cropduster-modal-backdrop, rgb(0 0 0 / 50%));
+}
+
+.cropduster-modal-panel:focus {
+  outline: none;
+}
+
+/* The image well scrolls inside the dialog; the preview rail stays in flow. */
+.cropduster-modal-panel .cropduster-dialog {
+  position: static;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+/* Keep the heading row's source chip clear of the absolute close button. */
+.cropduster-modal-panel .dialog-header {
+  padding-right: 30px;
+}
+
+.cropduster-modal-panel .cropduster-dialog[data-standalone] footer.footer {
+  position: absolute;
+}
+
+.cropduster-modal-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  z-index: 1;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: #666;
+  font-size: 20px;
+  line-height: 24px;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.cropduster-modal-close:hover {
+  color: #111;
+  background: #eee;
+}

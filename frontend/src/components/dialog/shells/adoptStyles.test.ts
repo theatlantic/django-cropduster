@@ -15,6 +15,7 @@ import {
   adoptStyles,
   hostifyRootSelectors,
   refreshDialogStyles,
+  releaseDialogStyles,
 } from "./adoptStyles";
 
 // Read the real shipped stylesheet: vitest resolves `?inline` imports to
@@ -36,8 +37,8 @@ function adoptedText(root: ShadowRoot): string {
 }
 
 afterEach(() => {
-  // Vitest resolves the `?inline` imports to empty strings.
-  refreshDialogStyles({ reactCrop: "", dialog: "" });
+  // Vitest resolves the three `?inline` imports to empty strings.
+  refreshDialogStyles({ reactCrop: "", dialog: "", modal: "" });
   document.body.replaceChildren();
 });
 
@@ -97,11 +98,33 @@ describe("adoptStyles", () => {
 });
 
 describe("dialog style refresh", () => {
+  it("updates page and modal roots in place with the right cascade", () => {
+    const pageHost = document.createElement("div");
+    const modalHost = document.createElement("cropduster-dialog");
+    document.body.append(pageHost, modalHost);
+    const page = pageHost.attachShadow({ mode: "open" });
+    const modal = modalHost.attachShadow({ mode: "open" });
+    adoptDialogStyles(page, "page");
+    adoptDialogStyles(modal, "modal");
+
+    refreshDialogStyles({
+      dialog: ":root{--dialog-hot:1px}",
+      modal: ":host{--modal-hot:2px}",
+    });
+
+    expect(adoptedText(page)).toMatch(/--dialog-hot:\s*1px/);
+    expect(adoptedText(page)).not.toContain("--modal-hot");
+    expect(adoptedText(modal)).toMatch(/--dialog-hot:\s*1px/);
+    expect(adoptedText(modal)).toMatch(/--modal-hot:\s*2px/);
+    releaseDialogStyles(page);
+    releaseDialogStyles(modal);
+  });
+
   it("stops retaining a root once its host disconnects", () => {
     const host = document.createElement("cropduster-dialog");
     document.body.appendChild(host);
     const root = host.attachShadow({ mode: "open" });
-    adoptDialogStyles(root, "page");
+    adoptDialogStyles(root, "modal");
     host.remove();
 
     refreshDialogStyles({ dialog: ":host{--while-detached:1px}" });

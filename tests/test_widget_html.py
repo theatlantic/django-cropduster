@@ -457,6 +457,11 @@ class WidgetHtmlTest(WidgetHtmlTestBase):
         widgets = self.render("/admin/tests/author/add/")
         self.assertEqual(widget_config(parse(widgets[0]))['dialogMode'], 'window')
 
+    @override_settings(CROPDUSTER_DIALOG_MODE="modal")
+    def test_config_dialog_mode_can_request_the_modal(self):
+        widgets = self.render("/admin/tests/author/add/")
+        self.assertEqual(widget_config(parse(widgets[0]))['dialogMode'], 'modal')
+
     def test_config_target_names_the_field_being_edited(self):
         """
         What makes the API answer from the model rather than from the client.

@@ -9,6 +9,7 @@
 
 import type { LegacyCropDuster } from "../compat/globalApi";
 import type { LegacyCompletePayload } from "../formset/legacyPayload";
+import type { DialogRendererData } from "../state/types";
 
 /**
  * The opener, as this side of the boundary uses it: `window.CropDuster` for a
@@ -52,6 +53,7 @@ export function deliverCompletion(
   payload: LegacyCompletePayload,
   target: CompletionTarget,
   view: Window = window,
+  rendererData?: DialogRendererData,
 ): boolean {
   const parent = resolveParent(view);
   if (!parent) {
@@ -69,7 +71,11 @@ export function deliverCompletion(
     return false;
   }
   if (parent.CropDuster && target.elId) {
-    parent.CropDuster.complete(target.elId, payload);
+    if (rendererData === undefined) {
+      parent.CropDuster.complete(target.elId, payload);
+    } else {
+      parent.CropDuster.complete(target.elId, payload, rendererData);
+    }
     return true;
   }
   return false;

@@ -71,6 +71,15 @@ function cardThumb(prefix: string): Element | null {
   );
 }
 
+function cropCardThumb(prefix: string): Element | null {
+  return (
+    document
+      .getElementById(`${prefix}-group`)!
+      .querySelector(".cropduster-images")
+      ?.shadowRoot?.querySelector(".cropduster-crop-thumb") ?? null
+  );
+}
+
 beforeAll(async () => {
   // A change form with two widgets on it, plus a nested inline's empty-form
   // template, all present before the bundle runs, as on a real page load.
@@ -164,6 +173,77 @@ describe("the built bundle", () => {
     expect(images.children).toHaveLength(0);
     // Mounting would have attached the card's shadow root.
     expect(images.shadowRoot).toBeNull();
+  });
+
+  it("writes back through the legacy global", async () => {
+    const seen: unknown[] = [];
+    document.addEventListener("cropduster:update", (event) => {
+      seen.push((event as CustomEvent).detail);
+    });
+
+    const rendererPreview = "https://thumb.example.com/unsafe/preview.jpg";
+    const previewSrcset = `${rendererPreview}, https://thumb.example.com/unsafe/preview@2x.jpg 2x`;
+    const rendererWide = "https://thumb.example.com/unsafe/wide.jpg";
+    const wideSrcset = `${rendererWide}, https://thumb.example.com/unsafe/wide@2x.jpg 2x`;
+    legacyGlobal().complete(
+      "alt_image",
+      {
+        crop: {
+          image_id: 12,
+          orig_image: "article/alt_image/2026/09/x/original.jpg",
+          orig_w: 1600,
+          orig_h: 800,
+          thumbs: {
+            wide: {
+              id: 88,
+              name: "wide",
+              width: 600,
+              height: 300,
+              url: "/media/w.jpg",
+            },
+          },
+        },
+        thumbs: [],
+        initial: true,
+        preview_url: "/media/article/alt_image/2026/09/x/_preview.jpg",
+        preview_w: 800,
+        preview_h: 400,
+      },
+      {
+        preview: { url: rendererPreview, srcset: previewSrcset },
+        thumbs: {
+          wide: { url: rendererWide, srcset: wideSrcset },
+        },
+      },
+    );
+    await waitFor(() => cardThumb("alt_image"), {
+      message: "the crop to land in the alt_image widget",
+    });
+
+    const value = (id: string) =>
+      (document.getElementById(id) as HTMLInputElement).value;
+    expect(value("id_alt_image-0-id")).toBe("12");
+    expect(value("id_alt_image-0-image")).toBe(
+      "article/alt_image/2026/09/x/original.jpg",
+    );
+    expect(value("id_alt_image")).toBe(
+      "article/alt_image/2026/09/x/original.jpg",
+    );
+    expect(value("id_alt_image-TOTAL_FORMS")).toBe("1");
+
+    const option = document.querySelector<HTMLOptionElement>(
+      "#id_alt_image-0-thumbs option",
+    )!;
+    expect(option.value).toBe("88");
+    expect(option.getAttribute("data-tmp-file")).toBe("true");
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ prefix: "alt_image" });
+
+    expect(cardThumb("alt_image")?.getAttribute("src")).toBe(rendererPreview);
+    expect(cardThumb("alt_image")?.getAttribute("srcset")).toBe(previewSrcset);
+    expect(cropCardThumb("alt_image")?.getAttribute("src")).toBe(rendererWide);
+    expect(cropCardThumb("alt_image")?.getAttribute("srcset")).toBe(wideSrcset);
   });
 
   it("mounts the dialog into a shadow root of its own", () => {

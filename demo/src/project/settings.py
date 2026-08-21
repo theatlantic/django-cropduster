@@ -87,3 +87,4 @@ MEDIA_ROOT = str(DEMO_DIR / "media")
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 CROPDUSTER_CREATE_THUMBS = True
+CROPDUSTER_DIALOG_MODE = os.environ.get("CROPDUSTER_DIALOG_MODE") or "window"

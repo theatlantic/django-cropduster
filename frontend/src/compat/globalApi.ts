@@ -7,6 +7,7 @@
  */
 
 import { SELECTORS } from "../constants/classNames";
+import { openModalDialog } from "../components/dialog/shells/ModalShell";
 import { FormsetBridge } from "../formset/FormsetBridge";
 import type {
   LegacyCompletePayload,
@@ -15,13 +16,19 @@ import type {
 import { readData, readSizes, writeData } from "../dom/jquery";
 import { registry, rootForPrefix } from "../dom/registry";
 import type { WidgetHandle } from "../dom/registry";
+import { dialogConfigForWidget } from "../state/widgetDialogConfig";
+import type { DialogRendererData } from "../state/types";
 import { emitSizesChange, emitUpdate } from "./events";
 
 export interface LegacyCropDuster {
   /** Last-writer-wins global, as in 4.x; per-widget state is on the bridge. */
   mediaUrl: string;
   show(prefix: string, cropdusterUrl: string): void;
-  complete(prefix: string, data: LegacyCompletePayload): void;
+  complete(
+    prefix: string,
+    data: LegacyCompletePayload,
+    rendererData?: DialogRendererData,
+  ): void;
   setThumbnails(prefix: string, thumbs: Record<string, LegacyThumb>): void;
   createThumbnails(prefix: string): void;
   registerInput(input: Element | null): void;
@@ -159,25 +166,62 @@ export function createThumbnails(prefix: string): void {
   resolveWidget(prefix)?.refresh();
 }
 
-export function complete(prefix: string, data: LegacyCompletePayload): void {
+export function complete(
+  prefix: string,
+  data: LegacyCompletePayload,
+  rendererData?: DialogRendererData,
+): void {
   const bridge = resolveBridge(prefix);
   if (!bridge) {
     return;
   }
-  if (!bridge.writeComplete(data)) {
+  if (!bridge.writeComplete(data, rendererData)) {
     return;
   }
   createThumbnails(prefix);
   emitUpdate(prefix, data);
 }
 
+/** Apply a modal result through the widget that opened it. */
+export function completeWidget(
+  widget: WidgetHandle,
+  data: LegacyCompletePayload,
+  rendererData?: DialogRendererData,
+): void {
+  if (!widget.bridge.writeComplete(data, rendererData)) {
+    return;
+  }
+  widget.refresh();
+  emitUpdate(widget.bridge.prefix ?? "", data);
+}
+
+/** Open a modal when requested; otherwise use the existing crop window. */
+export function showWidget(
+  widget: WidgetHandle | null,
+  prefix: string,
+  cropdusterUrl: string,
+): void {
+  if (widget?.config.dialogMode === "modal") {
+    openModalDialog({
+      config: dialogConfigForWidget(widget),
+      // Retain the element so renaming its formset row cannot redirect the
+      // completed crop.
+      onComplete: (payload, rendererData) =>
+        completeWidget(widget, payload, rendererData),
+    });
+    return;
+  }
+  openDialogWindow(prefix, cropdusterUrl);
+}
+
 /**
  * `CropDuster.show(prefix, url)`, as external callers know it.
  *
- * The prefix is resolved the way 4.x resolved it, through `#id_{prefix}`.
+ * Resolve the prefix through `#id_{prefix}`, as in 4.x. `modal` opens in place;
+ * the other modes retain the crop window.
  */
 export function show(prefix: string, cropdusterUrl: string): void {
-  openDialogWindow(prefix, cropdusterUrl);
+  showWidget(resolveWidget(prefix), prefix, cropdusterUrl);
 }
 
 /**

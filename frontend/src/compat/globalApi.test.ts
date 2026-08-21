@@ -9,6 +9,7 @@ import {
 } from "vitest";
 import jQuery from "jquery";
 
+import { currentModal } from "../components/dialog/shells/ModalShell";
 import {
   CropDuster,
   complete,
@@ -29,6 +30,7 @@ import {
   flush,
   mountFixture,
   waitFor,
+  waitForWidget,
 } from "../testing/fixtures";
 
 const globals = globalThis as unknown as Record<string, unknown>;
@@ -124,6 +126,22 @@ describe("show", () => {
     expect(open.mock.calls[0]?.[0]).toBe(
       "/cropduster/?pop=1&sizes=%5B%5D&el_id=lead_image&cropduster_debug=1",
     );
+  });
+
+  it("opens a modal for a mounted widget that requests one", async () => {
+    const fixture = mountFixture({
+      sizes: [],
+      config: { dialogMode: "modal" },
+    });
+    await waitForWidget(fixture.container);
+    const { open } = spyOnOpen();
+
+    show("lead_image", "/cropduster/?pop=1");
+
+    const modal = await waitFor(currentModal, { message: "the modal to open" });
+    expect(open).not.toHaveBeenCalled();
+    modal.close();
+    await flush();
   });
 });
 

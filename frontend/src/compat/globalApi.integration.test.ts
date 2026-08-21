@@ -44,6 +44,12 @@ const globals = globalThis as unknown as Record<string, unknown>;
 
 const NEW_IMAGE = "article/lead_image/2026/09/new/original.jpg";
 const NEW_PREVIEW = "/media/article/lead_image/2026/09/new/_preview.jpg";
+const RENDERED_PREVIEW =
+  "https://thumb.example.com/unsafe/fit-in/800x500/media/article/lead_image/2026/09/new/original.jpg";
+const PREVIEW_SRCSET = `${RENDERED_PREVIEW}, https://thumb.example.com/unsafe/fit-in/1600x1000/media/article/lead_image/2026/09/new/original.jpg 2x`;
+const RENDERED_MAIN =
+  "https://thumb.example.com/unsafe/0x0:1300x1040/600x480/media/article/lead_image/2026/09/new/original.jpg";
+const MAIN_SRCSET = `${RENDERED_MAIN}, https://thumb.example.com/unsafe/0x0:1300x1040/1200x960/media/article/lead_image/2026/09/new/original.jpg 2x`;
 
 beforeAll(() => {
   defineWidgetElement();
@@ -161,6 +167,52 @@ describe("complete", () => {
       ["grp", "lead_image", data],
     ]);
     expect(native).toEqual([{ prefix: "lead_image", data }]);
+  });
+
+  it("stores optional renderer media without changing the legacy payload", async () => {
+    const fixture = loadFixture("article_change_lead_and_alt");
+    await waitForWidget(fixture.root("lead_image"));
+
+    const data = cropPayload();
+    data.crop.orig_w = 1300;
+    data.crop.orig_h = 1040;
+    data.preview_w = 625;
+    data.preview_h = 500;
+    complete("lead_image", data, {
+      preview: { url: RENDERED_PREVIEW, srcset: PREVIEW_SRCSET },
+      thumbs: {
+        main: { url: RENDERED_MAIN, srcset: MAIN_SRCSET },
+      },
+    });
+
+    const images = fixture
+      .root("lead_image")
+      .querySelector<HTMLElement>(".cropduster-images")!;
+    const preview = await waitFor(
+      () => cardQuery<HTMLImageElement>(images, ".cropduster-image-thumb"),
+      { message: "the renderer preview to render" },
+    );
+    const crop = cardQuery<HTMLImageElement>(images, ".cropduster-crop-thumb")!;
+    const main = fixture
+      .field("lead_image", "thumbs")
+      .querySelector<HTMLOptionElement>('option[value="41"]')!;
+
+    expect(preview.getAttribute("src")).toBe(RENDERED_PREVIEW);
+    expect(preview.getAttribute("srcset")).toBe(PREVIEW_SRCSET);
+    expect(crop.getAttribute("src")).toBe(RENDERED_MAIN);
+    expect(crop.getAttribute("srcset")).toBe(MAIN_SRCSET);
+    expect(main.getAttribute("data-url")).toBe(data.crop.thumbs.main?.url);
+    expect(main.getAttribute("data-renderer-url")).toBe(RENDERED_MAIN);
+    expect(main.getAttribute("data-renderer-srcset")).toBe(MAIN_SRCSET);
+    expect(
+      registry.byPrefix("lead_image")?.bridge.getSnapshot().preview,
+    ).toEqual({
+      url: NEW_PREVIEW,
+      rendererUrl: RENDERED_PREVIEW,
+      srcset: PREVIEW_SRCSET,
+      width: "625",
+      height: "500",
+    });
   });
 
   it("adopts hand-built markup that has no widget element", async () => {
