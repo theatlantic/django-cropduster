@@ -64,6 +64,10 @@ CSRF_INPUT_RE = re.compile(r'(?<=name="csrfmiddlewaretoken" value=")[^"]*(?=")')
 #: strftime codes, which expand at upload time.
 DATE_PATH_RE = re.compile(r"(?<=/)(?:19|20)\d{2}/\d{2}(?=/)")
 
+#: FileRenderer derives this value from ``date_modified`` on the row created
+#: while rendering the fixture.
+CACHE_BUSTER_RE = re.compile(r"(?<=\?mod=)\d+")
+
 NORMALIZE_RULES = [
     {
         "name": "CSRF_CONFIG",
@@ -88,12 +92,21 @@ NORMALIZE_RULES = [
             "upload_to values contain strftime codes (%Y/%m); the expanded "
             "year and month depend on the date the fixture was written."),
     },
+    {
+        "name": "CACHE_BUSTER",
+        "pattern": CACHE_BUSTER_RE.pattern,
+        "replacement": "{MOD}",
+        "why": (
+            "FileRenderer uses the Image or Thumb date_modified timestamp, "
+            "which is assigned when the fixture creates its rows."),
+    },
 ]
 
 _SUBSTITUTIONS = [
     (CSRF_CONFIG_RE, "{CSRF}"),
     (CSRF_INPUT_RE, "{CSRF}"),
     (DATE_PATH_RE, "{Y}/{m}"),
+    (CACHE_BUSTER_RE, "{MOD}"),
 ]
 
 
@@ -154,7 +167,7 @@ def prefix_haystack(config):
     """
     ``config`` as JSON, minus the values that are not formset prefixes.
 
-    ``uploadTo`` and the preview URL are built from the field's ``upload_to``,
+    ``uploadTo`` and the preview URLs are built from the field's ``upload_to``,
     and the test models name theirs after the field they belong to. Their
     overlap with the formset prefix is a property of the fixtures, not the
     widget putting a prefix where one does not belong. ``target.fieldName`` is
@@ -163,7 +176,8 @@ def prefix_haystack(config):
     """
     scrubbed = {key: value for key, value in config.items() if key != 'uploadTo'}
     scrubbed['preview'] = {
-        key: value for key, value in config['preview'].items() if key != 'url'}
+        key: value for key, value in config['preview'].items()
+        if key not in ('url', 'rendererUrl', 'srcset')}
     scrubbed['target'] = {
         key: value for key, value in (config['target'] or {}).items()
         if key != 'fieldName'}
@@ -269,8 +283,9 @@ class WidgetHtmlTestBase(CropdusterTestCaseMediaMixin, TransactionTestCase):
         self.assertEqual(data_field.get('type'), 'text')
         self.assertEqual(data_field.get('name'), prefix)
         self.assertEqual(data_field.get('id'), 'id_%s' % prefix)
-        for attr in ('data-sizes', 'data-preview-url', 'data-preview-w',
-                     'data-preview-h', 'data-upload-to'):
+        for attr in ('data-sizes', 'data-preview-url',
+                     'data-preview-renderer-url', 'data-preview-srcset',
+                     'data-preview-w', 'data-preview-h', 'data-upload-to'):
             self.assertIn(attr, data_field.attrib)
 
         element, = tree.xpath('.//cropduster-widget')
@@ -338,7 +353,8 @@ class WidgetHtmlTestBase(CropdusterTestCaseMediaMixin, TransactionTestCase):
         config = widget_config(parse(markup))
 
         self.assertEqual(set(config), self.EXPECTED_CONFIG_KEYS)
-        self.assertEqual(set(config['preview']), {'url', 'w', 'h'})
+        self.assertEqual(
+            set(config['preview']), {'url', 'rendererUrl', 'srcset', 'w', 'h'})
         self.assertEqual(set(config['urls']), {'index', 'upload', 'crop', 'api'})
         self.assertEqual(set(config['features']), {'overrideSources'})
         self.assertEqual(set(config['target']), {'model', 'objectId', 'fieldName'})
@@ -352,7 +368,7 @@ class WidgetHtmlTestBase(CropdusterTestCaseMediaMixin, TransactionTestCase):
         # at the row it was cloned from.
         self.assertIsNone(
             re.search(r'-(?:\d+|empty|__prefix__)-', raw),
-            "data-config carries a formset index: %s" % raw)
+            "data-config contains a formset index: %s" % raw)
 
         self.assertNotIn(prefix, prefix_haystack(config))
 
@@ -372,10 +388,10 @@ class WidgetHtmlTest(WidgetHtmlTestBase):
         """
         Two fields on one bound change form, one of them with an image.
 
-        ``alt_image`` carries a ``field_identifier``, which is what keeps two
-        cropduster fields on one model from reading each other's rows, and the
-        saved image on ``lead_image`` is what makes the formset render its
-        DELETE checkbox and its populated thumbs select.
+        ``alt_image`` has a ``field_identifier``, which keeps two cropduster
+        fields on one model from reading each other's rows, and the saved
+        image on ``lead_image`` makes the formset render its DELETE checkbox
+        and its populated thumbs select.
         """
         article = Article.objects.create(title="Some article")
         cropduster.attach(article, "lead_image", TEST_IMAGE,
@@ -391,6 +407,18 @@ class WidgetHtmlTest(WidgetHtmlTestBase):
 
         self.assertFalse(widget_config(parse(widgets[0]))['fieldIdentifier'])
         self.assertEqual(widget_config(parse(widgets[1]))['fieldIdentifier'], 'alt')
+
+        lead_tree = parse(widgets[0])
+        lead_config = widget_config(lead_tree)
+        lead_data, = lead_tree.xpath('.//input[@name="lead_image"]')
+        self.assertTrue(
+            lead_config['preview']['rendererUrl'].startswith(
+                lead_config['preview']['url']))
+        self.assertIsNone(lead_config['preview']['srcset'])
+        self.assertEqual(
+            lead_data.get('data-preview-renderer-url'),
+            lead_config['preview']['rendererUrl'])
+        self.assertEqual(lead_data.get('data-preview-srcset'), '')
 
         self.assert_fixture('article_change_lead_and_alt', widgets)
 

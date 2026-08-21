@@ -38,6 +38,9 @@ export const IMAGE_THUMB = "cropduster-image-thumb";
 /** Toggled on the wrapper while the DELETE checkbox is checked. */
 export const PREDELETE = "predelete";
 
+/** Toggled on the wrapper while no image is stored; hides the text fields. */
+export const NO_IMAGE = "cropduster-no-image";
+
 /** grappelli's spelling of the same state. */
 export const GRP_PREDELETE = "grp-predelete";
 

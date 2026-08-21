@@ -12,6 +12,8 @@ export interface ThumbOptionFixture {
   width?: number | string;
   height?: number | string;
   url?: string;
+  rendererUrl?: string;
+  rendererSrcset?: string;
   tmp?: boolean;
   selected?: boolean;
 }
@@ -23,8 +25,12 @@ export interface WidgetFixtureOptions {
   imageId?: string;
   sizes?: unknown[];
   previewUrl?: string;
+  previewRendererUrl?: string;
+  previewSrcset?: string;
   previewW?: number | string;
   previewH?: number | string;
+  origW?: number | string;
+  origH?: number | string;
   uploadTo?: string;
   mediaUrl?: string;
   cropdusterUrl?: string;
@@ -47,6 +53,8 @@ const DEFAULTS = {
   previewUrl: "/media/img/_preview.jpg",
   previewW: 800,
   previewH: 500,
+  origW: "" as number | string,
+  origH: "" as number | string,
   uploadTo: "img/uploads",
   mediaUrl: "/media/",
   cropdusterUrl: "/cropduster/?pop=1",
@@ -76,6 +84,12 @@ function optionHtml(thumb: ThumbOptionFixture): string {
   }
   if (thumb.url !== undefined) {
     parts.push(`data-url="${attr(thumb.url)}"`);
+  }
+  if (thumb.rendererUrl !== undefined) {
+    parts.push(`data-renderer-url="${attr(thumb.rendererUrl)}"`);
+  }
+  if (thumb.rendererSrcset !== undefined) {
+    parts.push(`data-renderer-srcset="${attr(thumb.rendererSrcset)}"`);
   }
   if (thumb.tmp !== false) {
     parts.push('data-tmp-file="true"');
@@ -110,18 +124,24 @@ export function widgetHtml(options: WidgetFixtureOptions = {}): string {
          class="cropduster-data-field cropduster-text-field"
          data-sizes="${attr(JSON.stringify(o.sizes))}"
          data-preview-url="${attr(o.previewUrl)}"
+         data-preview-renderer-url="${attr(o.previewRendererUrl ?? "")}"
+         data-preview-srcset="${attr(o.previewSrcset ?? "")}"
          data-preview-w="${attr(String(o.previewW))}"
          data-preview-h="${attr(String(o.previewH))}"
+         data-orig-w="${attr(String(o.origW))}"
+         data-orig-h="${attr(String(o.origH))}"
          data-upload-to="${attr(o.uploadTo)}">
   ${element}
   <a href="#" class="cropduster-customfield cropduster-upload-form" data-cropduster-url="${attr(o.cropdusterUrl)}">
     <div class="cropduster-button">Upload Image</div>
     <div style="clear:both; height:3px"></div>
   </a>
+  <div class="manual_images cropduster-image-group"><div class="thumbs cropduster-images"></div></div>
   <input type="hidden" name="${prefix}-TOTAL_FORMS" id="id_${prefix}-TOTAL_FORMS" value="${o.totalForms}">
   <input type="hidden" name="${prefix}-INITIAL_FORMS" id="id_${prefix}-INITIAL_FORMS" value="${o.initialForms}">
   <input type="hidden" name="${prefix}-MIN_NUM_FORMS" id="id_${prefix}-MIN_NUM_FORMS" value="0">
   <input type="hidden" name="${prefix}-MAX_NUM_FORMS" id="id_${prefix}-MAX_NUM_FORMS" value="1">
+  <div class="cropduster-fields">
   <div id="${prefix}-0">
     <span class="delete"><input type="checkbox" name="${prefix}-0-DELETE" id="id_${prefix}-0-DELETE"${o.deleted ? " checked" : ""}></span>
     <div class="form-row field-image">
@@ -136,7 +156,7 @@ export function widgetHtml(options: WidgetFixtureOptions = {}): string {
       <input type="text" name="${prefix}-0-caption" id="id_${prefix}-0-caption" value="">
     </div>
   </div>
-  <div class="manual_images cropduster-image-group"><div class="thumbs cropduster-images"></div></div>
+  </div>
 </div>`;
   return o.withRow
     ? `<div class="form-row field-${prefix.split("-").pop()}">${form}</div>`
@@ -297,6 +317,18 @@ export async function waitForWidget(
 }
 
 /** Append a widget's markup and wait for it to mount. */
+/** Query the widget's summary card, which renders in `images`' shadow root. */
+export function cardQuery<T extends Element = Element>(
+  images: HTMLElement,
+  selector: string,
+): T | null {
+  return (images.shadowRoot?.querySelector(selector) as T | null) ?? null;
+}
+
+export function cardQueryAll(images: HTMLElement, selector: string): Element[] {
+  return [...(images.shadowRoot?.querySelectorAll(selector) ?? [])];
+}
+
 export async function mountWidget(
   options: WidgetFixtureOptions = {},
 ): Promise<MountedFixture> {
@@ -306,7 +338,7 @@ export async function mountWidget(
 }
 
 /**
- * Resize the jsdom viewport, and hand back the undo.
+ * Resize the jsdom viewport, and return the undo.
  *
  * jsdom's `innerWidth`/`innerHeight` are fixed at 1024x768, which is large
  * enough for the modal; anything testing the other side of that choice has to

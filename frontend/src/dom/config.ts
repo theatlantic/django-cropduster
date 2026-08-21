@@ -20,12 +20,16 @@ export interface WidgetUrls {
 
 export interface WidgetPreviewConfig {
   url: string;
+  rendererUrl: string | null;
+  srcset: string | null;
   w: number | null;
   h: number | null;
 }
 
 export interface WidgetLabels {
   upload: string;
+  /** The widget button once an image exists, when it opens the crop stage. */
+  edit: string;
   cropContinue: string;
   cropGenerate: string;
   reupload: string;
@@ -69,6 +73,7 @@ export interface WidgetConfig {
 
 export const DEFAULT_LABELS: WidgetLabels = {
   upload: "Upload Image",
+  edit: "Edit Crops",
   cropContinue: "Crop and Continue",
   cropGenerate: "Crop and Generate Thumbs",
   reupload: "Re-Upload",
@@ -141,7 +146,13 @@ function preview(value: unknown): WidgetPreviewConfig | null {
   if (!isRecord(value)) {
     return null;
   }
-  return { url: str(value.url, ""), w: num(value.w), h: num(value.h) };
+  return {
+    url: str(value.url, ""),
+    rendererUrl: nullableStr(value.rendererUrl),
+    srcset: nullableStr(value.srcset),
+    w: num(value.w),
+    h: num(value.h),
+  };
 }
 
 function urls(value: unknown): WidgetUrls {
@@ -196,6 +207,7 @@ export function parseConfig(raw: string | null | undefined): WidgetConfig {
     target: target(parsed.target),
     labels: {
       upload: str(labels.upload, DEFAULT_LABELS.upload),
+      edit: str(labels.edit, DEFAULT_LABELS.edit),
       cropContinue: str(labels.cropContinue, DEFAULT_LABELS.cropContinue),
       cropGenerate: str(labels.cropGenerate, DEFAULT_LABELS.cropGenerate),
       reupload: str(labels.reupload, DEFAULT_LABELS.reupload),

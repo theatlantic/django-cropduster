@@ -10,8 +10,12 @@
        class="cropduster-data-field cropduster-text-field"
        data-sizes="{{ sizes }}"
        data-preview-url="{{ preview_url }}"
+       data-preview-renderer-url="{{ preview_renderer_url }}"
+       data-preview-srcset="{{ preview_srcset|default_if_none:'' }}"
        data-preview-w="{{ preview_w }}"
        data-preview-h="{{ preview_h }}"
+       data-orig-w="{{ orig_w }}"
+       data-orig-h="{{ orig_h }}"
        data-upload-to="{{ upload_to }}"/>
 
 <cropduster-widget data-config="{{ widget_config_json }}"></cropduster-widget>
@@ -21,10 +25,12 @@
     <div style="clear:both; height:3px"></div>
 </a>
 
-{% include "cropduster/inline.html" %}
-
 <div class="manual_images cropduster-image-group">
     <div class="thumbs cropduster-images"></div>
+</div>
+
+<div class="cropduster-fields">
+{% include "cropduster/inline.html" %}
 </div>
 
 <div style="clear:both"></div>

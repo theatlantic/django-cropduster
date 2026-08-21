@@ -15,6 +15,7 @@ import type { ValueObserver } from "../dom/valueObserver";
 import type { LegacyCompletePayload, LegacyThumb } from "./legacyPayload";
 import { derivePrefix, managementField } from "./naming";
 import type { ManagementKey } from "./naming";
+import type { DialogRendererData, RendererImageData } from "../state/types";
 
 /** One selected `<option>` of the thumbs multi-select. */
 export interface WidgetThumb {
@@ -24,14 +25,26 @@ export interface WidgetThumb {
   name: string;
   width: number | null;
   height: number | null;
+  /** `data-url`: the stored file, exactly as 4.x emitted it. */
   url: string | null;
+  /**
+   * `data-renderer-url`: the crop as the configured renderer serves it, which
+   * can be cache-busted or on another host entirely. Absent from markup a 4.x
+   * caller wrote.
+   */
+  rendererUrl: string | null;
+  /** `data-renderer-srcset`: higher-density candidates from the renderer. */
+  rendererSrcset: string | null;
   /** `data-tmp-file`: the file is at its tmp path until the parent saves. */
   tmp: boolean;
 }
 
 /** The preview rendition `createThumbnails` draws. */
 export interface WidgetPreview {
+  /** Stored preview URL retained for legacy consumers and the full-size link. */
   url: string;
+  rendererUrl: string;
+  srcset: string;
   width: string;
   height: string;
 }
@@ -45,7 +58,12 @@ export interface WidgetState {
   origImage: string;
   /** The bare `{prefix}` field, which holds the same name. */
   value: string;
+  /** `data-orig-w`/`data-orig-h`: the original's pixel dimensions. */
+  origWidth: number | null;
+  origHeight: number | null;
   thumbs: WidgetThumb[];
+  /** Whether the formset rendered a DELETE checkbox for this row. */
+  canDelete: boolean;
   deleted: boolean;
   preview: WidgetPreview;
 }
@@ -101,6 +119,8 @@ function sameThumbs(a: WidgetThumb[], b: WidgetThumb[]): boolean {
       thumb.width === other.width &&
       thumb.height === other.height &&
       thumb.url === other.url &&
+      thumb.rendererUrl === other.rendererUrl &&
+      thumb.rendererSrcset === other.rendererSrcset &&
       thumb.tmp === other.tmp
     );
   });
@@ -112,8 +132,13 @@ function sameState(a: WidgetState, b: WidgetState): boolean {
     a.imageId === b.imageId &&
     a.origImage === b.origImage &&
     a.value === b.value &&
+    a.origWidth === b.origWidth &&
+    a.origHeight === b.origHeight &&
+    a.canDelete === b.canDelete &&
     a.deleted === b.deleted &&
     a.preview.url === b.preview.url &&
+    a.preview.rendererUrl === b.preview.rendererUrl &&
+    a.preview.srcset === b.preview.srcset &&
     a.preview.width === b.preview.width &&
     a.preview.height === b.preview.height &&
     sameThumbs(a.thumbs, b.thumbs)
@@ -187,11 +212,16 @@ export class FormsetBridge {
       imageId: this.field("id")?.value ?? "",
       origImage: this.field("image")?.value ?? "",
       value: dataField?.value ?? "",
+      origWidth: toNumberOrNull(readData(dataField, "origW")),
+      origHeight: toNumberOrNull(readData(dataField, "origH")),
       thumbs: this.readThumbs(),
+      canDelete: deleteField instanceof HTMLInputElement,
       deleted:
         deleteField instanceof HTMLInputElement ? deleteField.checked : false,
       preview: {
         url: toValue(readData(dataField, "previewUrl")),
+        rendererUrl: toValue(readData(dataField, "previewRendererUrl")),
+        srcset: toValue(readData(dataField, "previewSrcset")),
         width: toValue(readData(dataField, "previewW")),
         height: toValue(readData(dataField, "previewH")),
       },
@@ -219,6 +249,8 @@ export class FormsetBridge {
         width: toNumberOrNull(option.getAttribute("data-width")),
         height: toNumberOrNull(option.getAttribute("data-height")),
         url: option.getAttribute("data-url"),
+        rendererUrl: option.getAttribute("data-renderer-url"),
+        rendererSrcset: option.getAttribute("data-renderer-srcset"),
         tmp: option.getAttribute("data-tmp-file") === "true",
       });
     }
@@ -253,6 +285,25 @@ export class FormsetBridge {
     }
   }
 
+  /**
+   * Stage or unstage the row's deletion through its DELETE checkbox, which
+   * the formset submits; the widget renders no form controls of its own.
+   */
+  setDeleted(deleted: boolean) {
+    const field = this.field("DELETE");
+    if (!(field instanceof HTMLInputElement) || field.checked === deleted) {
+      return;
+    }
+    field.checked = deleted;
+    if (this.#dispatchInputEvents) {
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    // A property write is invisible to the observer; notify subscribers
+    // directly.
+    this.#notify();
+  }
+
   /** Assign like jQuery's `.val()`, then dispatch the input events when
    * configured. */
   setValue(el: FieldElement | null, value: unknown) {
@@ -273,8 +324,14 @@ export class FormsetBridge {
    * as soon as this returns, and the `INITIAL_FORMS` reset is conditional on
    * the value just written to `-0-id`. Returns false when 4.x would have
    * returned early, leaving the thumbnails and the event to the caller.
+   *
+   * `rendererData` contains renderer URLs and density candidates that have
+   * no place in the frozen legacy payload. A 4.x caller does not pass it.
    */
-  writeComplete(data: LegacyCompletePayload): boolean {
+  writeComplete(
+    data: LegacyCompletePayload,
+    rendererData?: DialogRendererData,
+  ): boolean {
     const run = () => {
       const crop = data.crop;
       const idField = this.field("id");
@@ -289,11 +346,19 @@ export class FormsetBridge {
       if (typeof data.thumbs !== "object") {
         return false;
       }
-      this.setThumbOptions(crop?.thumbs ?? {});
+      this.setThumbOptions(crop?.thumbs ?? {}, rendererData?.thumbs);
       const dataField = this.dataField;
       writeData(dataField, "previewUrl", data.preview_url);
+      writeData(
+        dataField,
+        "previewRendererUrl",
+        rendererData?.preview.url ?? "",
+      );
+      writeData(dataField, "previewSrcset", rendererData?.preview.srcset ?? "");
       writeData(dataField, "previewW", data.preview_w);
       writeData(dataField, "previewH", data.preview_h);
+      writeData(dataField, "origW", crop?.orig_w ?? "");
+      writeData(dataField, "origH", crop?.orig_h ?? "");
       return true;
     };
 
@@ -310,7 +375,10 @@ export class FormsetBridge {
    * server widget emit, because `createThumbnails` and downstream admin
    * scripts read them back from the options.
    */
-  setThumbOptions(thumbs: Record<string, LegacyThumb>) {
+  setThumbOptions(
+    thumbs: Record<string, LegacyThumb>,
+    rendererData?: Record<string, RendererImageData>,
+  ) {
     const select = this.field("thumbs");
     if (!(select instanceof HTMLSelectElement)) {
       return;
@@ -330,6 +398,12 @@ export class FormsetBridge {
         setOptionAttr(option, "data-width", thumb.width);
         setOptionAttr(option, "data-height", thumb.height);
         setOptionAttr(option, "data-url", thumb.url);
+        setOptionAttr(option, "data-renderer-url", rendererData?.[name]?.url);
+        setOptionAttr(
+          option,
+          "data-renderer-srcset",
+          rendererData?.[name]?.srcset,
+        );
         option.setAttribute("data-tmp-file", "true");
         option.setAttribute("selected", "selected");
         select.appendChild(option);

@@ -8,7 +8,7 @@ from django.forms.models import ChoiceField, ModelMultipleChoiceField
 from django.forms.utils import flatatt
 from django.urls import NoReverseMatch, reverse
 from django.utils.encoding import force_str
-from django.utils.html import escape, conditional_escape
+from django.utils.html import escape, conditional_escape, format_html
 
 from generic_plus.forms import BaseGenericFileInlineFormSet, GenericForeignFileWidget
 
@@ -16,7 +16,54 @@ from .conf import settings as cropduster_settings
 from .utils import json
 from .utils.fields import get_cropduster_field
 
-__all__ = ('CropDusterWidget', 'CropDusterThumbFormField', 'CropDusterInlineFormSet')
+__all__ = (
+    'CropDusterWidget', 'CropDusterThumbFormField', 'CropDusterInlineFormSet',
+    'ModuleScript', 'ReactRefreshPreamble', 'bundle_media', 'endpoint_urls')
+
+
+WIDGET_CSS = ('cropduster/dist/cropduster.css',)
+WIDGET_JS = ('cropduster/dist/cropduster.js',)
+
+
+class ModuleScript(str):
+
+    def __html__(self):
+        path = str(forms.Media().absolute_path(self))
+        return format_html(
+            '<script type="module" src="{}"></script>', path)
+
+
+class ReactRefreshPreamble(str):
+    """Inline module installing the react-refresh runtime from the dev server.
+
+    ``@vitejs/plugin-react`` requires this preamble on pages the dev server
+    does not serve itself; without it every transformed module throws
+    "can't detect preamble" before the entry can run. The string value is the
+    dev server's ``@react-refresh`` URL, which keeps Django's media merge
+    deduplication working.
+    """
+
+    def __html__(self):
+        return format_html(
+            '<script type="module">'
+            "import RefreshRuntime from '{}';"
+            'RefreshRuntime.injectIntoGlobalHook(window);'
+            'window.$RefreshReg$ = () => {{}};'
+            'window.$RefreshSig$ = () => (type) => type;'
+            'window.__vite_plugin_react_preamble_installed__ = true;'
+            '</script>', str(self))
+
+
+def bundle_media():
+    dev_server = cropduster_settings.CROPDUSTER_DEV_SERVER_URL
+    if django_settings.DEBUG and dev_server:
+        base = '%s/' % dev_server.rstrip('/')
+        return forms.Media(js=[
+            ReactRefreshPreamble('%s@react-refresh' % base),
+            ModuleScript('%s@vite/client' % base),
+            ModuleScript('%ssrc/entry.tsx' % base),
+        ])
+    return forms.Media(css={'all': WIDGET_CSS}, js=WIDGET_JS)
 
 
 def endpoint_urls():
@@ -38,13 +85,9 @@ class CropDusterWidget(GenericForeignFileWidget):
 
     template = "cropduster/custom_field.html"
 
-    class Media:
-        css = {'all': ('cropduster/css/cropduster.css',)}
-        js = (
-            'admin/js/jquery.init.js',
-            'cropduster/js/jsrender.js',
-            'cropduster/js/cropduster.js',
-        )
+    @property
+    def media(self):
+        return bundle_media()
 
     def get_widget_config(self, ctx, bound_field=None):
         dbfield = getattr(
@@ -60,6 +103,8 @@ class CropDusterWidget(GenericForeignFileWidget):
                 getattr(dbfield, 'require_alt_text', False)),
             'preview': {
                 'url': ctx['preview_url'],
+                'rendererUrl': ctx['preview_renderer_url'],
+                'srcset': ctx['preview_srcset'],
                 'w': ctx['preview_w'],
                 'h': ctx['preview_h'],
             },
@@ -93,20 +138,32 @@ class CropDusterWidget(GenericForeignFileWidget):
         sizes = self.sizes
         related_object = ctx['instance']
         preview_url = ''
+        preview_renderer_url = ''
+        preview_srcset = None
         max_preview_w = cropduster_settings.CROPDUSTER_PREVIEW_WIDTH
         max_preview_h = cropduster_settings.CROPDUSTER_PREVIEW_HEIGHT
         preview_w = max_preview_w
         preview_h = max_preview_h
+        orig_w = ''
+        orig_h = ''
         if related_object:
             preview_url = related_object.get_image_url(size_name='_preview')
             orig_width, orig_height = related_object.width, related_object.height
             if (orig_width and orig_height):
+                orig_w, orig_h = orig_width, orig_height
                 resize_ratio = min(
                     max_preview_w / float(orig_width),
                     max_preview_h / float(orig_height))
                 if resize_ratio < 1:
                     preview_w = int(round(orig_width * resize_ratio))
                     preview_h = int(round(orig_height * resize_ratio))
+            from cropduster.renderers import get_renderer
+
+            renderer = get_renderer()
+            preview_renderer_url = renderer.preview_url(
+                related_object, width=preview_w, height=preview_h)
+            preview_srcset = renderer.preview_srcset(
+                related_object, width=preview_w, height=preview_h)
 
         if callable(sizes):
             instance = getattr(getattr(bound_field, 'form', None), 'instance', None)
@@ -121,8 +178,12 @@ class CropDusterWidget(GenericForeignFileWidget):
             'size_objects': sizes,
             'sizes': json.dumps(sizes),
             'preview_url': preview_url,
+            'preview_renderer_url': preview_renderer_url,
+            'preview_srcset': preview_srcset,
             'preview_w': preview_w,
             'preview_h': preview_h,
+            'orig_w': orig_w,
+            'orig_h': orig_h,
         })
         ctx['widget_config'] = self.get_widget_config(
             ctx, bound_field=bound_field)
@@ -157,8 +218,11 @@ class CropDusterThumbWidget(forms.SelectMultiple):
 
         super(CropDusterThumbWidget, self).__init__(*args, **kwargs)
         self.model = Thumb
+        self._renderer_thumbs = {}
 
     def get_option_attrs(self, value):
+        from cropduster.renderers import get_renderer
+
         if isinstance(value, self.model):
             thumb = value
         else:
@@ -168,16 +232,39 @@ class CropDusterThumbWidget(forms.SelectMultiple):
                 return {}
 
         if thumb.image_id:
-            thumb_url = thumb.image.get_image_url(size_name=thumb.name)
+            image = thumb.image
+            renderer = get_renderer()
+            thumb_url = image.get_image_url(size_name=thumb.name)
+            renderer_url = renderer.url(thumb, image=image)
+            renderer_thumbs = None
+            if not renderer.supports_metadata_only:
+                try:
+                    renderer_thumbs = self._renderer_thumbs[image.pk]
+                except KeyError:
+                    renderer_thumbs = self._renderer_thumbs[image.pk] = list(
+                        image.thumbs.all())
+            renderer_srcset = renderer.srcset(
+                thumb, image=image, thumbs=renderer_thumbs)
         else:
             thumb_url = None
+            renderer_url = None
+            renderer_srcset = None
 
-        return {
+        attrs = {
             'data-width': thumb.width,
             'data-height': thumb.height,
+            # The stored file, byte-identical to 4.x: downstream scripts read
+            # renditions from this exact attribute.
             'data-url': thumb_url,
             'data-tmp-file': json.dumps(not(thumb.image_id)),
         }
+        if renderer_url:
+            # What the configured renderer serves for this crop, which the
+            # widget's summary card displays.
+            attrs['data-renderer-url'] = renderer_url
+        if renderer_srcset:
+            attrs['data-renderer-srcset'] = renderer_srcset
+        return attrs
 
     def create_option(self, *args, **kwargs):
         option = super(CropDusterThumbWidget, self).create_option(*args, **kwargs)
