@@ -156,7 +156,7 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
             <p>&nbsp;</p>
             """ % image_url)
 
-    def test_ok_button_waits_for_a_committable_crop(self):
+    def test_ok_button_does_not_close_before_crop(self):
         self.load_admin(StandaloneArticle)
 
         with self.open_cropduster_ckeditor_dialog():
