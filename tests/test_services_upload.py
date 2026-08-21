@@ -1,6 +1,4 @@
 import os
-import shutil
-import tempfile
 from io import BytesIO
 from urllib.parse import urlsplit
 
@@ -166,15 +164,10 @@ class TestStoreUpload(CropdusterTestCaseMediaMixin, test.TestCase):
             store_upload(
                 SimpleUploadedFile('img.jpg', b'not an image'), upload_to='uploads')
 
-    def test_storage_kwarg_is_where_the_upload_lands(self):
-        tmpdir = tempfile.mkdtemp(prefix='TEST_STORE_UPLOAD_')
-        self.addCleanup(shutil.rmtree, tmpdir)
-        storage = FileSystemStorage(location=tmpdir)
-
-        result = store_upload(upload_file(), upload_to='uploads', storage=storage)
-
-        self.assertTrue(storage.exists(result.original_name))
-        self.assertTrue(os.path.exists(os.path.join(tmpdir, 'uploads/img/original.jpg')))
+    def test_a_per_call_storage_is_not_accepted(self):
+        with self.assertRaises(TypeError):
+            store_upload(
+                upload_file(), upload_to='uploads', storage=object())
 
     def test_animated_gif_warning(self):
         with open(os.path.join(self.TEST_IMG_DIR, 'animated.gif'), 'rb') as f:
