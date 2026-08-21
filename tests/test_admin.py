@@ -48,12 +48,9 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
             el.click()
 
         with self.switch_to_popup_window():
-            with self.visible_selector('#id_image') as el:
-                el.send_keys(os.path.join(self.TEST_IMG_DIR, 'img.png'))
-            with self.clickable_selector('#upload-button') as el:
-                el.click()
-            with self.clickable_selector('#crop-button') as el:
-                el.click()
+            self.wait_for_dialog()
+            self.dialog_upload(os.path.join(self.TEST_IMG_DIR, 'img.png'))
+            self.dialog_save()
 
         self.save_form()
 
@@ -104,14 +101,9 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
         browser.find_element(By.CSS_SELECTOR, '#lead_image-group .cropduster-button').click()
 
         with self.switch_to_popup_window():
-            with self.visible_selector('#id_image') as el:
-                el.send_keys(os.path.join(self.TEST_IMG_DIR, 'img.jpg'))
-            with self.clickable_selector('#upload-button') as el:
-                el.click()
-            with self.clickable_selector('#crop-button') as el:
-                el.click()
-            with self.clickable_selector('#crop-button:not(.disabled)') as el:
-                el.click()
+            self.wait_for_dialog()
+            self.dialog_upload(os.path.join(self.TEST_IMG_DIR, 'img.jpg'))
+            self.dialog_save()
 
         # Upload and crop second Image
         with self.clickable_selector('#alt_image-group .cropduster-button') as el:
@@ -121,12 +113,9 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
             el.click()
 
         with self.switch_to_popup_window():
-            with self.visible_selector('#id_image') as el:
-                el.send_keys(os.path.join(self.TEST_IMG_DIR, 'img.png'))
-            with self.clickable_selector('#upload-button') as el:
-                el.click()
-            with self.clickable_selector('#crop-button') as el:
-                el.click()
+            self.wait_for_dialog()
+            self.dialog_upload(os.path.join(self.TEST_IMG_DIR, 'img.png'))
+            self.dialog_save()
 
         # Add required FK
         browser.find_element(By.XPATH, '//select[@id="id_author"]/option[@value=%d]' % author.pk).click()
@@ -224,12 +213,9 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
             el.click()
 
         with self.switch_to_popup_window():
-            with self.visible_selector('#id_image') as el:
-                el.send_keys(os.path.join(self.TEST_IMG_DIR, 'img.jpg'))
-            with self.clickable_selector('#upload-button') as el:
-                el.click()
-            with self.clickable_selector('#crop-button') as el:
-                el.click()
+            self.wait_for_dialog()
+            self.dialog_upload(os.path.join(self.TEST_IMG_DIR, 'img.jpg'))
+            self.dialog_save()
 
         self.save_form()
 
@@ -250,12 +236,9 @@ class TestAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
             el.click()
 
         with self.switch_to_popup_window():
-            with self.visible_selector('#id_image') as el:
-                el.send_keys(os.path.join(self.TEST_IMG_DIR, 'img2.jpg'))
-            with self.clickable_selector('#upload-button') as el:
-                el.click()
-            with self.clickable_selector('#crop-button') as el:
-                el.click()
+            self.wait_for_dialog()
+            self.dialog_upload(os.path.join(self.TEST_IMG_DIR, 'img2.jpg'))
+            self.dialog_save()
 
         self.save_form()
 

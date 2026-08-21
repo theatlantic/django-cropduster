@@ -96,6 +96,12 @@ class LegacyWidgetShimTest(SimpleTestCase):
             self.assertTrue(os.path.exists(path), name)
             self.assertGreater(os.path.getsize(path), 0, name)
 
+    def test_crop_form_no_longer_loads_popup_assets(self):
+        from cropduster.views.forms import CropForm
+
+        self.assertEqual(list(CropForm().media._js), [])
+        self.assertEqual(dict(CropForm().media._css), {})
+
 
 class WidgetLicenseTest(SimpleTestCase):
 
@@ -107,10 +113,10 @@ class WidgetLicenseTest(SimpleTestCase):
         listed = re.findall(r'^## (\S+) - (\S+) \((\S+)\)$', self.notices(), re.M)
         self.assertEqual(
             sorted(name for name, _version, _license in listed),
-            ['react', 'react-dom', 'scheduler'])
+            ['react', 'react-dom', 'react-image-crop', 'scheduler'])
 
     def test_each_notice_contains_its_license_text(self):
         notices = self.notices()
         self.assertEqual(
-            len(re.findall(r'(?im)^copyright \(c\)', notices)), 3)
-        self.assertEqual(len(re.findall(r'(?im)^permission ', notices)), 3)
+            len(re.findall(r'(?im)^copyright \(c\)', notices)), 4)
+        self.assertEqual(len(re.findall(r'(?im)^permission ', notices)), 4)
