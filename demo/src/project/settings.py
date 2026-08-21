@@ -87,4 +87,7 @@ MEDIA_ROOT = str(DEMO_DIR / "media")
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 CROPDUSTER_CREATE_THUMBS = True
-CROPDUSTER_DIALOG_MODE = os.environ.get("CROPDUSTER_DIALOG_MODE") or "window"
+CROPDUSTER_DIALOG_MODE = os.environ.get("CROPDUSTER_DIALOG_MODE") or "auto"
+
+# Allow `/tiny-iframe/` to embed the admin from the same origin.
+X_FRAME_OPTIONS = "SAMEORIGIN"

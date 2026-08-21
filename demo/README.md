@@ -19,8 +19,10 @@ Start the development server:
 uv run --project demo python demo/src/manage.py runserver 127.0.0.1:8000
 ```
 
-Set `CROPDUSTER_DIALOG_MODE=modal` when starting the server to open the crop
-dialog over the admin page. The default is `window`.
+With the default `auto` mode, the dialog opens as a modal on a full-size
+admin page. Set `CROPDUSTER_DIALOG_MODE=window` to always use a separate
+window. The `/tiny-iframe/` page embeds the Article form at 830x550, where
+`auto` selects the window because the modal does not fit.
 
 Open <http://127.0.0.1:8000/admin/> and sign in with username `admin` and
 password `admin`. The Article form is the smallest example. Upload an image in

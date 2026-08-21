@@ -33,6 +33,9 @@ CROPDUSTER_DB_PREFIX = _resolve_db_prefix()
 CROPDUSTER_V4_APP_LABEL = CROPDUSTER_APP_LABEL
 CROPDUSTER_V4_DB_PREFIX = CROPDUSTER_DB_PREFIX
 
+#: Values accepted by the project setting and per-field override.
+DIALOG_MODES = ('auto', 'modal', 'window')
+
 
 def default_jpeg_quality(width, height):
     """JPEG quality as a function of pixel count."""
@@ -124,8 +127,8 @@ class CropDusterSettings:
 
     @property
     def CROPDUSTER_DIALOG_MODE(self):
-        """Default crop dialog presentation."""
-        return getattr(django_settings, 'CROPDUSTER_DIALOG_MODE', 'window')
+        """Default dialog mode used when the field does not set one."""
+        return getattr(django_settings, 'CROPDUSTER_DIALOG_MODE', 'auto')
 
     @property
     def CROPDUSTER_DEV_SERVER_URL(self):
@@ -153,7 +156,9 @@ SETTING_NAMES = tuple(sorted(
     name for name in dir(settings)
     if name.isupper() and not name.startswith('_')))
 
-__all__ = ('default_jpeg_quality', 'get_jpeg_quality', 'settings') + SETTING_NAMES
+__all__ = (
+    'DIALOG_MODES', 'default_jpeg_quality', 'get_jpeg_quality', 'settings',
+) + SETTING_NAMES
 
 
 def get_jpeg_quality(width, height):

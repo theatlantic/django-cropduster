@@ -18,6 +18,7 @@ import { registry, rootForPrefix } from "../dom/registry";
 import type { WidgetHandle } from "../dom/registry";
 import { dialogConfigForWidget } from "../state/widgetDialogConfig";
 import type { DialogRendererData } from "../state/types";
+import { pickPresentation } from "../window/pickPresentation";
 import { emitSizesChange, emitUpdate } from "./events";
 
 export interface LegacyCropDuster {
@@ -201,7 +202,7 @@ export function showWidget(
   prefix: string,
   cropdusterUrl: string,
 ): void {
-  if (widget?.config.dialogMode === "modal") {
+  if (widget && pickPresentation(widget.config) === "modal") {
     openModalDialog({
       config: dialogConfigForWidget(widget),
       // Retain the element so renaming its formset row cannot redirect the
@@ -217,8 +218,8 @@ export function showWidget(
 /**
  * `CropDuster.show(prefix, url)`, as external callers know it.
  *
- * Resolve the prefix through `#id_{prefix}`, as in 4.x. `modal` opens in place;
- * the other modes retain the crop window.
+ * Resolve the current widget through `#id_{prefix}`, then select its modal or
+ * window from the field setting and viewport size.
  */
 export function show(prefix: string, cropdusterUrl: string): void {
   showWidget(resolveWidget(prefix), prefix, cropdusterUrl);

@@ -78,7 +78,7 @@ describe("parseConfig", () => {
   it("falls back to defaults for a missing, empty or broken attribute", () => {
     for (const raw of [null, undefined, "", "not json", "[]", '"a string"']) {
       const config = parseConfig(raw);
-      expect(config.dialogMode).toBe("window");
+      expect(config.dialogMode).toBe("auto");
       expect(config.dispatchInputEvents).toBe(true);
       expect(config.labels.upload).toBe("Upload Image");
       expect(config.urls.api).toBeNull();
@@ -100,7 +100,7 @@ describe("parseConfig", () => {
     );
 
     expect(config.sizes).toBeNull();
-    expect(config.dialogMode).toBe("window");
+    expect(config.dialogMode).toBe("auto");
     expect(config.dispatchInputEvents).toBe(true);
     expect(config.preview).toBeNull();
     expect(config.urls).toEqual(DEFAULT_CONFIG.urls);

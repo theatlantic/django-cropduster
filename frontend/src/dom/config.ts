@@ -87,7 +87,7 @@ export const DEFAULT_CONFIG: WidgetConfig = {
   requireAltText: false,
   preview: null,
   urls: { index: null, upload: null, crop: null, api: null },
-  dialogMode: "window",
+  dialogMode: "auto",
   dispatchInputEvents: true,
   features: { overrideSources: false },
   target: null,

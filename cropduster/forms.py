@@ -109,7 +109,9 @@ class CropDusterWidget(GenericForeignFileWidget):
                 'h': ctx['preview_h'],
             },
             'urls': endpoint_urls(),
-            'dialogMode': cropduster_settings.CROPDUSTER_DIALOG_MODE,
+            'dialogMode': (
+                getattr(dbfield, 'dialog_mode', None)
+                or cropduster_settings.CROPDUSTER_DIALOG_MODE),
             'dispatchInputEvents': True,
             'features': {'overrideSources': False},
             'target': self.get_target(dbfield, bound_field=bound_field),

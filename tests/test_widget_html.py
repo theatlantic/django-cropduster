@@ -452,13 +452,24 @@ class WidgetHtmlTest(WidgetHtmlTestBase):
         self.assertIn('csrfToken', config)
         self.assertIsNone(config['csrfToken'])
 
-    @override_settings(CROPDUSTER_DIALOG_MODE="window")
     def test_config_dialog_mode_follows_the_setting(self):
         widgets = self.render("/admin/tests/author/add/")
-        self.assertEqual(widget_config(parse(widgets[0]))['dialogMode'], 'window')
+        self.assertEqual(widget_config(parse(widgets[0]))['dialogMode'], 'auto')
 
     @override_settings(CROPDUSTER_DIALOG_MODE="modal")
     def test_config_dialog_mode_can_request_the_modal(self):
+        widgets = self.render("/admin/tests/author/add/")
+        self.assertEqual(widget_config(parse(widgets[0]))['dialogMode'], 'modal')
+
+    def test_config_dialog_mode_follows_the_field_when_it_declares_one(self):
+        widgets = self.render("/admin/tests/windowdialogfield/add/")
+        self.assertEqual(widget_config(parse(widgets[0]))['dialogMode'], 'window')
+
+    @override_settings(CROPDUSTER_DIALOG_MODE="modal")
+    def test_config_dialog_mode_prefers_the_field_over_the_setting(self):
+        widgets = self.render("/admin/tests/windowdialogfield/add/")
+        self.assertEqual(widget_config(parse(widgets[0]))['dialogMode'], 'window')
+
         widgets = self.render("/admin/tests/author/add/")
         self.assertEqual(widget_config(parse(widgets[0]))['dialogMode'], 'modal')
 

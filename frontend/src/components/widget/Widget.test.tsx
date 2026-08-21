@@ -149,6 +149,24 @@ describe("upload button", () => {
     currentModal()?.close();
     await flush();
   });
+
+  it("opens the modal by default when the viewport can hold one", async () => {
+    const fixture = await mountWidget({ sizes: [] });
+    const open = vi
+      .spyOn(window, "open")
+      .mockReturnValue({ focus: vi.fn() } as unknown as Window);
+
+    fixture.anchor.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const modal = await waitFor(
+      () => document.querySelector("cropduster-dialog"),
+      { message: "the modal to open" },
+    );
+
+    expect(open).not.toHaveBeenCalled();
+    expect(modal.getAttribute("data-state")).toBe("open");
+    currentModal()?.close();
+    await flush();
+  });
 });
 
 describe("thumbnails", () => {
