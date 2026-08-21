@@ -56,6 +56,11 @@ from generic_plus.utils import get_relative_media_url
 from cropduster.files import ImageFile
 from cropduster.models import Thumb, Size, StandaloneImage, Image
 from cropduster.conf import settings as cropduster_settings
+from cropduster.resizing import Box
+from cropduster.services.crop import ThumbRequest, apply_crops
+from cropduster.services.payload import (
+    build_payload, legacy_crop_response, payload_to_legacy)
+from cropduster.services.upload import adopt_standalone
 from cropduster.standalone import NOT_INSTALLED_MESSAGE, standalone_available
 from cropduster.utils import (
     json, is_animated_gif, has_animated_gif_support, process_image)
@@ -64,6 +69,9 @@ from cropduster.exceptions import json_error, CropDusterResizeException, full_ex
 
 from .forms import CropForm, ThumbForm, ThumbFormSet, UploadForm
 from .utils import get_admin_base_template, FakeQuerySet
+
+
+CROP_FIELDS = frozenset(['crop_x', 'crop_y', 'crop_w', 'crop_h'])
 
 
 class CropDusterIndex(View):
@@ -210,47 +218,12 @@ class CropDusterIndex(View):
 index = CropDusterIndex.as_view()
 
 
-def tmp_rendition_is_current(thumb):
-    """
-    Whether the tmp rendition for this thumb's size holds the pixels for
-    this thumb's crop coordinates. Thumb.save() copies the tmp rendition
-    over the saved one when the parent form saves, so the crop view must
-    not regenerate a current tmp rendition from the saved rendition.
-
-    The crop view inserts a new Thumb row and writes the tmp rendition
-    when coordinates change, while the row from the previous parent-form
-    save keeps its image foreign key until the next one. The submitted
-    "changed" flag can't be used to detect this state, because the index
-    view reinitializes the flag to False whenever the dialog is
-    reopened.
-    """
-    if not thumb.image_id:
-        # This thumb's tmp rendition has never been copied to the saved
-        # name (e.g. the thumb was created by a crop right after an
-        # upload); it is the only rendition the thumb has.
-        return True
-    sibling_pks = list(
-        Thumb.objects
-        .filter(image_id=thumb.image_id, name=thumb.name)
-        .exclude(pk=thumb.pk)
-        .values_list('pk', flat=True))
-    # With an older same-name sibling still attached to the image, this
-    # thumb is the pending re-crop. A newer sibling means the reverse: the
-    # tmp rendition holds that row's pixels, not this one's.
-    return bool(sibling_pks) and thumb.pk > max(sibling_pks)
-
-
 @csrf_exempt
 @login_required
 @xframe_options_exempt
 def upload(request):
     if request.method == 'GET':
         return index(request)
-
-    # The data we'll be returning as JSON
-    data = {
-        'warning': [],
-    }
 
     form = UploadForm(request.POST, request.FILES)
 
@@ -263,129 +236,27 @@ def upload(request):
     is_standalone = bool(form_data.get('standalone'))
 
     if is_standalone and not standalone_available():
-        return json_error(
-            request, 'upload', action='uploading file',
-            errors=[NOT_INSTALLED_MESSAGE])
+        return json_error(request, 'upload', action="uploading file",
+                errors=[NOT_INSTALLED_MESSAGE])
 
-    orig_file_path = form_data['image'].name
-    orig_image = get_relative_media_url(orig_file_path)
+    # Form validation stored the file. Create standalone rows only after the
+    # optional metadata dependency has been checked.
+    result = form_data['upload_result']
+    if is_standalone:
+        result = adopt_standalone(
+            result, sizes=form_data.get('sizes'),
+            preview_size=(
+                form_data.get('preview_width'), form_data.get('preview_height')))
 
-    with get_image_storage().open(orig_image, mode='rb') as f:
-        img = PIL.Image.open(BytesIO(f.read()))
-        img.filename = f.name
+    payload = build_payload(
+        result.image,
+        thumbs=[result.standalone_thumb] if result.standalone_thumb else [],
+        sizes=result.sizes,
+        preview=result.preview,
+        warnings=result.warnings)
 
-    (w, h) = (orig_w, orig_h) = img.size
-
-    if is_animated_gif(img) and not has_animated_gif_support():
-        data['warning'].append(
-            "This server does not have animated gif support; your uploaded image "
-            "has been made static.")
-
-    tmp_image = Image(image=orig_image)
-    preview_w = (
-        form_data.get('preview_width')
-        or cropduster_settings.CROPDUSTER_PREVIEW_WIDTH)
-    preview_h = (
-        form_data.get('preview_height')
-        or cropduster_settings.CROPDUSTER_PREVIEW_HEIGHT)
-
-    # First pass resize if it's too large
-    resize_ratio = min(preview_w / w, preview_h / h)
-
-    def fit_preview(im):
-        (w, h) = im.size
-        if resize_ratio < 1:
-            w = int(round(w * resize_ratio))
-            h = int(round(h * resize_ratio))
-            preview_img = im.resize((w, h), PIL.Image.LANCZOS)
-        else:
-            preview_img = im
-        return preview_img
-
-    if not is_standalone:
-        preview_file_path = tmp_image.get_image_path('_preview')
-        process_image(img, preview_file_path, fit_preview)
-
-    data.update({
-        'crop': {
-            'orig_image': orig_image,
-            'orig_w': orig_w,
-            'orig_h': orig_h,
-            'image_id': None,
-        },
-        'url': tmp_image.get_image_url('_preview'),
-        'orig_image': orig_image,
-        'orig_w': orig_w,
-        'orig_h': orig_h,
-        'width': w,
-        'height': h,
-    })
-    if not is_standalone:
-        return HttpResponse(json.dumps(data), content_type='application/json')
-
-    size = Size('crop', w=img.size[0], h=img.size[1])
-
-    md5 = form_data.get('md5')
-    try:
-        standalone_image = StandaloneImage.objects.get(md5=md5)
-    except StandaloneImage.DoesNotExist:
-        standalone_image = StandaloneImage(md5=md5, image=orig_image)
-        standalone_image.save()
-    cropduster_image, created = Image.objects.get_or_create(
-        content_type=ContentType.objects.get_for_model(StandaloneImage),
-        object_id=standalone_image.pk)
-
-    if not cropduster_image.image:
-        cropduster_image.image = orig_image
-        cropduster_image.save()
-    elif cropduster_image.image.name != orig_image:
-        # A file with this md5 was uploaded earlier and the response
-        # references that image, so the original written during form
-        # validation is unreferenced. Its directory holds nothing else:
-        # in standalone mode the preview and the crop files are written
-        # under the retained image's directory.
-        default_storage.delete(orig_image)
-        try:
-            os.rmdir(os.path.dirname(default_storage.path(orig_image)))
-        except (NotImplementedError, OSError):
-            pass
-        data['crop']['orig_image'] = data['orig_image'] = cropduster_image.image.name
-        data['url'] = cropduster_image.get_image_url('_preview')
-
-    with cropduster_image.image_file_open() as f:
-        img = PIL.Image.open(BytesIO(f.read()))
-        img.filename = f.name
-    preview_file_path = cropduster_image.get_image_path('_preview')
-    if not cropduster_image.storage.exists(preview_file_path):
-        process_image(img, preview_file_path, fit_preview)
-
-    thumb = cropduster_image.save_size(size, standalone=True, commit=False)
-
-    sizes = form_data.get('sizes') or []
-    if len(sizes) == 1:
-        size = sizes[0]
-    else:
-        size = Size('crop')
-
-    data.update({
-        'thumbs': [{
-            'crop_x': thumb.crop_x,
-            'crop_y': thumb.crop_y,
-            'crop_w': thumb.crop_w,
-            'crop_h': thumb.crop_h,
-            'width':  thumb.width,
-            'height': thumb.height,
-            'id': None,
-            'changed': True,
-            'size': json.dumps(size),
-            'name': thumb.name,
-        }]
-    })
-    data['crop'].update({
-        'image_id': cropduster_image.pk,
-        'sizes': json.dumps([size]),
-    })
-    return HttpResponse(json.dumps(data), content_type='application/json')
+    return HttpResponse(
+        json.dumps(payload_to_legacy(payload)), content_type='application/json')
 
 
 @csrf_exempt
@@ -405,9 +276,8 @@ def crop(request):
     standalone_mode = crop_data['standalone']
 
     if standalone_mode and not standalone_available():
-        return json_error(
-            request, 'crop', action='cropping image',
-            errors=[NOT_INSTALLED_MESSAGE])
+        return json_error(request, 'crop', action="cropping image",
+                errors=[NOT_INSTALLED_MESSAGE])
 
     if crop_data.get('image_id'):
         db_image = Image.objects.get(pk=crop_data['image_id'])
@@ -430,14 +300,6 @@ def crop(request):
 
     cropped_thumbs = thumb_formset.save(commit=False)
 
-    non_model_fields = set(ThumbForm.declared_fields) - set([f.name for f in Thumb._meta.fields])
-
-    # The fields we will pull from when populating the ThumbForm initial data
-    json_thumb_fields = ['id', 'name', 'width', 'height']
-
-    thumbs_with_crops = [t for t in cropped_thumbs if t.crop_w and t.crop_h]
-    thumbs_data = [f.cleaned_data for f in thumb_formset]
-
     # Address a standalone mode issue where, because the thumbs don't have a pk value,
     # Django no longer returns them in Formset.save() if they are in initial_forms
     if standalone_mode and not cropped_thumbs and len(thumb_formset.initial_forms):
@@ -445,112 +307,45 @@ def crop(request):
         obj = thumb_form.instance
         cropped_thumbs = [thumb_formset.save_existing(thumb_form, obj, commit=False)]
 
-    for i, (thumb, thumb_form) in enumerate(zip(cropped_thumbs, thumb_formset)):
-        changed_fields = set(thumb_form.changed_data) - non_model_fields
-        thumb_form._changed_data = list(changed_fields)
-        thumb_data = thumbs_data[i]
-        size = thumb_data['size']
+    thumbs_data = [f.cleaned_data for f in thumb_formset]
+    non_model_fields = set(ThumbForm.declared_fields) - set([f.name for f in Thumb._meta.fields])
+    thumb_requests = [
+        _thumb_request(thumb, thumb_form, thumbs_data[i], non_model_fields)
+        for i, (thumb, thumb_form) in enumerate(zip(cropped_thumbs, thumb_formset))]
 
-        if changed_fields & set(['crop_x', 'crop_y', 'crop_w', 'crop_h']):
-            # Clear existing primary key to force new thumb creation
-            thumb.pk = None
+    try:
+        result = apply_crops(
+            db_image, thumb_requests, standalone=standalone_mode, tmp=True,
+            pil_image=pil_image)
+    except CropDusterResizeException as e:
+        return json_error(request, 'crop', action="saving size", errors=[force_str(e)])
 
-            thumb.width = min(filter(None, [thumb.width, thumb.crop_w]))
-            thumb.height = min(filter(None, [thumb.height, thumb.crop_h]))
+    return HttpResponse(
+        json.dumps(legacy_crop_response(
+            db_image.name, crop_data, echo=thumbs_data, result=result)),
+        content_type='application/json')
 
-            try:
-                new_thumbs = db_image.save_size(size, thumb, tmp=True, standalone=standalone_mode)
-            except CropDusterResizeException as e:
-                return json_error(request, 'crop',
-                                  action="saving size", errors=[force_str(e)])
 
-            if not new_thumbs:
-                continue
+def _thumb_request(thumb, form, data, non_model_fields):
+    """Convert one submitted crop form to a service request."""
+    changed_fields = set(form.changed_data) - non_model_fields
+    return ThumbRequest(
+        name=thumb.name,
+        size=data['size'],
+        thumb_id=thumb.pk,
+        # The formset loaded this row while binding the form. Pass it through
+        # to avoid another database query in the crop service.
+        thumb=thumb,
+        crop=_posted_crop_box(thumb),
+        width=thumb.width,
+        height=thumb.height,
+        changed=bool(changed_fields & CROP_FIELDS))
 
-            if standalone_mode:
-                thumb = new_thumbs
-                new_thumbs = {thumb.name: thumb}
 
-            cropped_thumbs[i] = thumb = new_thumbs.get(thumb.name, thumb)
-
-            update_props = ['crop_x', 'crop_y', 'crop_w', 'crop_h', 'width', 'height', 'id', 'name']
-            for prop in update_props:
-                thumbs_data[i][prop] = getattr(thumb, prop)
-
-            thumbs_data[i].update({
-                'changed': True,
-                'url': db_image.get_image_url(thumb.name),
-            })
-
-            for name, new_thumb in new_thumbs.items():
-                thumb_data = dict([(k, getattr(new_thumb, k)) for k in json_thumb_fields])
-                thumb_data['url'] = db_image.get_image_url(name, tmp=not(new_thumb.image_id))
-                crop_data['thumbs'].update({name: thumb_data})
-                if new_thumb.reference_thumb_id:
-                    continue
-                thumbs_data[i]['thumbs'].update({name: thumb_data})
-        elif thumb.pk and thumb.name and thumb.crop_w and thumb.crop_h:
-            thumb_path = db_image.get_image_path(thumb.name, tmp=False)
-            tmp_thumb_path = db_image.get_image_path(thumb.name, tmp=True)
-
-            storage = db_image.storage
-            if storage.exists(thumb_path):
-                # A missing tmp rendition is regenerated from the saved
-                # one so that Thumb.save() writes the same pixels back
-                # when the parent form saves. An existing tmp rendition
-                # is refreshed the same way when it may be stale, but
-                # never when it is current: it then holds the re-crop's
-                # pixels, and the saved rendition still holds the
-                # previous crop's.
-                if not storage.exists(tmp_thumb_path):
-                    refresh_tmp = True
-                elif thumb_form.cleaned_data.get('changed'):
-                    refresh_tmp = False
-                else:
-                    refresh_tmp = not tmp_rendition_is_current(thumb)
-                if refresh_tmp:
-                    with storage.open(thumb_path) as f:
-                        with storage.open(tmp_thumb_path, 'wb') as tmp_file:
-                            tmp_file.write(f.read())
-
-        if not thumb.pk and not thumb.crop_w and not thumb.crop_h:
-            if not len(thumbs_with_crops):
-                continue
-            best_fit = thumb_form.cleaned_data['size'].fit_to_crop(
-                    thumbs_with_crops[0], original_image=pil_image)
-            if best_fit:
-                thumbs_data[i].update({
-                    'crop_x': best_fit.box.x1,
-                    'crop_y': best_fit.box.y1,
-                    'crop_w': best_fit.box.w,
-                    'crop_h': best_fit.box.h,
-                    'changed': True,
-                    'id': None,
-                })
-
-    for thumb_data in thumbs_data:
-        if isinstance(thumb_data['id'], Thumb):
-            thumb_data['id'] = thumb_data['id'].pk
-
-    preview_url = db_image.get_image_url('_preview')
-    max_preview_w = cropduster_settings.CROPDUSTER_PREVIEW_WIDTH
-    max_preview_h = cropduster_settings.CROPDUSTER_PREVIEW_HEIGHT
-    preview_w = max_preview_w
-    preview_h = max_preview_h
-    orig_width, orig_height = crop_data['orig_w'], crop_data['orig_h']
-    if (orig_width and orig_height):
-        resize_ratio = min(
-            max_preview_w / float(orig_width),
-            max_preview_h / float(orig_height))
-        if resize_ratio < 1:
-            preview_w = int(round(orig_width * resize_ratio))
-            preview_h = int(round(orig_height * resize_ratio))
-
-    return HttpResponse(json.dumps({
-        'crop': crop_data,
-        'thumbs': thumbs_data,
-        'initial': True,
-        'preview_url': preview_url,
-        'preview_w': preview_w,
-        'preview_h': preview_h
-    }), content_type='application/json')
+def _posted_crop_box(thumb):
+    """Return the submitted crop box, or ``None`` when it is incomplete."""
+    box = (thumb.crop_x, thumb.crop_y, thumb.crop_w, thumb.crop_h)
+    if any(value is None for value in box):
+        return None
+    x, y, w, h = box
+    return Box(x, y, x + w, y + h)
