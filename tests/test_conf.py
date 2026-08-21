@@ -136,6 +136,7 @@ class TestRendererSettings(test.SimpleTestCase):
         self.assertEqual(
             cropduster_settings.CROPDUSTER_URL_RENDERER,
             'cropduster.renderers.FileRenderer')
+        self.assertEqual(cropduster_settings.CROPDUSTER_THUMBOR, {})
 
     def test_module_attribute_access_is_live(self):
         with test.override_settings(
@@ -146,3 +147,4 @@ class TestRendererSettings(test.SimpleTestCase):
 
     def test_setting_name_is_advertised(self):
         self.assertIn('CROPDUSTER_URL_RENDERER', cropduster_conf.SETTING_NAMES)
+        self.assertIn('CROPDUSTER_THUMBOR', cropduster_conf.SETTING_NAMES)

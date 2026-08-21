@@ -101,6 +101,10 @@ class CropDusterSettings:
         return getattr(
             django_settings, 'CROPDUSTER_URL_RENDERER', DEFAULT_RENDERER)
 
+    @property
+    def CROPDUSTER_THUMBOR(self):
+        return getattr(django_settings, 'CROPDUSTER_THUMBOR', None) or {}
+
     CROPDUSTER_APP_LABEL = CROPDUSTER_APP_LABEL
     CROPDUSTER_DB_PREFIX = CROPDUSTER_DB_PREFIX
     CROPDUSTER_V4_APP_LABEL = CROPDUSTER_V4_APP_LABEL

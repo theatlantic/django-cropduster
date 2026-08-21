@@ -68,15 +68,19 @@ dependencies = [
 standalone = [
     { name = "python-xmp-toolkit" },
 ]
+thumbor = [
+    { name = "libthumbor" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "django", specifier = ">=4.2" },
     { name = "django-generic-plus", specifier = ">=4.0.0,<5" },
+    { name = "libthumbor", marker = "extra == 'thumbor'", specifier = ">=2" },
     { name = "pillow", specifier = ">=9" },
     { name = "python-xmp-toolkit", marker = "extra == 'standalone'" },
 ]
-provides-extras = ["standalone"]
+provides-extras = ["standalone", "thumbor"]
 
 [[package]]
 name = "django-generic-plus"
@@ -97,6 +101,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/7d/a7/846e35abde80bed006d71d00edc17e172a46ecc4edd114366ad0427316ed/django_nested_admin-4.1.6.tar.gz", hash = "sha256:0222475cc343e7b8813d7a5db583cddef15f5c0f44dbe17b91b4d682db7bd73a", size = 422990, upload-time = "2025-10-23T18:41:26.167Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/29/fd/b27411aa40f35d57667eed368587aa2ee0bb5693897b6d7b01847296a1fb/django_nested_admin-4.1.6-py3-none-any.whl", hash = "sha256:ae3e1d910631e6cc3b5815d80129f18c6c081b7dd7f775bf392d9bb1ac88ef93", size = 466567, upload-time = "2025-10-23T18:40:48.635Z" },
+]
+
+[[package]]
+name = "libthumbor"
+version = "2.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b4/0f/7f80779f31c1c10d80facfe8f2161d67fef31c50c78c615ec89f74633759/libthumbor-2.0.2.tar.gz", hash = "sha256:d4fb22159ad30d542acbc0379e468ce4b74f881a2b8918079249533a273337e8", size = 7047, upload-time = "2022-03-31T13:33:01.09Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dc/0e/edfa0b47dfa810f55e9fc5dcf8961d4deea702c26cb2e14dd6db14765747/libthumbor-2.0.2-py3-none-any.whl", hash = "sha256:4d4dc0cef2c4d5b24dd7b8b25f62097508f10820aaf31eada7d924d6ac0d5378", size = 8703, upload-time = "2022-03-31T13:32:59.311Z" },
 ]
 
 [[package]]
@@ -221,6 +237,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/fb/48/fb042503b6ca6cd271261dc559fd6432f7d8c713153e9ec5c591af4dfc1c/pytz-2026.3.post1.tar.gz", hash = "sha256:2211d3fcf9a797d3405cac96ac7f61d80e6a644f72a3309607282fe8a2010c5d", size = 319745, upload-time = "2026-07-25T15:12:07.385Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0f/7b/39c34ca613b0b198cb866466651b26b045e2009864c5183c979a3b83f383/pytz-2026.3.post1-py2.py3-none-any.whl", hash = "sha256:dd95840dd199baea12d9cc096a1d452caa6596a1c1e4b5f3dbd1541855d5e815", size = 508283, upload-time = "2026-07-25T15:12:05.782Z" },
+]
+
+[[package]]
+name = "six"
+version = "1.17.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81", size = 34031, upload-time = "2024-12-04T17:35:28.174Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050, upload-time = "2024-12-04T17:35:26.475Z" },
 ]
 
 [[package]]

@@ -1,3 +1,5 @@
+import contextlib
+import sys
 from unittest import mock
 
 from django import test
@@ -7,9 +9,35 @@ from django.core import checks
 from django.contrib.contenttypes.admin import GenericInlineModelAdminChecks
 
 from cropduster.checks import (
-    check_app_config, check_metadata_only_renderer, check_url_renderer)
+    check_app_config, check_metadata_only_renderer,
+    check_thumbor_media_url, check_url_renderer)
 
 from .models import Article
+from .test_renderers import requires_libthumbor
+
+
+class LibthumborBlocker:
+
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == 'libthumbor' or fullname.startswith('libthumbor.'):
+            raise ImportError('libthumbor is blocked for this test')
+        return None
+
+
+@contextlib.contextmanager
+def without_libthumbor():
+    blocker = LibthumborBlocker()
+    sys.meta_path.insert(0, blocker)
+    evicted = {
+        name: sys.modules.pop(name)
+        for name in list(sys.modules)
+        if name == 'libthumbor' or name.startswith('libthumbor.')
+    }
+    try:
+        yield
+    finally:
+        sys.meta_path.remove(blocker)
+        sys.modules.update(evicted)
 
 
 class TestAppConfigCheck(test.SimpleTestCase):
@@ -83,6 +111,35 @@ class TestUrlRendererCheck(test.SimpleTestCase):
             errors = check_url_renderer()
         self.assertEqual([error.id for error in errors], ['cropduster.E001'])
 
+    @requires_libthumbor
+    def test_non_text_security_key_is_e001(self):
+        with test.override_settings(
+                CROPDUSTER_URL_RENDERER='cropduster.renderers.ThumborRenderer',
+                CROPDUSTER_THUMBOR={
+                    'SERVER': 'https://thumb.example.com/',
+                    'SECURITY_KEY': 5,
+                }):
+            errors = check_url_renderer()
+        self.assertEqual([error.id for error in errors], ['cropduster.E001'])
+
+    @requires_libthumbor
+    def test_missing_thumbor_server_is_e001(self):
+        with test.override_settings(
+                CROPDUSTER_URL_RENDERER='cropduster.renderers.ThumborRenderer',
+                CROPDUSTER_THUMBOR={}):
+            errors = check_url_renderer()
+        self.assertEqual([error.id for error in errors], ['cropduster.E001'])
+        self.assertIn("CROPDUSTER_THUMBOR['SERVER']", errors[0].msg)
+
+    def test_missing_thumbor_extra_is_e001(self):
+        with without_libthumbor():
+            with test.override_settings(
+                    CROPDUSTER_URL_RENDERER=(
+                        'cropduster.renderers.ThumborRenderer')):
+                errors = check_url_renderer()
+        self.assertEqual([error.id for error in errors], ['cropduster.E001'])
+        self.assertIn('django-cropduster[thumbor]', errors[0].msg)
+
 
 class TestMetadataOnlyCheck(test.SimpleTestCase):
 
@@ -94,6 +151,84 @@ class TestMetadataOnlyCheck(test.SimpleTestCase):
             errors = check_metadata_only_renderer()
         self.assertEqual([error.id for error in errors], ['cropduster.W002'])
 
+    @requires_libthumbor
+    def test_thumbor_can_render_without_derivative_files(self):
+        with test.override_settings(
+                CROPDUSTER_CREATE_THUMBS=False,
+                CROPDUSTER_URL_RENDERER='cropduster.renderers.ThumborRenderer',
+                CROPDUSTER_THUMBOR={
+                    'SERVER': 'https://thumb.example.com/',
+                }):
+            self.assertEqual(check_metadata_only_renderer(), [])
+
+
+class StubStorage:
+
+    def __init__(self, base_url):
+        self.base_url = base_url
+
+    def url(self, name):
+        return '%s%s' % (self.base_url, name)
+
+
+class RefusingStorage:
+
+    def url(self, name):
+        raise ValueError('unknown name')
+
+
+@requires_libthumbor
+class TestThumborMediaUrlCheck(test.SimpleTestCase):
+
+    renderer_settings = {
+        'CROPDUSTER_URL_RENDERER': 'cropduster.renderers.ThumborRenderer',
+        'CROPDUSTER_THUMBOR': {
+            'SERVER': 'https://thumb.example.com/',
+            'MEDIA_URL': 'https://cdn.example.com/media/',
+        },
+    }
+
+    def test_matching_prefix_passes(self):
+        storage = StubStorage('https://cdn.example.com/media/')
+        with mock.patch(
+                'cropduster.utils.storage.get_image_storage',
+                return_value=storage):
+            with test.override_settings(**self.renderer_settings):
+                self.assertEqual(check_thumbor_media_url(), [])
+
+    def test_unmatched_prefix_is_w001(self):
+        storage = StubStorage('https://bucket.example.com/media/')
+        with mock.patch(
+                'cropduster.utils.storage.get_image_storage',
+                return_value=storage):
+            with test.override_settings(**self.renderer_settings):
+                errors = check_thumbor_media_url()
+        self.assertEqual([error.id for error in errors], ['cropduster.W001'])
+
+    def test_unset_thumbor_media_url_still_checks_other_candidates(self):
+        storage = StubStorage('https://bucket.example.com/media/')
+        settings = {
+            'CROPDUSTER_URL_RENDERER': (
+                'cropduster.renderers.ThumborRenderer'),
+            'CROPDUSTER_THUMBOR': {
+                'SERVER': 'https://thumb.example.com/',
+            },
+            'MEDIA_URL': '/media/',
+        }
+        with mock.patch(
+                'cropduster.utils.storage.get_image_storage',
+                return_value=storage):
+            with test.override_settings(**settings):
+                errors = check_thumbor_media_url()
+        self.assertEqual([error.id for error in errors], ['cropduster.W001'])
+
+    def test_storage_that_refuses_the_probe_passes(self):
+        with mock.patch(
+                'cropduster.utils.storage.get_image_storage',
+                return_value=RefusingStorage()):
+            with test.override_settings(**self.renderer_settings):
+                self.assertEqual(check_thumbor_media_url(), [])
+
 
 class TestRendererCheckRegistration(test.SimpleTestCase):
 
@@ -104,3 +239,4 @@ class TestRendererCheckRegistration(test.SimpleTestCase):
         }
         self.assertIn('check_url_renderer', names)
         self.assertIn('check_metadata_only_renderer', names)
+        self.assertIn('check_thumbor_media_url', names)
