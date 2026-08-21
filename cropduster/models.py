@@ -25,10 +25,51 @@ from .utils.fields import get_cropduster_field, get_image_column_field
 from . import settings as cropduster_settings
 
 
-__all__ = ('Image', 'Thumb', 'StandaloneImage', 'CropDusterField', 'Size', 'Box', 'Crop')
+__all__ = (
+    'Image', 'Thumb', 'StandaloneImage', 'CropDusterField', 'Size', 'Box',
+    'Crop', 'prime_reference_thumbs')
+
+
+def prime_reference_thumbs(thumbs):
+    """Resolve each reference from the sibling thumbs already in memory."""
+    thumbs = [obj for obj in thumbs if isinstance(obj, Thumb)]
+    if not thumbs:
+        return
+    field = Thumb._meta.get_field('reference_thumb')
+    if field.attname in thumbs[0].get_deferred_fields():
+        return
+    by_pk = {thumb.pk: thumb for thumb in thumbs if thumb.pk is not None}
+    for thumb in thumbs:
+        reference = by_pk.get(thumb.reference_thumb_id)
+        if reference is not None:
+            field.set_cached_value(thumb, reference)
+
+
+class ThumbQuerySet(models.QuerySet):
+
+    _prime_reference_thumbs = False
+
+    def with_reference_thumbs(self):
+        clone = self._chain()
+        clone._prime_reference_thumbs = True
+        return clone
+
+    def _clone(self):
+        clone = super()._clone()
+        clone._prime_reference_thumbs = self._prime_reference_thumbs
+        return clone
+
+    def _fetch_all(self):
+        needs_priming = (
+            self._prime_reference_thumbs and self._result_cache is None)
+        super()._fetch_all()
+        if needs_priming:
+            prime_reference_thumbs(self._result_cache)
 
 
 class Thumb(models.Model):
+
+    objects = ThumbQuerySet.as_manager()
 
     name = models.CharField(max_length=255, db_index=True)
     width = models.PositiveIntegerField(default=0, blank=True, null=True)
@@ -105,15 +146,12 @@ class Thumb(models.Model):
         return dct
 
     def get_crop_box(self):
-        if self.reference_thumb:
-            ref_thumb = self.reference_thumb
-        else:
-            ref_thumb = self
+        """Return this thumb's crop box, or None for an incomplete row."""
+        ref_thumb = self.reference_thumb or self
         x1, y1 = ref_thumb.crop_x, ref_thumb.crop_y
-        x2, y2 = x1 + ref_thumb.crop_w, y1 + ref_thumb.crop_h
         if any([getattr(ref_thumb, 'crop_%s' % a) is None for a in ['x', 'y', 'w', 'h']]):
             return None
-        return Box(x1, y1, x2, y2)
+        return Box(x1, y1, x1 + ref_thumb.crop_w, y1 + ref_thumb.crop_h)
 
     def crop(self, original_image=None, size=None, w=None, h=None):
         if original_image is None:
@@ -180,7 +218,18 @@ def generate_filename(instance, filename):
     return filename
 
 
+class ImageQuerySet(models.QuerySet):
+
+    def with_thumbs(self):
+        """Prefetch thumbs with sibling references resolved."""
+        return self.prefetch_related(
+            models.Prefetch(
+                'thumbs', Thumb.objects.with_reference_thumbs()))
+
+
 class Image(models.Model):
+
+    objects = ImageQuerySet.as_manager()
 
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField(null=True, blank=True)
