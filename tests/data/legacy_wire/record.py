@@ -229,11 +229,63 @@ def _text(value, default=""):
     return "%s" % value
 
 
+def legacy_dialog_state(config):
+    """Convert the embedded v1 payload to the formset state used by 4.15."""
+    state = config["initialState"]
+    sizes = state["sizes"]
+    payload_thumbs = state["thumbs"]
+    crop_thumbs = {
+        name: {
+            "id": thumb["id"],
+            "name": thumb["name"],
+            "width": thumb["width"],
+            "height": thumb["height"],
+        }
+        for name, thumb in payload_thumbs.items()
+        if thumb.get("id") is not None
+    }
+
+    steps = []
+    for size in sizes:
+        name = size["name"]
+        thumb = payload_thumbs.get(name)
+        if thumb is None and config["standalone"]:
+            thumb = next(
+                (candidate for candidate in payload_thumbs.values()
+                 if not candidate.get("ref")), None)
+        thumb = thumb or {}
+        crop = thumb.get("crop") or {}
+        rendered = {}
+        if thumb.get("id") is not None:
+            rendered = {
+                candidate_name: crop_thumbs[candidate_name]
+                for candidate_name, candidate in payload_thumbs.items()
+                if (candidate_name == thumb.get("name")
+                    or candidate.get("ref") == thumb.get("name"))
+                and candidate_name in crop_thumbs
+            }
+        steps.append({
+            "id": thumb.get("id"),
+            "name": thumb.get("name") or name,
+            "width": thumb.get("width"),
+            "height": thumb.get("height"),
+            "crop_x": crop.get("x"),
+            "crop_y": crop.get("y"),
+            "crop_w": crop.get("width"),
+            "crop_h": crop.get("height"),
+            "thumbs": rendered,
+            "size": size,
+            "changed": thumb.get("changed", False),
+        })
+    return state.get("image") or {}, sizes, crop_thumbs, steps
+
+
 def upload_fields(config, dumps):
     """The fields the dialog posts to ``/cropduster/upload/`` beside the file."""
+    _image, sizes, _crop_thumbs, _thumbs = legacy_dialog_state(config)
     fields = {
         "md5": "",
-        "sizes": dumps(config["sizes"]),
+        "sizes": dumps(sizes),
         "image_element_id": _text(config["elId"]),
         "upload_to": _text(config["uploadTo"]),
         "preview_width": _text(config["previewSize"]["w"]),
@@ -246,16 +298,15 @@ def upload_fields(config, dumps):
 
 def crop_fields(config, dumps):
     """The formset the dialog posts to ``/cropduster/crop/``."""
-    image = config["image"] or {}
-    thumbs = config["thumbs"]
+    image, sizes, crop_thumbs, thumbs = legacy_dialog_state(config)
 
     fields = {
         "crop-image_id": _text(image.get("id")),
         "crop-orig_image": _text(image.get("name")),
         "crop-orig_w": _text(image.get("width"), "0"),
         "crop-orig_h": _text(image.get("height"), "0"),
-        "crop-sizes": dumps(config["sizes"]),
-        "crop-thumbs": dumps(config["cropThumbs"]),
+        "crop-sizes": dumps(sizes),
+        "crop-thumbs": dumps(crop_thumbs),
         "thumbs-TOTAL_FORMS": "%d" % len(thumbs),
         # Every crop the page opened with is an initial form;
         # ``apply_upload_reset`` zeroes the count after an upload because the

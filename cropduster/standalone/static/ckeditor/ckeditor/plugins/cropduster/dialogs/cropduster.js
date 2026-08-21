@@ -56,6 +56,14 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
         // cropduster iframe
         cropdusterIframe;
 
+    // The iframe's 4.x dimensions, kept as floors so the dialog never renders
+    // smaller than it historically did.
+    var IFRAME_MIN_WIDTH = 650,
+        IFRAME_MIN_HEIGHT = 400,
+        // Breathing room kept between the dialog and the viewport edges when
+        // the iframe grows to match its document.
+        IFRAME_VIEWPORT_MARGIN = 24;
+
     // Validates dimension. Allowed values are:
     // "123px", "123", "" (empty string)
 
@@ -342,17 +350,29 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
         return key === undefined || Object.prototype.hasOwnProperty.call(obj, key);
     };
 
+    // Cropping is asynchronous. Returning without firing `ok` keeps CKEditor
+    // open until the iframe callback closes it with the finished dimensions.
     var okButton = CKEDITOR.dialog.okButton.override({
         onClick: function(evt) {
             var contentWin = cropdusterIframe.iframeElement.$.contentWindow;
-            var $j = (typeof contentWin.django === 'object')
-              ? contentWin.django.jQuery
-              : contentWin.$;
-            if ($j) {
-                var $cropButton = $j('#crop-button');
-                if ($j.length && !$cropButton.hasClass('disabled')) {
-                    $cropButton.click();
-                    return;
+            var cropduster = contentWin.CropDusterDialog;
+            if (cropduster && typeof cropduster.canCommit === 'function') {
+                if (cropduster.canCommit()) {
+                    cropduster.commit();
+                }
+                // Keep CKEditor open while the React dialog cannot submit.
+                return;
+            } else {
+                // Before 5.0, the dialog submitted its crop button with jQuery.
+                var $j = (typeof contentWin.django === 'object')
+                  ? contentWin.django.jQuery
+                  : contentWin.$;
+                if ($j) {
+                    var $cropButton = $j('#crop-button');
+                    if ($j.length && !$cropButton.hasClass('disabled')) {
+                        $cropButton.click();
+                        return;
+                    }
                 }
             }
             var dialog = evt.data.dialog;
@@ -383,6 +403,13 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
             cropdusterIframe = {
                 setup: function (domId, baseUrl) {
                     this.iframeElement = CKEDITOR.document.getById(domId).getChild(0)
+                    // A previous open may have grown the iframe; start every
+                    // open back at the floor dimensions.
+                    this.applySize(IFRAME_MIN_WIDTH, IFRAME_MIN_HEIGHT);
+                    var self = this;
+                    this.iframeElement.$.onload = function () {
+                        self.observeContent();
+                    };
                     this.iframeElement.$.src = 'about:blank';
                     try {
                         this.iframeElement.$.contentDocument.body.innerHTML = "";
@@ -424,8 +451,113 @@ CKEDITOR.dialog.add('cropduster', function (editor) {
                 reload: function () {
                     var url = this.getUrl();
                     this.iframeElement.$.src = url;
+                },
+                contentDocument: function () {
+                    var iframe = this.iframeElement && this.iframeElement.$;
+                    if (!iframe) {
+                        return null;
+                    }
+                    // A cross-origin document throws on access; the dialog
+                    // then keeps the dimensions the markup declares.
+                    try {
+                        return (iframe.contentWindow && iframe.contentWindow.document) || null;
+                    } catch(e) {
+                        return null;
+                    }
+                },
+                // Resize the iframe and grow or shrink the CKEditor dialog
+                // around it by the same amount, re-centering afterwards.
+                applySize: function (width, height) {
+                    var iframe = this.iframeElement && this.iframeElement.$;
+                    var dialog = this.dialog;
+                    if (!iframe) {
+                        return;
+                    }
+                    var current = {width: iframe.offsetWidth, height: iframe.offsetHeight};
+                    if (width == current.width && height == current.height) {
+                        return;
+                    }
+                    this.iframeElement.setStyles({
+                        width: width + 'px',
+                        height: height + 'px'
+                    });
+                    // While the dialog is hidden the iframe measures 0x0, so
+                    // there is no delta to apply to the dialog's content area.
+                    if (!current.width || !current.height || !dialog) {
+                        return;
+                    }
+                    if (dialog._.contentSize) {
+                        dialog.resize(
+                            dialog._.contentSize.width + (width - current.width),
+                            dialog._.contentSize.height + (height - current.height));
+                    }
+                    // layout() re-centers unless the user has dragged the
+                    // dialog somewhere.
+                    if (typeof dialog.layout == 'function') {
+                        dialog.layout();
+                    }
+                },
+                // Size the iframe to the document it holds. The standalone
+                // page reports nothing itself: the dialog measures the
+                // same-origin document directly, growing the iframe up to the
+                // viewport (minus what the dialog chrome around the iframe
+                // already spends) and handing scrolling back to the page when
+                // the viewport is the binding constraint.
+                fit: function () {
+                    var iframe = this.iframeElement && this.iframeElement.$;
+                    var dialog = this.dialog;
+                    var doc = this.contentDocument();
+                    if (!iframe || !dialog || !doc || !doc.documentElement) {
+                        return;
+                    }
+                    var current = {width: iframe.offsetWidth, height: iframe.offsetHeight};
+                    if (!current.width || !current.height) {
+                        return;
+                    }
+                    var content = {
+                        width: Math.ceil(doc.documentElement.scrollWidth),
+                        height: Math.ceil(doc.documentElement.scrollHeight)
+                    };
+                    var viewport = CKEDITOR.document.getWindow().getViewPaneSize();
+                    var dialogSize = dialog.getSize();
+                    var maxWidth = Math.max(IFRAME_MIN_WIDTH,
+                        viewport.width - (dialogSize.width - current.width) - IFRAME_VIEWPORT_MARGIN);
+                    var maxHeight = Math.max(IFRAME_MIN_HEIGHT,
+                        viewport.height - (dialogSize.height - current.height) - IFRAME_VIEWPORT_MARGIN);
+                    var width = Math.min(Math.max(content.width, IFRAME_MIN_WIDTH), maxWidth);
+                    var height = Math.min(Math.max(content.height, IFRAME_MIN_HEIGHT), maxHeight);
+                    // scrolling="no" clips whatever the caps cut off, so an
+                    // overflow override on the root lets the page scroll for
+                    // exactly as long as it is larger than the iframe.
+                    doc.documentElement.style.overflow =
+                        (content.width > width || content.height > height) ? 'auto' : '';
+                    this.applySize(width, height);
+                },
+                observeContent: function () {
+                    var self = this;
+                    var doc = this.contentDocument();
+                    var win = doc && doc.defaultView;
+                    if (win && typeof win.ResizeObserver == 'function' && doc.body) {
+                        // The observer is created in the iframe's own realm so
+                        // that navigating the iframe disposes of it along with
+                        // the document.
+                        var observer = new win.ResizeObserver(function () {
+                            self.fit();
+                        });
+                        observer.observe(doc.documentElement);
+                        observer.observe(doc.body);
+                        // The admin stylesheet pins html and body at 100%
+                        // height, so content growth only ever changes the
+                        // dialog app's own box.
+                        var app = doc.getElementById('cropduster-app');
+                        if (app) {
+                            observer.observe(app);
+                        }
+                    }
+                    self.fit();
                 }
             }
+            cropdusterIframe.dialog = this.getDialog();
             cropdusterIframe.setup(this.domId, widget.config.url + '?');
             widget.cropdusterIframe = cropdusterIframe;
 
