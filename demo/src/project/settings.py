@@ -87,8 +87,3 @@ MEDIA_ROOT = str(DEMO_DIR / "media")
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 CROPDUSTER_CREATE_THUMBS = True
-
-# Cropduster presents its reverse Thumb foreign key through a ManyToMany
-# field API, and Django's admin.E013 check misclassifies it as a
-# through-model M2M.
-SILENCED_SYSTEM_CHECKS = ["admin.E013"]
