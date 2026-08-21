@@ -1,22 +1,75 @@
-from __future__ import division
-
+import functools
 import os
 import re
 import math
 import hashlib
 import tempfile
+import warnings
 
 import PIL.Image
 
 from django.core.exceptions import ImproperlyConfigured
+
 from .conf import settings as cropduster_settings
+from .exceptions import CropDusterFileMissing
 from .utils.storage import get_image_storage
 
 
-__all__ = ('Size', 'Box', 'Crop')
+__all__ = ('Size', 'Box', 'Crop', 'image_size')
 
 
 INFINITY = float('inf')
+
+
+def image_size(obj, storage=None):
+    """Return the ``(width, height)`` represented by ``obj``.
+
+    ``obj`` may be a PIL image, a ``(width, height)`` pair, a path in storage,
+    or an object with either a two-value ``size`` or separate ``width`` and
+    ``height`` attributes. This includes ``Image`` instances, Django file
+    fields, and Cropduster's file wrappers. With
+    ``CROPDUSTER_CREATE_THUMBS = False`` no rendition file exists to open, so
+    callers pass the stored dimensions instead.
+    """
+    if isinstance(obj, (tuple, list)):
+        if len(obj) != 2:
+            raise ValueError(
+                "An image size must be a (width, height) pair, got %r." % (obj,))
+        return (int(obj[0]), int(obj[1]))
+
+    if isinstance(obj, str):
+        storage = storage or get_image_storage()
+        with storage.open(obj, mode='rb') as f:
+            return PIL.Image.open(f).size
+
+    # Check width and height before size. A Django file's size is a byte count,
+    # and reading it accesses storage.
+    width, height = getattr(obj, 'width', None), getattr(obj, 'height', None)
+    if width is not None and height is not None:
+        return (int(width), int(height))
+
+    size = getattr(obj, 'size', None)
+    if isinstance(size, (tuple, list)) and len(size) == 2:
+        return (int(size[0]), int(size[1]))
+
+    raise TypeError(
+        "Cannot determine an image size from %r. Pass a PIL image, a (width, "
+        "height) pair, or a path in storage." % (obj,))
+
+
+@functools.lru_cache(maxsize=None)
+def _warn_retina_deprecated():
+    """Warn once per process that ``Size(retina=True)`` has no effect.
+
+    The flag has never created a second file; the ``@2x`` renditions in
+    downstream size sets are ordinary ``auto`` sizes. The key remains in the
+    serialized format so that existing size definitions can be read and
+    written without changing.
+    """
+    warnings.warn(
+        "The `retina` argument to Size is deprecated and has no effect; "
+        "declare a double-resolution size under `auto` instead.",
+        DeprecationWarning, stacklevel=3)
 
 
 class SizeAlias(object):
@@ -65,6 +118,9 @@ class Size(object):
                     auto_size.parent = self
                     if auto_size.auto:
                         raise ImproperlyConfigured("The `auto` kwarg cannot be used recursively")
+        if retina:
+            _warn_retina_deprecated()
+
         self.name = name
         self.auto = auto
         self.retina = retina
@@ -132,11 +188,18 @@ class Size(object):
         return self.width / self.height
 
     def fit_image(self, original_image):
-        orig_w, orig_h = original_image.size
+        orig_w, orig_h = image_size(original_image)
         crop = Crop(Box(0, 0, orig_w, orig_h), original_image)
         return self.fit_to_crop(crop, original_image=original_image)
 
     def fit_to_crop(self, crop, original_image=None):
+        """Return the best fit for this size within ``crop``.
+
+        ``crop`` may be a :class:`Crop` or a ``Thumb``, in which case
+        ``original_image`` provides the dimensions against which the thumb's
+        crop box is measured. It accepts anything supported by
+        :func:`image_size`, including a ``(width, height)`` pair.
+        """
         from cropduster.models import Thumb
 
         if isinstance(crop, Thumb):
@@ -219,17 +282,40 @@ class Box(object):
 
 
 class Crop(object):
+    """Represent a crop box and the dimensions that contain it.
+
+    ``image`` may be a PIL image, a path in storage, or a ``(width, height)``
+    pair when no source file is available. Only :meth:`create_image` needs the
+    pixel data; the remaining methods use the dimensions.
+    """
 
     def __init__(self, box, image, storage=None):
-        self.storage = storage or get_image_storage()
-        if isinstance(image, str):
-            self._fh = self.storage.open(image, mode='rb')
-            image = PIL.Image.open(self._fh)
-            image.filename = self._fh.name
+        self._storage = storage
+
+        if isinstance(image, (tuple, list)):
+            self.size = image_size(image)
+            image = None
+        else:
+            if isinstance(image, str):
+                self._fh = self.storage.open(image, mode='rb')
+                image = PIL.Image.open(self._fh)
+            self.size = image_size(image)
 
         self.box = box
         self.image = image
-        self.bounds = Box(0, 0, *image.size)
+        self.bounds = Box(0, 0, *self.size)
+
+    @property
+    def source(self):
+        """Return the image or dimensions used to construct this crop."""
+        return self.size if self.image is None else self.image
+
+    @property
+    def storage(self):
+        """Return the storage used to read the source and write renditions."""
+        if self._storage is None:
+            self._storage = get_image_storage()
+        return self._storage
 
     def close(self):
         if hasattr(self, '_fh') and not self._fh.closed:
@@ -240,6 +326,12 @@ class Crop(object):
 
     def create_image(self, output_filename, width, height):
         from cropduster.utils import process_image, get_image_extension
+
+        if self.image is None:
+            raise CropDusterFileMissing(
+                "This crop was built from dimensions alone, so there are no "
+                "pixels to write to %s. Build the Crop from a PIL image or a "
+                "path in storage to render it." % output_filename)
 
         temp_file = tempfile.NamedTemporaryFile(suffix=get_image_extension(self.image), delete=False)
         temp_filename = temp_file.name
@@ -257,8 +349,7 @@ class Crop(object):
             return smart_resize(im, final_w=width, final_h=height)
 
         new_image = process_image(
-            image, output_filename, crop_and_resize_callback,
-            storage=self.storage)
+            image, output_filename, crop_and_resize_callback, storage=self.storage)
         new_image.crop = self
         temp_file.close()
         os.unlink(temp_filename)
@@ -359,8 +450,7 @@ class Crop(object):
             elif y1 > self.bounds.y1:
                 y1 -= 1
 
-        return Crop(
-            Box(x1, y1, x2, y2), self.image, storage=self.storage)
+        return Crop(Box(x1, y1, x2, y2), self.source, storage=self._storage)
 
     def add_xmp_to_crop(self, cropped_image_path, size, original_image=None):
         try:
@@ -373,15 +463,13 @@ class Crop(object):
             return
 
         if original_image and cropduster_settings.CROPDUSTER_RETAIN_METADATA:
-            original_metadata = get_xmp_from_storage(
-                original_image.filename, storage=self.storage)
+            original_metadata = get_xmp_from_storage(original_image.filename, storage=self.storage)
         else:
             original_metadata = None
 
         xmp_meta = self.generate_xmp(size, original_metadata=original_metadata)
 
-        put_xmp_to_storage(
-            xmp_meta, cropped_image_path, storage=self.storage)
+        put_xmp_to_storage(xmp_meta, cropped_image_path, storage=self.storage)
 
     def generate_xmp(self, size, original_metadata=None):
         from cropduster.standalone.metadata import libxmp
