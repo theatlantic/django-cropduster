@@ -5,7 +5,8 @@ index() (defined in CropDusterIndex)
 ====================================
 
 The initial page that a user sees when clicking on the "Upload Image" button.
-This view renders the form used to interact with upload() and crop() via ajax.
+It renders a mount point for the dialog app and the whole of the state that app
+opens on, so that opening the dialog costs no round trip beyond this one.
 
 
 standalone() (defined in CropDusterStandalone)
@@ -24,25 +25,15 @@ they receive a POST with data from the django forms and formsets, create new
 image and thumb instances (respectively), and return a JSON object that map
 back onto fields on the index page's forms / formsets.
 """
-from __future__ import division
-
-import functools
 from io import BytesIO
-import os
 import copy
-import shutil
-import time
 
-import django
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import SuspiciousOperation
-from django.db.models import Q
 from django.forms.models import modelformset_factory
 from django.http import HttpResponse
+from django.middleware.csrf import get_token
 from django.shortcuts import render
-from django.template import RequestContext
 from django.utils.decorators import method_decorator
 from django.utils.encoding import force_str
 from django.utils.functional import cached_property
@@ -52,28 +43,27 @@ from django.views.generic import View
 
 import PIL.Image
 
-from generic_plus.utils import get_relative_media_url
-
-from cropduster.files import ImageFile
-from cropduster.models import Thumb, Size, StandaloneImage, Image
 from cropduster.conf import settings as cropduster_settings
+from cropduster.files import ImageFile
+from cropduster.forms import bundle_media, endpoint_urls
+from cropduster.models import Image, Thumb, prime_reference_thumbs
+from cropduster.renderers import get_renderer
 from cropduster.resizing import Box
-from cropduster.services.crop import ThumbRequest, apply_crops
+from cropduster.services.crop import CropResult, ThumbRequest, apply_crops
 from cropduster.services.payload import (
     build_payload, legacy_crop_response, payload_to_legacy)
-from cropduster.services.upload import adopt_standalone
+from cropduster.services.upload import (
+    PreviewInfo, adopt_standalone, preview_bounds, preview_dimensions)
 from cropduster.standalone import NOT_INSTALLED_MESSAGE, standalone_available
-from cropduster.utils import (
-    json, is_animated_gif, has_animated_gif_support, process_image)
-from cropduster.utils.storage import get_image_storage
+from cropduster.utils import json
 from cropduster.exceptions import json_error, CropDusterResizeException, full_exc_info
 
 from .forms import CropForm, ThumbForm, ThumbFormSet, UploadForm
 from .utils import get_admin_base_template, FakeQuerySet
 
 
+#: Changing any crop coordinate requires the rendition to be regenerated.
 CROP_FIELDS = frozenset(['crop_x', 'crop_y', 'crop_w', 'crop_h'])
-
 
 class CropDusterIndex(View):
 
@@ -149,75 +139,164 @@ class CropDusterIndex(View):
         return FakeQuerySet(ordered_thumbs, thumbs)
 
     @cached_property
+    def tmp_thumb_ids(self):
+        """Primary keys whose renditions are temporary in this editing session."""
+        ids = set()
+        for value in self.request.GET.get('tmp_thumbs', '').split(','):
+            if not value:
+                continue
+            try:
+                ids.add(int(value))
+            except (TypeError, ValueError):
+                continue
+        return ids
+
+    @cached_property
     def orig_image(self):
         if self.db_image:
             return self.db_image.image
         else:
             return self.image_file.get_for_size('original')
 
-    def get(self, *args, **kwargs):
-        try:
-            orig_image = self.orig_image
-        except SuspiciousOperation as error:
-            return json_error(
-                self.request, 'upload', action='reading the image',
-                errors=[force_str(error)])
-        try:
-            orig_w = getattr(orig_image, 'width', None) or 0
-            orig_h = getattr(orig_image, 'height', None) or 0
-            orig_image_name = getattr(orig_image, 'name', None)
-        except Exception:
-            # If original image not found, allow it to be re-uploaded
-            orig_w, orig_h = 0, 0
-            orig_image_name = None
+    @cached_property
+    def max_w(self):
+        """Maximum width for a standalone crop; configured sizes have their
+        own."""
+        return None
 
-        initial = {
+    @cached_property
+    def debug(self):
+        return self.request.GET.get('cropduster_debug') == '1'
+
+    @cached_property
+    def image(self):
+        """Return image data, or empty values if the original cannot be read."""
+        orig_image = self.orig_image
+        try:
+            width = getattr(orig_image, 'width', None) or 0
+            height = getattr(orig_image, 'height', None) or 0
+            name = getattr(orig_image, 'name', None)
+        except Exception:
+            return (None, 0, 0, None)
+        pk = getattr(self.db_image, 'pk', None) if orig_image else None
+        return (name, width, height, pk)
+
+    @cached_property
+    def renderer_image(self):
+        """Return the ``Image`` the configured renderer reads from."""
+        name, width, height, _pk = self.image
+        if not name:
+            return None
+        if self.db_image is not None:
+            return self.db_image
+        return Image(image=name, width=width, height=height)
+
+    @cached_property
+    def preview_info(self):
+        """Return the preview dimensions after making its file available."""
+        name, width, height, _pk = self.image
+        preview_w, preview_h = preview_dimensions(
+            (width, height), preview_bounds(self.preview_size))
+        if (name and self.db_image is not None
+                and self.image_file.preview_image is None):
+            # A primary-key-only request has not resolved the preview by name.
+            self._db_image_preview_url()
+        return PreviewInfo(width=preview_w, height=preview_h)
+
+    def _db_image_preview_url(self):
+        db_image = self.db_image
+        try:
+            if not db_image.storage.exists(db_image.get_image_path('_preview')):
+                db_image.save_preview(
+                    preview_w=self.preview_size[0], preview_h=self.preview_size[1])
+            return db_image.get_image_url('_preview')
+        except (OSError, ValueError):
+            return None
+
+    def dialog_config(self):
+        """Return the server-resolved state used to initialize the dialog."""
+        legacy_preview_w, legacy_preview_h = preview_bounds()
+
+        return {
+            'elId': self.request.GET.get('el_id') or None,
+            'callbackFn': self.request.GET.get('callback_fn') or None,
             'standalone': self.is_standalone,
-            'sizes': json.dumps(self.sizes),
-            'thumbs': json.dumps(dict([
-                (t['name'], t)
-                for t in self.thumbs.queryset.values('id', 'name', 'width', 'height')])),
-            'image_id': getattr(self.db_image, 'pk', None) if orig_image else None,
-            'orig_image': orig_image_name,
-            'orig_w': orig_w,
-            'orig_h': orig_h,
+            'previewSize': {'w': self.preview_size[0], 'h': self.preview_size[1]},
+            'legacyPreviewBounds': {
+                'w': legacy_preview_w,
+                'h': legacy_preview_h,
+            },
+            'uploadTo': self.upload_to,
+            'urls': {'api': endpoint_urls()['api']},
+            # `get_token()` also creates the cookie needed when the dialog is
+            # opened directly or from a cached page.
+            'csrfToken': get_token(self.request),
+            'initialState': self.initial_state,
         }
 
-        FormSet = modelformset_factory(Thumb, form=ThumbForm, formset=ThumbFormSet, extra=0)
-        thumb_formset = FormSet(queryset=self.thumbs, initial=[], prefix='thumbs')
+    @cached_property
+    def _thumb_objects(self):
+        if self.renderer_image is None:
+            return []
+        thumbs = list(self.thumbs.queryset)
+        known_pks = {thumb.pk for thumb in thumbs if thumb.pk is not None}
+        known_names = {thumb.name for thumb in thumbs}
+        for thumb in self.thumbs:
+            if thumb.pk is not None and thumb.pk in known_pks:
+                continue
+            if thumb.name in known_names:
+                continue
+            if thumb.pk is None and thumb.get_crop_box() is None:
+                continue
+            thumbs.append(thumb)
+            if thumb.pk is not None:
+                known_pks.add(thumb.pk)
+            known_names.add(thumb.name)
+        prime_reference_thumbs(thumbs)
+        return thumbs
 
-        size_dict = dict([(s.name, s) for s in self.sizes])
+    @cached_property
+    def initial_state(self):
+        """Return the v1 payload embedded in the dialog page."""
+        image = self.renderer_image or Image()
+        thumbs = {thumb.name: thumb for thumb in self._thumb_objects}
+        renderer = get_renderer()
+        tmp_names = {
+            thumb.name for thumb in self._thumb_objects
+            if (
+                thumb.pk in self.tmp_thumb_ids
+                and (
+                    not cropduster_settings.CROPDUSTER_CREATE_THUMBS
+                    or renderer.supports_metadata_only
+                    or image.storage.exists(
+                        image.get_image_path(thumb.name, tmp=True))))}
+        crops = CropResult(
+            image=image, thumbs=thumbs, tmp_names=tmp_names)
+        return build_payload(
+            image,
+            thumbs=crops,
+            sizes=[
+                size for size in self.sizes
+                if not getattr(size, 'is_alias', False)],
+            renderer=renderer,
+            preview=self.preview_info)
 
-        for thumb_form in thumb_formset.initial_forms:
-            name = thumb_form.initial['name']
-            if name in size_dict:
-                thumb_form.initial['size'] = json.dumps(size_dict[name])
-            # The thumb being cropped and thumbs referencing it
-            pk = thumb_form.initial['id']
-            thumb_group = self.thumbs.queryset.filter(Q(pk=pk) | Q(reference_thumb_id__exact=pk))
-            thumb_group_data = dict([(t['name'], t) for t in thumb_group.values('id', 'name', 'width', 'height')])
-            thumb_form.initial.update({
-                'thumbs': json.dumps(thumb_group_data),
-                'changed': False,
-            })
+    def get(self, *args, **kwargs):
+        try:
+            config = self.dialog_config()
+        except SuspiciousOperation as e:
+            # An image named by a URL the server has been told not to fetch, or
+            # a path that tries to leave the storage root.
+            return json_error(self.request, 'upload', action="reading the image",
+                    errors=[force_str(e)])
 
         return render(self.request, 'cropduster/upload.html', {
-            'django_is_gte_19': (django.VERSION[:2] >= (1, 9)),
             'is_popup': True,
-            'orig_image': '',
             'parent_template': get_admin_base_template(),
-            'image': getattr(self.image_file.preview_image, 'url', "%scropduster/img/blank.gif" % settings.STATIC_URL),
             'standalone': self.is_standalone,
-            'upload_form': UploadForm(initial={
-                'upload_to': self.upload_to,
-                'sizes': initial['sizes'],
-                'image_element_id': self.request.GET.get('el_id', ''),
-                'standalone': self.is_standalone,
-                'preview_width': self.preview_size[0],
-                'preview_height': self.preview_size[1],
-            }),
-            'crop_form': CropForm(initial=initial, prefix='crop'),
-            'thumb_formset': thumb_formset,
+            'debug': self.debug,
+            'dialog_media': bundle_media(),
+            'dialog_config_json': json.dumps(config),
         })
 
 

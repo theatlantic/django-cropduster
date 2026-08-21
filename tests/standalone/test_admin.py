@@ -66,11 +66,19 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
     @contextlib.contextmanager
     def switch_to_ckeditor_iframe(self):
+        """Run the block in the document that owns the dialog shadow root."""
         with self.visible_selector('.cke_editor_cropduster_content_dialog iframe') as iframe:
-            time.sleep(1)
+            self.wait_until(
+                lambda driver: iframe.get_attribute('src') not in (
+                    None, '', 'about:blank'),
+                message=(
+                    "Timeout waiting for the cropduster iframe to be pointed "
+                    "at the dialog"))
             self.selenium.switch_to.frame(iframe)
-            yield iframe
-            self.selenium.switch_to.parent_frame()
+            try:
+                yield iframe
+            finally:
+                self.selenium.switch_to.parent_frame()
 
     @contextlib.contextmanager
     def open_cropduster_ckeditor_dialog(self):
@@ -78,30 +86,38 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
             el.click()
 
         with self.switch_to_ckeditor_iframe():
-            time.sleep(1)
-            with self.visible_selector('#id_image'):
-                yield
+            self.wait_for_dialog()
+            self.dialog_find('#id_image', visible=False)
+            yield
 
     def toggle_caption_checkbox(self):
         caption_checkbox_xpath = '//input[following-sibling::label[text()="Captioned image"]]'
         with self.clickable_xpath(caption_checkbox_xpath) as checkbox:
             checkbox.click()
-        time.sleep(0.2)
+            self.wait_until(
+                lambda driver: checkbox.is_selected(),
+                message="Timeout waiting for the caption checkbox to be checked")
 
     def cropduster_ckeditor_ok(self):
+        from selenium.webdriver.common.by import By
+
         with self.clickable_selector('.cke_dialog_ui_button_ok') as ok:
             ok.click()
-        time.sleep(2 if self.is_s3 else 0.2)
+        self.wait_until(
+            lambda driver: not any(
+                element.is_displayed() for element in driver.find_elements(
+                    By.CSS_SELECTOR, '.cke_editor_cropduster_content_dialog')),
+            timeout=30 if self.is_s3 else None,
+            message="Timeout waiting for the cropduster CKEditor dialog to close")
 
     def test_basic_usage(self):
         self.load_admin(StandaloneArticle)
 
         with self.open_cropduster_ckeditor_dialog():
-            with self.visible_selector('#id_image') as el:
-                el.send_keys(os.path.join(self.TEST_IMG_DIR, 'img.png'))
-            with self.clickable_selector('#upload-button') as el:
-                el.click()
-            self.wait_until_visible_selector('#id_size-width')
+            self.dialog_send_keys(
+                '#id_image', os.path.join(self.TEST_IMG_DIR, 'img.png'))
+            self.dialog_click('#upload-button')
+            self.dialog_find('#id_size-width')
 
         self.toggle_caption_checkbox()
         self.cropduster_ckeditor_ok()
@@ -140,6 +156,78 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
             <p>&nbsp;</p>
             """ % image_url)
 
+    def test_ok_button_waits_for_a_committable_crop(self):
+        self.load_admin(StandaloneArticle)
+
+        with self.open_cropduster_ckeditor_dialog():
+            self.assertFalse(self.dialog_can_commit())
+
+        with self.clickable_selector('.cke_dialog_ui_button_ok') as ok:
+            ok.click()
+
+        with self.visible_selector('.cke_editor_cropduster_content_dialog iframe'):
+            pass
+
+        with self.clickable_selector('.cke_dialog_ui_button_cancel') as cancel:
+            cancel.click()
+
+    def test_ok_button_drives_the_crop(self):
+        self.load_admin(StandaloneArticle)
+
+        with self.open_cropduster_ckeditor_dialog():
+            self.dialog_send_keys(
+                '#id_image', os.path.join(self.TEST_IMG_DIR, 'img.png'))
+            self.dialog_click('#upload-button')
+            self.dialog_find('#id_size-width')
+            self.assertTrue(self.dialog_can_commit())
+
+        self.assertEqual(Thumb.objects.count(), 0)
+        self.cropduster_ckeditor_ok()
+        self.assertEqual(Thumb.objects.count(), 1)
+        content_html = self.selenium.execute_script('return $("#id_content").val()')
+        self.assertIn(Thumb.objects.get().name, content_html)
+
+    def test_iframe_grows_to_fit_the_crop_box(self):
+        """
+        The dialog document is taller than the iframe's 650x400 markup once
+        an image is loaded. The CKEditor dialog measures the document and
+        resizes the iframe, so the crop box and its south drag handles must
+        end up fully inside the iframe's viewport instead of clipped.
+        """
+        self.load_admin(StandaloneArticle)
+
+        with self.open_cropduster_ckeditor_dialog():
+            self.dialog_send_keys(
+                '#id_image', os.path.join(self.TEST_IMG_DIR, 'img.png'))
+            self.dialog_click('#upload-button')
+            self.dialog_find('#cropbox')
+
+            self.wait_until(
+                lambda driver: driver.execute_script("""
+                    var doc = document.documentElement;
+                    return (window.innerHeight >= doc.scrollHeight
+                            && window.innerWidth >= doc.scrollWidth);
+                """),
+                message=(
+                    "Timeout waiting for the iframe to grow around the "
+                    "dialog document"))
+
+            rect = self.dialog_rect('#cropbox')
+            viewport = self.selenium.execute_script(
+                "return {width: window.innerWidth, height: window.innerHeight};")
+            self.assertGreater(rect['height'], 0)
+            self.assertLessEqual(rect['y'] + rect['height'], viewport['height'])
+            self.assertLessEqual(rect['x'] + rect['width'], viewport['width'])
+
+        iframe_height = self.selenium.execute_script("""
+            return document.querySelector(
+                '.cke_editor_cropduster_content_dialog iframe'
+            ).getBoundingClientRect().height;
+        """)
+        self.assertGreater(
+            iframe_height, 400,
+            "The iframe should have grown beyond the 400px in its markup")
+
     def test_dialog_change_width(self):
         """
         Test that changing the width in the cropduster CKEDITOR dialog produces
@@ -148,13 +236,13 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
         self.load_admin(StandaloneArticle)
 
         with self.open_cropduster_ckeditor_dialog():
-            with self.visible_selector('#id_image') as el:
-                el.send_keys(os.path.join(self.TEST_IMG_DIR, 'img.png'))
-            with self.clickable_selector('#upload-button') as el:
-                el.click()
-            time.sleep(1)
-            with self.clickable_selector('#id_size-width') as el:
-                el.send_keys(300)
+            self.dialog_send_keys(
+                '#id_image', os.path.join(self.TEST_IMG_DIR, 'img.png'))
+            self.dialog_click('#upload-button')
+            self.dialog_send_keys('#id_size-width', 300)
+            self.wait_until(
+                lambda driver: self.dialog_value('#id_size-width') == '300',
+                message="Timeout waiting for the width field to take the new value")
 
         self.toggle_caption_checkbox()
         self.cropduster_ckeditor_ok()

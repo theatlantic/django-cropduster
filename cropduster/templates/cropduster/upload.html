@@ -1,133 +1,24 @@
 {% extends parent_template %}
 
-<!-- LOADING -->
 {% load i18n %}
 
 {% block extrahead %}
-    {% if django_is_gte_19 %}
+    {# CKEditor's OK handler reaches into this page as `contentWin.django.jQuery`. #}
     <script type="text/javascript" src="{{ STATIC_URL }}admin/js/vendor/jquery/jquery.min.js"></script>
-    {% else %}
-    <script type="text/javascript" src="{{ STATIC_URL }}admin/js/jquery.min.js"></script>
-    {% endif %}
     <script type="text/javascript" src="{{ STATIC_URL }}admin/js/jquery.init.js"></script>
     {{ block.super }}
-    {{ crop_form.media }}
-    {{ thumb_formset.media }}
+    {{ dialog_media }}
 {% endblock %}
 
-<!-- Get rid of nav -->
 {% block nav-global %}{% endblock %}
 
-{% block bodyclass %}{{ block.super }} cropduster-upload-form absolute-pos{% if standalone %} cropduster-standalone{% endif %}{% endblock %}
+{% block bodyclass %}{{ block.super }} cropduster-upload-form absolute-pos{% if standalone %} cropduster-standalone{% endif %}{% if debug %} cropduster-debug{% endif %}{% endblock %}
 
 {% block content-class %}content-flexible{% endblock %}
 
 {% block breadcrumbs %}{% endblock %}
 
-
-<!-- CONTENT -->
 {% block content %}
-{% if not standalone %}
-<h1 id="step-header">Upload, Crop, and Generate Thumbnails</h1>
-{% endif %}
-<div id="content-main">
-    <fieldset class="module grp-module aligned">
-
-        <form id="upload" action="{% url 'cropduster-upload' %}{% if standalone %}?standalone=1{% endif %}" method="POST">
-            {% for field in upload_form %}
-                <div class="grp-row row {{ field.name }}{% if field.name != 'image' %} hidden{% endif %}">
-                    {% if field.name != "image" %}{{ field.label_tag|safe }}{% endif %}
-                    {{ field }}
-                    {% if field.name == "image" %}
-                        <div id="upload-min-size-help"></div>
-                    {% endif %}
-                </div>
-            {% endfor %}
-            {% if standalone %}
-                <div id="upload-footer"{% if not image_id %} style="display: none"{% endif %}>
-                    <input id="upload-button" class="cropduster-button disabled{% if standalone %} small{% endif %}" type="submit" name="_save" value='Upload'  onclick="return uploadSubmit(this);"/>
-                </div>
-                <div id="crop-footer"{% if image_id %} style="display: none"{% endif %}>
-                    <input id="reupload-button" class="cropduster-button disabled{% if standalone %} small{% endif %}" type="submit" name="_save" value='Re-Upload' onclick="return uploadSubmit(this);" />
-                </div>
-            {% endif %}
-        </form>
-
-        {% if standalone %}
-        <form id="size" action="" onsubmit="return false">
-            <div class="row form-row grp-row cells-1 grp-cells-1 width">
-                <div class="field-box l-2c-fluid l-d-4">
-                    <div class="column span-4 c-1">
-                        <label for="id_size-width">Width</label>
-                    </div>
-                    <div class="column span-flexible c-2">
-                        <input type="text" name="size-width" id="id_size-width" />
-                    </div>
-                </div>
-            </div>
-            <div class="row form-row grp-row cells-1 grp-cells-1 height">
-                <div class="field-box l-2c-fluid l-d-4">
-                    <div class="column span-4 c-1">
-                        <label for="id_size-height">Height</label>
-                    </div>
-                    <div class="column span-flexible c-2">
-                        <input type="text" name="size-height" id="id_size-height" />
-                    </div>
-                </div>
-            </div>
-        </form>
-        {% endif %}
-
-    </fieldset>
-
-    <div id="error-container" style="display:none">
-        <p class="errornote"></p>
-    </div>
-
-    <form action="{% url 'cropduster-crop' %}" method="POST" id="crop-form">
-        <div id="image-container">
-            <img src="{{ image }}" id="cropbox" />
-        </div>
-        <div id="thumb-formset-container">
-            {{ crop_form.as_p }}
-            <div class="cropduster-thumb-formset" id="{{ thumb_formset.prefix }}-group">
-                {{ thumb_formset.management_form }}
-                {% for thumb_form in thumb_formset %}
-                <div class="cropduster-thumb-form" id="{{ thumb_formset.prefix }}-{{ forloop.counter0 }}">
-                    <table>{{ thumb_form.as_table }}</table>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        <footer class="module grp-module grp-submit-row footer grp-fixed-footer">
-            <div id="crop-nav">
-                <div id="nav-left" class="cropduster-button disabled"><span></span></div>
-                <div id="nav-right" class="cropduster-button disabled"><span></span></div>
-            </div>
-            <div id="current-thumb-info">
-                <div id="current-thumb-index"></div>
-                <div id="thumb-total-count"></div>
-                <div id="current-thumb-label"></div>
-            </div>
-            {% if not standalone %}
-            <ul class="submit-row grp-submit-row" id="upload-footer"{% if not image_id %} style="display: none"{% endif %}>
-                <li class="submit-button-container grp-submit-button-container">
-                    <input id="upload-button" class="cropduster-button disabled{% if standalone %} small{% endif %}" type="submit" name="_save" value='Upload'  onclick="return uploadSubmit(this);"/>
-                </li>
-            </ul>
-            {% endif %}
-            <ul class="grp-submit-row submit-row" id="crop-footer"{% if image_id %} style="display: none"{% endif %}>
-                <li class="submit-button-container grp-submit-button-container">
-                    <input id="crop-button" class="cropduster-button{% if standalone %} small{% endif %}" type="submit" name="crop" value="Crop and Continue" />
-                </li>
-                {% if not standalone %}
-                <li class="submit-button-container grp-submit-button-container">
-                    <input id="reupload-button" class="cropduster-button disabled{% if standalone %} small{% endif %}" type="submit" name="_save" value='Re-Upload' onclick="return uploadSubmit(this);" />
-                </li>
-                {% endif %}
-            </ul>
-        </footer>
-    </form>
-
-</div>
+<div id="cropduster-app" data-config="{{ dialog_config_json }}"></div>
+<noscript><p class="errornote">{% trans "JavaScript is required to crop images." %}</p></noscript>
 {% endblock %}

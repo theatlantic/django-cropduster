@@ -1,4 +1,5 @@
 import os
+import re
 
 from django import test
 from django.core.files.storage import FileSystemStorage, default_storage
@@ -15,6 +16,15 @@ from cropduster.utils import json
 
 from .helpers import CropdusterTestCaseMediaMixin
 from .models import Author
+
+
+#: The dialog config's CSRF token, which is masked afresh on every call to
+#: ``get_token()`` and so differs between two renders of the same page.
+CSRF_TOKEN_RE = re.compile(br'(&quot;csrfToken&quot;:\s*&quot;)[^&]*')
+
+
+def without_csrf_token(content):
+    return CSRF_TOKEN_RE.sub(br'\1', content)
 
 
 class CropdusterViewTestRunner(CropdusterTestCaseMediaMixin, test.TestCase):
@@ -42,6 +52,11 @@ class TestIndex(CropdusterViewTestRunner):
         response = views.index(request)
         self.assertEqual(response.status_code, 200)
 
+    def test_empty_standalone_get_is_200(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('cropduster-standalone'))
+        self.assertEqual(response.status_code, 200)
+
     def test_post_is_405(self):
         request = self.factory.post(reverse('cropduster-index'), {})
         request.user = self.user
@@ -56,8 +71,8 @@ class TestUpload(CropdusterViewTestRunner):
         request.method = "GET"
         request.user = self.user
         self.assertEqual(
-            views.upload(request).content,
-            views.index(request).content)
+            without_csrf_token(views.upload(request).content),
+            without_csrf_token(views.index(request).content))
 
     def test_post_request(self):
         with open(os.path.join(self.TEST_IMG_DIR, 'img.jpg'), 'rb') as img_file:

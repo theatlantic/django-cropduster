@@ -96,21 +96,12 @@ class UploadForm(FormattedErrorMixin, forms.Form):
 
 
 class CropForm(forms.Form):
+    """
+    Fields accepted by the legacy crop endpoint.
 
-    class Media:
-        css = {'all': (
-            "cropduster/css/cropduster.css",
-            "cropduster/css/jquery.jcrop.css",
-            "cropduster/css/upload.css",
-        )}
-        js = (
-            "cropduster/js/json2.js",
-            "cropduster/js/jquery.class.js",
-            "cropduster/js/jquery.form.js",
-            "cropduster/js/jquery.jcrop.js",
-            "cropduster/js/cropduster.js",
-            "cropduster/js/upload.js",
-        )
+    The body is assembled by the client rather than rendered as a Django form,
+    so this form declares no media.
+    """
 
     image_id = forms.IntegerField(required=False)
     orig_image = forms.CharField(max_length=512, required=False)
