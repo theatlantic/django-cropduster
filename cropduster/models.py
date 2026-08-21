@@ -4,7 +4,6 @@ import hashlib
 import random
 from io import BytesIO
 import os
-import time
 from datetime import datetime
 
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -107,11 +106,28 @@ class Thumb(models.Model):
     def url(self):
         return self.image_file.url if self.image_file else ''
 
+    def get_url(self, *, image=None, multiplier=1, max_size=False, tmp=False,
+                thumbs=None, **opts):
+        """Return this crop's URL from the configured renderer."""
+        from cropduster.renderers import get_renderer
+
+        return get_renderer().url(
+            self, image=image, multiplier=multiplier, max_size=max_size,
+            tmp=tmp, thumbs=thumbs, **opts)
+
+    def get_srcset(self, *, densities=(1, 2), image=None, thumbs=None,
+                   **opts):
+        """Return this crop's ``srcset`` candidates from the configured
+        renderer."""
+        from cropduster.renderers import get_renderer
+
+        return get_renderer().srcset(
+            self, image=image, densities=densities, thumbs=thumbs, **opts)
+
     @property
     def cache_safe_url(self):
-        """A URL that includes a GET parameter that changes upon modification"""
-        cache_buster = time.mktime(self.date_modified.timetuple())
-        return "%s?mod=%d" % (self.url, cache_buster)
+        """A legacy alias for :meth:`get_url`."""
+        return self.get_url()
 
     @property
     def path(self):
@@ -401,6 +417,23 @@ class Image(models.Model):
     def get_image_url(self, size_name='original', tmp=False):
         converted = Image.get_file_for_size(self.image, size_name, tmp=tmp)
         return getattr(converted, 'url', None) or ''
+
+    def get_url(self, size_name='original', **opts):
+        """Return an original, preview, or named crop URL from the renderer."""
+        from cropduster.renderers import get_renderer
+
+        renderer = get_renderer()
+        size_name = size_name or 'original'
+        if size_name == 'original':
+            return renderer.original_url(self, **opts)
+        if size_name == 'preview':
+            return renderer.preview_url(self, **opts)
+        thumbs = list(self.thumbs.all())
+        for thumb in thumbs:
+            if thumb.name == size_name:
+                return renderer.url(
+                    thumb, image=self, thumbs=thumbs, **opts)
+        return None
 
     def get_image_size(self, size_name=None):
         """
