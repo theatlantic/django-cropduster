@@ -1,6 +1,7 @@
 *.py[co]
 .DS_Store
 build
+.vite
 *.egg-info
 .tox
 ghostdriver.log
