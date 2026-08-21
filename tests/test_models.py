@@ -64,6 +64,20 @@ class TestImage(CropdusterTestCaseMediaMixin, TestCase):
             title="Img Too Small", author=self.author, lead_image='new-img.jpg')
         self.assertRaises(CropDusterResizeException, article.lead_image.generate_thumbs)
 
+    def test_a_failed_parent_does_not_render_its_auto_sizes(self):
+        image = Image(image=self.create_unique_image('img.jpg'))
+        parent = Size(
+            'parent', w=1200, h=960, required=False,
+            auto=[Size('auto', w=100, h=100)])
+        thumb = Thumb(
+            name='parent', crop_x=0, crop_y=0, crop_w=674, crop_h=800)
+        errors = {}
+
+        rendered = image.save_size(parent, thumb, errors=errors)
+
+        self.assertEqual(rendered, {})
+        self.assertEqual(list(errors), ['parent'])
+
     @override_settings(CROPDUSTER_CREATE_THUMBS=False)
     def test_dont_generate_thumbs(self):
         article = Article.objects.create(title="Pudd'nhead Wilson",

@@ -6,10 +6,11 @@ from .paths import unique_upload_dir
 
 
 __all__ = (
-    'CropResult', 'PreviewInfo', 'ThumbOutcome', 'ThumbRequest',
-    'UploadResult', 'adopt_standalone', 'apply_crops', 'build_payload',
+    'AttachResult', 'CropResult', 'PreviewInfo', 'ThumbOutcome',
+    'ThumbRequest', 'UploadResult', 'adopt_standalone', 'apply_crops',
+    'build_payload', 'choose_crop', 'copy_image', 'crop_overlap',
     'legacy_crop_response', 'payload_to_legacy', 'store_upload',
-    'unique_upload_dir')
+    'thumb_for_size', 'unique_upload_dir')
 
 
 _LAZY_IMPORTS = {
@@ -24,6 +25,11 @@ _LAZY_IMPORTS = {
     'build_payload': 'payload',
     'legacy_crop_response': 'payload',
     'payload_to_legacy': 'payload',
+    'AttachResult': 'attach',
+    'copy_image': 'attach',
+    'choose_crop': 'crops',
+    'crop_overlap': 'crops',
+    'thumb_for_size': 'crops',
 }
 
 

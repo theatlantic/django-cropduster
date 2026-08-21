@@ -435,6 +435,17 @@ class Image(models.Model):
                     thumb, image=self, thumbs=thumbs, **opts)
         return None
 
+    def best_thumb_for_size(self, size, *, hint=None, image_size=None):
+        """Return an unsaved Thumb fitted to this image and size."""
+        from cropduster.services.crops import choose_crop, thumb_for_size
+
+        best_crop = None
+        if hint is not None:
+            best_crop = choose_crop(
+                self, size, hint=hint, image_size=image_size)
+        return thumb_for_size(
+            self, size, best_crop=best_crop, image_size=image_size)
+
     def get_image_size(self, size_name=None):
         """
         Returns tuple of a thumbnail's size (width, height).
@@ -494,7 +505,8 @@ class Image(models.Model):
         setattr(obj, column_field.name, '')
 
     def save_size(self, size, thumb=None, image=None, tmp=False, standalone=False,
-                  permissive=False, skip_existing=False, commit=True):
+                  permissive=False, skip_existing=False, commit=True,
+                  errors=None, rows=None):
         thumbs = {}
         if not image and not self.image:
             raise Exception("Cannot save sizes without an image")
@@ -512,8 +524,10 @@ class Image(models.Model):
             if (self.pk and skip_existing
                     and self.storage.exists(self.get_image_path(sz.name))):
                 try:
-                    existing_thumb = self.thumbs.get(name=sz.name)
-                except Thumb.DoesNotExist:
+                    existing_thumb = (
+                        self.thumbs.get(name=sz.name)
+                        if rows is None else rows[sz.name])
+                except (KeyError, Thumb.DoesNotExist):
                     pass
                 else:
                     thumbs[sz.name] = existing_thumb
@@ -524,10 +538,13 @@ class Image(models.Model):
                         sz, image, ref_thumb=thumb, tmp=tmp, commit=commit)
                 else:
                     thumb = new_thumb = self._save_thumb(sz, image, thumb, tmp=tmp, commit=commit)
-            except CropDusterResizeException:
+            except CropDusterResizeException as error:
+                if errors is not None:
+                    errors[sz.name] = error
                 if permissive or not sz.required:
                     if not sz.is_auto:
                         thumb = new_thumb = None
+                        break
                     continue
                 else:
                     raise
