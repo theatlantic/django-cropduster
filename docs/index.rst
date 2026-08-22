@@ -11,7 +11,7 @@ django-cropduster provides a drop-in replacement for Django's ``ImageField`` tha
 Compatibility
 =============
 
-django-cropduster is compatible with python 2.7 and 3.4, and Django versions 1.4 - 1.8.
+django-cropduster requires Python 3.10+ and supports Django 4.2, 5.0, 5.1 and 5.2. It depends on django-generic-plus 4.x.
 
 Contents
 --------
@@ -21,6 +21,9 @@ Contents
 
    quickstart
    customization
+   renderers
+   http_api
+   programmatic
    how_it_works
    changelog
 
@@ -28,8 +31,6 @@ License
 -------
 
 The django code is licensed under the `Simplified BSD License <http://opensource.org/licenses/BSD-2-Clause>`_. View the ``LICENSE`` file under the root directory for complete license and copyright information.
-
-The admin JavaScript bundle includes React, ReactDOM, and react-image-crop. Their license notices are in ``cropduster/static/cropduster/dist/LICENSES.txt``.
 
 Indices and tables
 ------------------
