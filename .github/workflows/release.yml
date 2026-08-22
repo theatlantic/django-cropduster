@@ -1,0 +1,130 @@
+# Build and validate artifacts for v* tags. Publication is added separately,
+# so this workflow needs no release credentials.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    uses: ./.github/workflows/e2e.yml
+
+  build:
+    runs-on: ubuntu-latest
+    name: Build and check
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade build packaging twine
+
+      # A release tag must match cropduster.__version__. Use packaging.version
+      # for the comparison and prerelease flag, matching pip's version parsing.
+      - name: Check the tag against cropduster.__version__
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import os
+          import re
+
+          from packaging.version import Version
+
+          tag = os.environ["TAG"].lstrip("v")
+          with open("cropduster/__init__.py") as f:
+              declared = re.search(
+                  r"""__version__\s*=\s*['"]([^'"]+)['"]""", f.read()).group(1)
+          if Version(tag) != Version(declared):
+              raise SystemExit(
+                  "tag %s does not match cropduster.__version__ %s" % (tag, declared))
+          print("version=%s" % declared)
+          print("prerelease=%s" % str(Version(declared).is_prerelease).lower())
+          PY
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+
+      - name: Build the frontend bundle
+        run: npm run build --prefix frontend
+
+      # Rebuild the frontend and require it to match the committed bundle.
+      # Otherwise the tagged source and released static files would disagree.
+      - name: Check the committed bundle is up to date
+        run: git diff --exit-code cropduster/static/cropduster/dist
+
+      # `git diff` does not report untracked build output. Check the directory
+      # separately so a new chunk or license file cannot enter the artifact
+      # without being committed and added to REQUIRED_FILES.
+      - name: Check the bundle directory has nothing uncommitted in it
+        run: |
+          stray=$(git status --porcelain --untracked-files=all \
+            -- cropduster/static/cropduster/dist)
+          if [ -n "$stray" ]; then
+            echo "$stray"
+            echo "The build wrote files the repository does not have. Commit" \
+                 "them (and add them to scripts/check_dist.py's" \
+                 "REQUIRED_FILES if they belong in the wheel)."
+            exit 1
+          fi
+
+      # No sibling checkout of django-generic-plus is needed: it is a runtime
+      # dependency, and the setuptools backend writes it into the metadata
+      # without resolving it.
+      - name: Build the sdist and wheel
+        run: python -m build
+
+      - name: Check the artifacts
+        run: python scripts/check_dist.py
+
+      # An artifact check, not a dependency check: `--no-deps` verifies that
+      # the wheel itself installs and imports.
+      - name: Install and import
+        run: |
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install --no-deps dist/*.whl
+          /tmp/smoke/bin/python -c "import cropduster; print(cropduster.__version__)"
+
+      # `test.yml` starts independently on a tag push, so this job cannot wait
+      # for its full Python and Django matrix. Run one supported tox environment
+      # here before uploading artifacts. This does not replace the full matrix
+      # or the browser tests.
+      - name: Install system dependencies
+        run: |
+          sudo .github/workflows/apt-get-update.sh
+          sudo apt-get install -y exempi gifsicle
+
+      - name: Install tox
+        run: python -m pip install tox
+
+      # Use tox so this job shares the dependency list from test.yml.
+      - name: Run the test suite without the browser tests
+        run: tox -e py312-dj52-nogrp -- -m "not selenium"
+
+      - name: Run the frontend test suite
+        run: npm test --prefix frontend
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/

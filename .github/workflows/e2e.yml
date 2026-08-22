@@ -10,7 +10,11 @@
 
 name: E2E
 
-on: [push, pull_request]
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_call:
 
 defaults:
   run:
