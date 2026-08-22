@@ -22,3 +22,6 @@ demo/static/
 e2e/.auth/
 test-results/
 playwright-report/
+
+# Sphinx output
+/docs/_build/
