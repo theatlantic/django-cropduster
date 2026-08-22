@@ -1,6 +1,5 @@
 include LICENSE
 include README.md
-include README.rst
 include CHANGELOG.rst
 recursive-include cropduster/standalone/static *
 recursive-include cropduster/static *
