@@ -1,5 +1,5 @@
-# The frontend bundle is committed so installing the package does not require
-# Node.js.
+# Build the bundle with `npm run build --prefix frontend` and commit its output
+# so installing the package does not require Node.
 cropduster/static/cropduster/dist/** linguist-generated -diff
 frontend/package-lock.json linguist-generated
 frontend/tests/fixtures/*.html whitespace=-blank-at-eol
