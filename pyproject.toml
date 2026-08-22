@@ -4,11 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-cropduster"
-dynamic = ["version", "readme"]
+dynamic = ["version"]
 authors = [
   { name="The Atlantic", email="programmers@theatlantic.com" },
 ]
 description = "Django image uploader and cropping tool"
+readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -59,11 +60,11 @@ cropduster = ["**/templates/**/*", "**/static/**/*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "cropduster.__version__"}
-readme = {file = ["README.rst"]}
 
 [project.urls]
 Homepage = "https://github.com/theatlantic/django-cropduster"
 Documentation = "https://django-cropduster.readthedocs.io/"
+Changelog = "https://github.com/theatlantic/django-cropduster/blob/master/CHANGELOG.rst"
 Issues = "https://github.com/theatlantic/django-cropduster/issues"
 
 [tool.uv.workspace]
