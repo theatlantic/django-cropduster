@@ -78,6 +78,7 @@ FORBIDDEN_NAMES = [
     "cropduster_icon_upload_select.png",
     "progressbar.gif",
     "arrows.png",
+    "README.rst",
 ]
 
 #: The generated source map is included by the static package-data glob. The
@@ -216,6 +217,13 @@ def member_size(artifact, path):
 
 
 def check_metadata(artifact, failures, version):
+    description_type = metadata_fields(
+        artifact.metadata, "Description-Content-Type")
+    if description_type != ["text/markdown"]:
+        failures.append(
+            "%s: Description-Content-Type is %r, expected ['text/markdown']"
+            % (artifact.name, description_type))
+
     requires_python = metadata_fields(artifact.metadata, "Requires-Python")
     if requires_python != [REQUIRES_PYTHON]:
         failures.append(
