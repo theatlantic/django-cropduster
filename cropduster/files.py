@@ -83,9 +83,14 @@ class ImageFile(VirtualFieldFile):
         if path.startswith(settings.MEDIA_URL):
             # Strips leading MEDIA_URL, if starts with
             self._path = get_relative_media_url(path, clean_slashes=False)
-        elif re.search(r'^(?:http(?:s)?:)?//', path):
+        elif re.search(r'^https?://', path):
             # url on other server? download it.
             self._path = self.download_image_url(path)
+        elif path.startswith('//'):
+            # urlopen() raises ValueError for protocol-relative URLs, and
+            # safe_join() rejects them as storage paths because the joined
+            # path is outside MEDIA_ROOT.
+            self._path = None
         else:
             if default_storage.exists(path):
                 self._path = path

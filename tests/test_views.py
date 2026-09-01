@@ -31,6 +31,15 @@ class TestIndex(CropdusterViewTestRunner):
         response = views.index(request)
         self.assertEqual(response.status_code, 200)
 
+    def test_get_with_protocol_relative_image_param_is_200(self):
+        # urlopen() raises ValueError for protocol-relative URLs, so
+        # ImageFile must treat them as invalid rather than fetch them
+        request = self.factory.get(
+            reverse('cropduster-index'), {'image': '//example.com/photo.jpg'})
+        request.user = self.user
+        response = views.index(request)
+        self.assertEqual(response.status_code, 200)
+
     def test_post_is_405(self):
         request = self.factory.post(reverse('cropduster-index'), {})
         request.user = self.user
