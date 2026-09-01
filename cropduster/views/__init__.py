@@ -208,6 +208,36 @@ class CropDusterIndex(View):
 index = CropDusterIndex.as_view()
 
 
+def tmp_rendition_is_current(thumb):
+    """
+    Whether the tmp rendition for this thumb's size holds the pixels for
+    this thumb's crop coordinates. Thumb.save() copies the tmp rendition
+    over the saved one when the parent form saves, so the crop view must
+    not regenerate a current tmp rendition from the saved rendition.
+
+    The crop view inserts a new Thumb row and writes the tmp rendition
+    when coordinates change, while the row from the previous parent-form
+    save keeps its image foreign key until the next one. The submitted
+    "changed" flag can't be used to detect this state, because the index
+    view reinitializes the flag to False whenever the dialog is
+    reopened.
+    """
+    if not thumb.image_id:
+        # This thumb's tmp rendition has never been copied to the saved
+        # name (e.g. the thumb was created by a crop right after an
+        # upload); it is the only rendition the thumb has.
+        return True
+    sibling_pks = list(
+        Thumb.objects
+        .filter(image_id=thumb.image_id, name=thumb.name)
+        .exclude(pk=thumb.pk)
+        .values_list('pk', flat=True))
+    # With an older same-name sibling still attached to the image, this
+    # thumb is the pending re-crop. A newer sibling means the reverse: the
+    # tmp rendition holds that row's pixels, not this one's.
+    return bool(sibling_pks) and thumb.pk > max(sibling_pks)
+
+
 @csrf_exempt
 @login_required
 @xframe_options_exempt
@@ -298,6 +328,16 @@ def upload(request):
         cropduster_image.image = orig_image
         cropduster_image.save()
     elif cropduster_image.image.name != orig_image:
+        # A file with this md5 was uploaded earlier and the response
+        # references that image, so the original written during form
+        # validation is unreferenced. Its directory holds nothing else:
+        # in standalone mode the preview and the crop files are written
+        # under the retained image's directory.
+        default_storage.delete(orig_image)
+        try:
+            os.rmdir(os.path.dirname(default_storage.path(orig_image)))
+        except (NotImplementedError, OSError):
+            pass
         data['crop']['orig_image'] = data['orig_image'] = cropduster_image.image.name
         data['url'] = cropduster_image.get_image_url('_preview')
 
@@ -439,7 +479,20 @@ def crop(request):
             tmp_thumb_path = db_image.get_image_path(thumb.name, tmp=True)
 
             if default_storage.exists(thumb_path):
-                if not thumb_form.cleaned_data.get('changed') or not default_storage.exists(tmp_thumb_path):
+                # A missing tmp rendition is regenerated from the saved
+                # one so that Thumb.save() writes the same pixels back
+                # when the parent form saves. An existing tmp rendition
+                # is refreshed the same way when it may be stale, but
+                # never when it is current: it then holds the re-crop's
+                # pixels, and the saved rendition still holds the
+                # previous crop's.
+                if not default_storage.exists(tmp_thumb_path):
+                    refresh_tmp = True
+                elif thumb_form.cleaned_data.get('changed'):
+                    refresh_tmp = False
+                else:
+                    refresh_tmp = not tmp_rendition_is_current(thumb)
+                if refresh_tmp:
                     with default_storage.open(thumb_path) as f:
                         with default_storage.open(tmp_thumb_path, 'wb') as tmp_file:
                             tmp_file.write(f.read())

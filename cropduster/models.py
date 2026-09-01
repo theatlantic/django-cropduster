@@ -387,6 +387,7 @@ class Image(models.Model):
     def delete(self, *args, **kwargs):
         obj = self.content_object
         image_name = self.image.name if (self.image) else None
+        field_identifier = self.field_identifier
 
         super(Image, self).delete(*args, **kwargs)
 
@@ -394,7 +395,13 @@ class Image(models.Model):
             return
 
         def field_matches(f):
+            # Several CropDusterImageFields on one object can hold the
+            # same file name, so the field is matched on field_identifier;
+            # the name check then confirms the field still references the
+            # deleted image.
             if not isinstance(f, CropDusterImageField):
+                return False
+            if f.generic_field.field_identifier != field_identifier:
                 return False
             obj_image_name = getattr(getattr(obj, f.name, None), 'name', None)
             return (obj_image_name == image_name)
@@ -404,9 +411,14 @@ class Image(models.Model):
         except IndexError:
             pass
         else:
-            # Clear the file field on the generic-related instance
-            setattr(obj, cropduster_field.name, None)
-            obj.save()
+            # obj can hold stale values for its other fields, so the
+            # column is cleared with a queryset update() instead of
+            # obj.save(). The queryset is built on the model that defines
+            # the field, which can be a concrete parent of obj's class.
+            field_model_class = cropduster_field.model
+            field_model_class._default_manager.filter(pk=obj.pk).update(
+                **{cropduster_field.attname: ''})
+            setattr(obj, cropduster_field.name, '')
 
     def save_size(self, size, thumb=None, image=None, tmp=False, standalone=False,
                   permissive=False, skip_existing=False, commit=True):
