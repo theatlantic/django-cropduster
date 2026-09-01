@@ -1,4 +1,5 @@
 import os
+import tempfile
 import uuid
 
 import django
@@ -11,6 +12,13 @@ from selenosis.settings import *
 
 
 lazy_reverse = lazy(reverse, str)
+
+
+# LiveServerTestCase serves requests in another thread. A file-backed database
+# gives that thread its own SQLite connection instead of sharing the in-memory
+# connection with the test thread.
+DATABASES['default'].setdefault('TEST', {})['NAME'] = os.path.join(
+    tempfile.gettempdir(), 'django-cropduster-%s.sqlite3' % uuid.uuid4().hex)
 
 
 MIGRATION_MODULES = {
