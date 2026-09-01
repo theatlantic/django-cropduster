@@ -1,7 +1,7 @@
 import os
 
 from django import test
-from django.core.files.storage import default_storage
+from django.core.files.storage import FileSystemStorage, default_storage
 try:
     from django.urls import reverse
 except ImportError:
@@ -120,3 +120,35 @@ class TestUpload(CropdusterViewTestRunner):
             self.assertEqual(response.status_code, 200)
             data = json.loads(response.content)
             self.assertTrue(default_storage.exists(data['orig_image']))
+
+    def _standalone_upload(self, upload_to):
+        with open(os.path.join(self.TEST_IMG_DIR, 'img.jpg'), 'rb') as img_file:
+            request = self.factory.post(reverse('cropduster-upload'), {
+                'image': img_file,
+                'upload_to': upload_to,
+                'image_element_id': 'mt_image',
+                'md5': '',
+                'standalone': '1',
+                'preview_height': '500',
+                'preview_width': '800',
+            })
+        request.user = self.user
+        response = views.upload(request)
+        self.assertEqual(response.status_code, 200)
+        return json.loads(response.content)
+
+    def test_duplicate_standalone_upload_deletes_duplicate_original(self):
+        first = self._standalone_upload('dedup')
+        second = self._standalone_upload('dedup')
+
+        # upload() responds with the image retained for this md5
+        self.assertEqual(second['orig_image'], first['orig_image'])
+        self.assertEqual(second['crop']['orig_image'], first['orig_image'])
+        self.assertTrue(default_storage.exists(first['orig_image']))
+
+        # The original written while validating the duplicate upload (and
+        # the directory allocated for it) must not be left behind
+        duplicate_dir = "%s-1" % os.path.dirname(first['orig_image'])
+        self.assertFalse(default_storage.exists("%s/original.jpg" % duplicate_dir))
+        if isinstance(default_storage, FileSystemStorage):
+            self.assertFalse(os.path.isdir(default_storage.path(duplicate_dir)))

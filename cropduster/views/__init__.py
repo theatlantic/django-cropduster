@@ -298,6 +298,16 @@ def upload(request):
         cropduster_image.image = orig_image
         cropduster_image.save()
     elif cropduster_image.image.name != orig_image:
+        # A file with this md5 was uploaded earlier and the response
+        # references that image, so the original written during form
+        # validation is unreferenced. Its directory holds nothing else:
+        # in standalone mode the preview and the crop files are written
+        # under the retained image's directory.
+        default_storage.delete(orig_image)
+        try:
+            os.rmdir(os.path.dirname(default_storage.path(orig_image)))
+        except (NotImplementedError, OSError):
+            pass
         data['crop']['orig_image'] = data['orig_image'] = cropduster_image.image.name
         data['url'] = cropduster_image.get_image_url('_preview')
 
