@@ -342,6 +342,83 @@ class TestModelSaving(CropdusterTestCaseMediaMixin, TestCase):
         self.assertEqual(num_thumbs, 0, "%d orphaned thumbs left behind after deletion")
 
 
+class TestImageDelete(CropdusterTestCaseMediaMixin, TestCase):
+    """
+    Image.delete() clears the CropDusterImageField that the deleted row
+    belongs to, resolved by field_identifier: several fields on one object
+    can hold the same file name, and a file-name match alone would clear
+    the first of them.
+    """
+
+    def setUp(self):
+        super(TestImageDelete, self).setUp()
+        self.author = Author.objects.create(name="test")
+
+    def _create_image(self, obj, field_identifier, image_path):
+        return Image.objects.create(
+            content_type=ContentType.objects.get_for_model(obj),
+            object_id=obj.pk,
+            field_identifier=field_identifier,
+            image=image_path)
+
+    def test_delete_clears_only_the_matching_field(self):
+        img_path = self.create_unique_image('img.jpg')
+        article = Article.objects.create(title="delete", author=self.author)
+        self._create_image(article, "", img_path)
+        alt_image = self._create_image(article, "alt", img_path)
+
+        article.refresh_from_db()
+        self.assertEqual(article.lead_image.name, img_path)
+        self.assertEqual(article.alt_image.name, img_path)
+
+        alt_image.delete()
+
+        article.refresh_from_db()
+        self.assertFalse(article.alt_image)
+        self.assertEqual(article.lead_image.name, img_path,
+            "Deleting the alt field's image cleared lead_image")
+
+    def test_delete_does_not_clear_repointed_field(self):
+        img_path = self.create_unique_image('img.jpg')
+        other_path = self.create_unique_image('img.png')
+        article = Article.objects.create(title="delete", author=self.author)
+        image = self._create_image(article, "", img_path)
+
+        Article.objects.filter(pk=article.pk).update(lead_image=other_path)
+        image.delete()
+
+        article.refresh_from_db()
+        self.assertEqual(article.lead_image.name, other_path)
+
+    def test_delete_does_not_save_stale_field_values(self):
+        img_path = self.create_unique_image('img.jpg')
+        article = Article.objects.create(title="original", author=self.author)
+        image = self._create_image(article, "", img_path)
+
+        # Cache the content object, then change the article elsewhere;
+        # delete() must clear lead_image without writing the cached title
+        image.content_object
+        Article.objects.filter(pk=article.pk).update(title="updated elsewhere")
+        image.delete()
+
+        article.refresh_from_db()
+        self.assertFalse(article.lead_image)
+        self.assertEqual(article.title, "updated elsewhere")
+
+    def test_delete_clears_field_on_concrete_parent_model(self):
+        img_path = self.create_unique_image('img.jpg')
+        child = MultipleFieldsInheritanceChild.objects.create(slug="child")
+        image = self._create_image(child, "", img_path)
+
+        child.refresh_from_db()
+        self.assertEqual(child.image.name, img_path)
+
+        image.delete()
+
+        child.refresh_from_db()
+        self.assertFalse(child.image)
+
+
 class TestReverseForeignRelation(TestCase):
 
     def test_standard_manager(self):
