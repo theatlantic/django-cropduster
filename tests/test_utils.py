@@ -74,6 +74,24 @@ class TestUtilsPaths(CropdusterTestCaseMediaMixin, test.TestCase):
         self.assertEqual(get_upload_foldername('my img.jpg', upload_to=path),
                          os.path.join(path, 'my_img-1'))
 
+    def test_get_upload_foldername_reserves_directory(self):
+        import uuid
+        from django.core.files.storage import FileSystemStorage
+        from cropduster.utils import get_upload_foldername
+
+        if not isinstance(default_storage, FileSystemStorage):
+            self.skipTest("Directory reservation requires filesystem storage")
+
+        # get_upload_foldername() must not return the same directory twice
+        # when nothing was written in between: the preview and named crop
+        # files are written at derived paths without collision handling
+        path = uuid.uuid4().hex
+        first = get_upload_foldername('my img.jpg', upload_to=path)
+        second = get_upload_foldername('my img.jpg', upload_to=path)
+        self.assertNotEqual(first, second)
+        self.assertTrue(os.path.isdir(default_storage.path(first)))
+        self.assertTrue(os.path.isdir(default_storage.path(second)))
+
     def test_get_min_size(self):
         from cropduster.utils import get_min_size
         from cropduster.resizing import Size

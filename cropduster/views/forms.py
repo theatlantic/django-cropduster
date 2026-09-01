@@ -51,8 +51,6 @@ def clean_upload_data(data):
 
     upload_to = data['upload_to'] or None
 
-    folder_path = get_upload_foldername(image.name, upload_to=upload_to)
-
     (w, h) = (orig_w, orig_h) = pil_image.size
     sizes = data.get('sizes')
     if sizes:
@@ -73,6 +71,12 @@ def clean_upload_data(data):
         raise forms.ValidationError({"image": ["Invalid image: width is %d" % w]})
     elif h <= 0:
         raise forms.ValidationError({"image": ["Invalid image: height is %d" % h]})
+
+    # On filesystem storage get_upload_foldername() reserves the directory
+    # on disk, so the allocation happens only after the validations pass;
+    # an earlier call would create an empty directory for every rejected
+    # upload.
+    folder_path = get_upload_foldername(image.name, upload_to=upload_to)
 
     # File is good, get rid of the tmp file
     orig_file_path = os.path.join(folder_path, 'original' + extension)
