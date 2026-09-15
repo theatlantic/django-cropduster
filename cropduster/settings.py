@@ -5,8 +5,6 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 
-CROPDUSTER_MEDIA_ROOT = getattr(settings, 'CROPDUSTER_MEDIA_ROOT', settings.MEDIA_ROOT)
-
 try:
     CROPDUSTER_APP_LABEL = getattr(settings, 'CROPDUSTER_V4_APP_LABEL')
 except AttributeError:
