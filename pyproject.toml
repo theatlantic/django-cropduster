@@ -51,3 +51,6 @@ readme = {file = ["README.rst"]}
 [project.urls]
 Homepage = "https://github.com/theatlantic/django-cropduster"
 Issues = "https://github.com/theatlantic/django-cropduster/issues"
+
+[tool.uv.workspace]
+members = ["demo"]
