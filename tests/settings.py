@@ -3,8 +3,6 @@ import tempfile
 import uuid
 
 import django
-from django.core.signals import setting_changed
-from django.dispatch import receiver
 from django.utils.functional import lazy
 from django.urls import reverse
 
@@ -21,12 +19,19 @@ DATABASES['default'].setdefault('TEST', {})['NAME'] = os.path.join(
     tempfile.gettempdir(), 'django-cropduster-%s.sqlite3' % uuid.uuid4().hex)
 
 
-MIGRATION_MODULES = {
-    'auth': None,
-    'contenttypes': None,
-    'sessions': None,
-    'cropduster': None,
-}
+if os.environ.get('CROPDUSTER_TEST_MIGRATIONS') == '1':
+    # Build the test database from migrations so that Cropduster's two
+    # migrations are run. Roughly 40 downstream migrations depend on their
+    # dotted paths. contenttypes must also migrate because cropduster.0001
+    # names one of its migrations as a dependency.
+    MIGRATION_MODULES = {}
+else:
+    MIGRATION_MODULES = {
+        'auth': None,
+        'contenttypes': None,
+        'sessions': None,
+        'cropduster': None,
+    }
 
 INSTALLED_APPS += (
     'generic_plus',
@@ -70,14 +75,6 @@ CKEDITOR_CONFIGS = {
 CKEDITOR_UPLOAD_PATH = "%s/upload" % MEDIA_ROOT
 CROPDUSTER_CREATE_THUMBS = True
 USE_TZ = True
-
-
-@receiver(setting_changed)
-def reload_settings(**kwargs):
-    if kwargs['setting'] == 'CROPDUSTER_CREATE_THUMBS':
-        from cropduster import settings as cropduster_settings
-        cropduster_settings.CROPDUSTER_CREATE_THUMBS = kwargs['value']
-
 
 FORMS_URLFIELD_ASSUME_HTTPS = True
 os.makedirs(CKEDITOR_UPLOAD_PATH)
