@@ -62,7 +62,6 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
         if self.has_grappelli and django.VERSION >= (3, 2):
             raise SkipTest("django-ckeditor is not yet compatible with django 3.2+ and grappelli")
         super(TestStandaloneAdmin, self).setUp()
-        self.is_s3 = os.environ.get('S3') == '1'
 
     @contextlib.contextmanager
     def switch_to_ckeditor_iframe(self):
@@ -91,7 +90,7 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
     def cropduster_ckeditor_ok(self):
         with self.clickable_selector('.cke_dialog_ui_button_ok') as ok:
             ok.click()
-        time.sleep(2 if self.is_s3 else 0.2)
+        time.sleep(0.2)
 
     def test_basic_usage(self):
         self.load_admin(StandaloneArticle)
@@ -105,9 +104,6 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
         self.toggle_caption_checkbox()
         self.cropduster_ckeditor_ok()
-
-        if self.is_s3:
-            time.sleep(5)
 
         content_html = self.selenium.execute_script('return $("#id_content").val()')
 
@@ -158,9 +154,6 @@ class TestStandaloneAdmin(CropdusterTestCaseMediaMixin, AdminSelenosisTestCase):
 
         self.toggle_caption_checkbox()
         self.cropduster_ckeditor_ok()
-
-        if self.is_s3:
-            time.sleep(5)
 
         content_html = self.selenium.execute_script('return $("#id_content").val()')
 
