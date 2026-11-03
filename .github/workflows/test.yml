@@ -47,8 +47,6 @@ jobs:
       DJANGO: ${{ matrix.django-version }}
       GRAPPELLI: ${{ matrix.grappelli || '0' }}
       S3: ${{ matrix.s3 || '0' }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       NODE_ENV: test
 
     steps:
