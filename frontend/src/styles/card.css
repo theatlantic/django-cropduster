@@ -1,0 +1,172 @@
+/**
+ * The widget's read-only summary card, adopted into a shadow root on the
+ * `.cropduster-images` container so admin themes cannot restyle it by
+ * accident. Page stylesheets customize it through the `part` attributes
+ * (`cropduster-widget`'s host div, `::part(card)` and friends), the same
+ * seam the crop dialog exposes.
+ */
+
+:host {
+  display: block;
+  box-sizing: border-box;
+  font-family:
+    "Helvetica Neue",
+    Helvetica,
+    -apple-system,
+    BlinkMacSystemFont,
+    Roboto,
+    Arial,
+    sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #333;
+  text-align: left;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+.cropduster-card {
+  max-width: 560px;
+  margin: 8px 0 0;
+}
+
+.cropduster-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.cropduster-card-meta {
+  min-width: 0;
+}
+
+.cropduster-card-filename {
+  overflow: hidden;
+  color: #333;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cropduster-card-detail {
+  margin-top: 1px;
+  color: #8a8a8a;
+  font-size: 11.5px;
+  font-weight: 400;
+}
+
+.cropduster-card-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
+.cropduster-card-note {
+  color: #8a8a8a;
+  font-size: 11.5px;
+  font-style: italic;
+}
+
+.cropduster-delete-button {
+  padding: 4px 10px;
+  color: #666;
+  font-family: inherit;
+  font-size: 11.5px;
+  line-height: 1.4;
+  appearance: none;
+  background: linear-gradient(to bottom, #fafafa, #e8e8e8);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cropduster-delete-button:hover {
+  color: #333;
+  background: linear-gradient(to bottom, #fff, #eee);
+  border-color: #bbb;
+}
+
+.cropduster-delete-button:focus-visible {
+  outline: 2px solid #333;
+  outline-offset: 2px;
+}
+
+.cropduster-image-preview {
+  display: inline-block;
+}
+
+.cropduster-image-thumb {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 180px;
+  border: 1px solid #d2d2d2;
+  border-radius: 3px;
+}
+
+.cropduster-card-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.cropduster-crop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Unlike the dialog's rail, these are not interactive cards, so a populated
+   crop is just its thumbnail; the frame only centers it on the rail line. */
+.cropduster-crop-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 64px;
+}
+
+/* A size the dialog has not populated yet: an empty dashed placeholder. */
+.cropduster-crop-frame.cropduster-crop-pending {
+  width: 84px;
+  background: #fbfcfd;
+  border: 1px dashed #d2d2d2;
+  border-radius: 4px;
+}
+
+.cropduster-crop-thumb {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 120px;
+  max-height: 64px;
+  border: 1px solid #d2d2d2;
+  border-radius: 3px;
+}
+
+.cropduster-crop-label {
+  max-width: 92px;
+  overflow: hidden;
+  color: #666;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Staged deletion: the image stays visible but reads as going away. The
+   wrapper's predelete classes let the admin theme dim the caption and
+   attribution fields the same way. */
+.cropduster-card-deleted .cropduster-image-preview,
+.cropduster-card-deleted .cropduster-card-rail {
+  opacity: 0.45;
+}
