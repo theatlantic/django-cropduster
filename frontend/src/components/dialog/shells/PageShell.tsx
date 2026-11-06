@@ -13,6 +13,7 @@ import type { Root } from "react-dom/client";
 import { readDialogConfig } from "../../../state/dialogConfig";
 import type { DialogConfig } from "../../../state/dialogConfig";
 import type { LegacyCompletePayload } from "../../../formset/legacyPayload";
+import type { DialogRendererData } from "../../../state/types";
 import {
   closeDialogWindow,
   deliverCompletion,
@@ -33,11 +34,12 @@ export function PageShell({ config, container, view }: PageShellProps) {
   const target = view ?? window;
 
   const onCommit = useCallback(
-    (payload: LegacyCompletePayload) => {
+    (payload: LegacyCompletePayload, rendererData?: DialogRendererData) => {
       deliverCompletion(
         payload,
         { elId: config.elId, callbackFn: config.callbackFn },
         target,
+        rendererData,
       );
       // 4.x closed unconditionally, including when nothing was listening; in
       // CKEditor's iframe the call is a no-op and its own OK handler hides the
