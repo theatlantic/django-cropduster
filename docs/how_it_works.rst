@@ -1,67 +1,62 @@
-.. _how_it_works
+.. _how_it_works:
 
-How it Works
+How it works
 ============
 
-GenericForeignFileField
------------------------
+``CropDusterField`` is a ``GenericForeignFileField`` from
+`django-generic-plus <https://github.com/theatlantic/django-generic-plus>`_.
+The field presents an ``ImageField``-like value on the owning model while its
+metadata and crops are stored in Cropduster's own rows.
 
-Nearly all of the functionality in cropduster comes from its django model field, :py:class:`CropDusterField <cropduster.fields.CropDusterField>`. A great deal of functionality, in turn, comes from the :py:class:`GenericForeignFileField <generic_plus.fields.GenericForeignFileField>` in the package `django-generic-plus`_. Put in simplest terms, django-generic-plus allows one to create django model fields that are a hybrid of a `FileField`_ and a reverse generic foreign key (similar to Django's `GenericRelation`_, except that the relationship is one-to-one rather than one-to-many). In some respects these fields act the same as a `FileField`_ (or, in the case of django-cropduster, an `ImageField`_), and when they are accessed from a model they have the same API as a `FieldFile`_. But, as part of their hybrid status, ``GenericForeignFileField`` fields also have functionality that allows relating a file to one or more fields in another model. In the case of django-cropduster, this model is :py:class:`cropduster.models.Image`. An example might be edifying. Let's begin with a simple model:
-
-.. code-block:: python
+For this model::
 
     class Author(models.Model):
         name = models.CharField(max_length=255)
-        headshot = CropDusterField(upload_to='img/authors', sizes=[Size("main")])
+        headshot = CropDusterField(
+            upload_to="img/authors",
+            sizes=[Size("main", w=600, h=480)],
+        )
 
-Assuming that we are dealing with an ``Author`` created in the Django admin, one would access the :py:class:`cropduster.Image <cropduster.models.Image>` instance using ``Author.headshot.related_object``:
+``author.headshot`` is a field-file proxy. Its ``related_object`` is the
+corresponding ``cropduster.Image``::
 
-.. code-block:: python
-
-    >>> author = Author.objects.get(pk=1)
-    >>> author.headshot
-    <CropDusterImageFieldFile: img/authors/mark-twain/original.jpg>
-    >>> author.headshot.path
-    "/www/project/media/img/authors/mark-twain/original.jpg"
+    >>> author.headshot.name
+    'img/authors/mark-twain/original.jpg'
     >>> author.headshot.related_object
     <Image: /media/img/authors/mark-twain/original.jpg>
 
-The accessor at ``author.headshot.related_object`` is basically equivalent to running the following python code:
+The ``Image`` row points back to the owner through a content type, object id,
+and ``field_identifier``. The identifier is empty for the first Cropduster
+field on a model and distinguishes additional fields. Each rendered crop is a
+``Thumb`` related to that ``Image``; an automatically generated size points at
+the crop it follows through ``reference_thumb``.
 
-.. code-block:: python
+Files and renderers
+-------------------
 
-    try:
-        Image.objects.get(
-            content_type=ContentType.objects.get_for_model(author),
-            object_id=author.pk,
-            field_identifier='')
-    except Image.DoesNotExist:
-        return None
+Cropduster stores each uploaded image in a separate directory. The original is
+stored as ``original.<ext>``, the crop-dialog preview as ``_preview.<ext>``,
+and each file-backed crop under its size name. Temporary renditions add
+``_tmp`` until the form saves them. All reads and writes use the storage
+declared by ``Image.image`` rather than assuming a local filesystem.
 
-Creating an instance with a cropduster field outside of the Django admin requires the creation of an instance of :py:class:`cropduster.Image <cropduster.models.Image>` and a call to the ``generate_thumbs`` method:
+The stored name is separate from the URL returned to a template.
+``FileRenderer`` returns URLs for the derivative files; ``ThumborRenderer``
+builds a URL from the original and recorded crop box. See :doc:`renderers`.
 
-.. code-block:: python
+Creating images outside the admin
+---------------------------------
 
-    from cropduster.models import Image
+Use :func:`cropduster.attach` instead of constructing ``Image`` and ``Thumb``
+rows or reproducing Cropduster's directory layout by hand::
 
-    author = Author.objects.create(
-        name="Mark Twain",
-        headshot="img/authors/mark-twain/original.jpg")
-    author.save()
+    import cropduster
 
-    image = Image.objects.create(
-        content_object=author,
-        field_identifier='',
-        image=author.headshot.name)
+    result = cropduster.attach(author, "headshot", "/tmp/mark-twain.jpg")
+    result.thumbs["main"].get_url()
 
-    author.headshot.generate_thumbs()
-
-.. note::
-
-    Cropduster requires that images follow a certain path structure. Let's continue with the example above. Using the built-in Django `ImageField`_, uploading the file ``mark-twain.jpg`` would place it in ``img/authors/mark-twain.jpg`` (relative to the ``MEDIA_ROOT``). Because cropduster needs a place to put its thumbnails, it puts all images in a directory and saves the original image to ``original.%(ext)s`` in that folder. So the cropduster-compatible path for ``img/authors/mark-twain.jpg`` would be ``img/authors/mark-twain/original.jpg``. When a file is uploaded via the Django admin this file structure is created seamlessly, but it must be kept in mind when importing an image into cropduster from outside of the admin.
-
-.. _FileField: https://docs.djangoproject.com/en/1.8/ref/models/fields/#filefield
-.. _ImageField: https://docs.djangoproject.com/en/1.8/ref/models/fields/#django.db.models.ImageField
-.. _GenericRelation: https://docs.djangoproject.com/en/1.8/ref/contrib/contenttypes/#django.contrib.contenttypes.fields.GenericRelation
-.. _django-generic-plus: https://github.com/theatlantic/django-generic-plus
-.. _FieldFile: https://docs.djangoproject.com/en/1.8/ref/models/fields/#django.db.models.fields.files.FieldFile
+``attach()`` accepts storage names, local paths, URLs, Django files, PIL
+images, and existing Cropduster images. It resolves the field's declared
+sizes, writes the preview and crops, and associates the rows with the owning
+object. Unsaved objects, custom crop boxes, copying between fields, and the
+return value are covered in :doc:`programmatic`.

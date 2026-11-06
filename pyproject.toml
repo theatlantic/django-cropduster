@@ -1,14 +1,15 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-cropduster"
-dynamic = ["version", "readme"]
+dynamic = ["version"]
 authors = [
   { name="The Atlantic", email="programmers@theatlantic.com" },
 ]
 description = "Django image uploader and cropping tool"
+readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -29,7 +30,7 @@ classifiers = [
     "Framework :: Django :: 5.1",
     "Framework :: Django :: 5.2",
 ]
-license = { text = "BSD-2-Clause" }
+license = "BSD-2-Clause"
 dependencies = [
     "Django>=4.2",
     "Pillow>=9",
@@ -47,16 +48,23 @@ thumbor = [
     "libthumbor>=2",
 ]
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.packages.find]
 include = ["cropduster*"]
 namespaces = false
 
+[tool.setuptools.package-data]
+cropduster = ["**/templates/**/*", "**/static/**/*"]
+
 [tool.setuptools.dynamic]
 version = {attr = "cropduster.__version__"}
-readme = {file = ["README.rst"]}
 
 [project.urls]
 Homepage = "https://github.com/theatlantic/django-cropduster"
+Documentation = "https://django-cropduster.readthedocs.io/"
+Changelog = "https://github.com/theatlantic/django-cropduster/blob/master/CHANGELOG.rst"
 Issues = "https://github.com/theatlantic/django-cropduster/issues"
 
 [tool.uv.workspace]
