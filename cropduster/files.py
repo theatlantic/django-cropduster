@@ -6,14 +6,15 @@ import hashlib
 
 from django.core.files.images import get_image_dimensions
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.core.files.storage import default_storage
 from django.conf import settings
 from django.db.models.fields.files import FieldFile, FileField
 from django.utils.functional import cached_property
 from urllib.parse import urlparse, unquote_plus
 from urllib.request import urlopen
 
-from generic_plus.utils import get_relative_media_url, get_media_path
+from generic_plus.utils import get_relative_media_url
+
+from cropduster.utils.storage import get_image_storage
 
 
 class VirtualFieldFile(FieldFile):
@@ -21,7 +22,9 @@ class VirtualFieldFile(FieldFile):
     def __init__(self, name, storage=None, upload_to=None):
         super(FieldFile, self).__init__(None, name)
         self.instance = None
-        self.field = FileField(name='file', upload_to=upload_to, storage=storage)
+        self.field = FileField(
+            name='file', upload_to=upload_to,
+            storage=storage or get_image_storage())
         self.storage = self.field.storage
         self._committed = True
 
@@ -92,7 +95,7 @@ class ImageFile(VirtualFieldFile):
             # path is outside MEDIA_ROOT.
             self._path = None
         else:
-            if default_storage.exists(path):
+            if get_image_storage().exists(path):
                 self._path = path
 
         if not self._path:
@@ -138,6 +141,6 @@ class ImageFile(VirtualFieldFile):
 
         image = Image.get_file_for_size(self, size_slug)
         if size_slug == 'preview':
-            if not default_storage.exists(image.name):
+            if not get_image_storage().exists(image.name):
                 Image.save_preview_file(self, preview_w=self.preview_width, preview_h=self.preview_height)
         return image
