@@ -6,6 +6,10 @@ __version__ = '5.0.0.dev0'
 
 
 _LAZY_IMPORTS = {
+    'attach': 'cropduster.services.attach',
+    'copy_image': 'cropduster.services.attach',
+    'choose_crop': 'cropduster.services.crops',
+    'thumb_for_size': 'cropduster.services.crops',
     'get_renderer': 'cropduster.renderers',
 }
 
