@@ -1,0 +1,4 @@
+# The frontend bundle is committed so installing the package does not require
+# Node.js.
+cropduster/static/cropduster/dist/** linguist-generated -diff
+frontend/package-lock.json linguist-generated
