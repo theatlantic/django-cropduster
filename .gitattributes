@@ -2,3 +2,4 @@
 # Node.js.
 cropduster/static/cropduster/dist/** linguist-generated -diff
 frontend/package-lock.json linguist-generated
+frontend/tests/fixtures/*.html whitespace=-blank-at-eol

@@ -8,6 +8,12 @@ from django.test import TestCase, override_settings
 TestCase.pytestmark = pytest.mark.django_db(transaction=True, reset_sequences=True)
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        '--write-fixtures', action='store_true', default=False,
+        help='Rewrite the committed widget HTML fixtures.')
+
+
 @pytest.fixture(scope="session", autouse=True)
 def s3_server():
     """Starts a moto S3 server and points default_storage at it when S3=1 is set"""
