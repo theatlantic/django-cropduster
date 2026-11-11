@@ -1,6 +1,374 @@
 Changelog
 =========
 
+**5.0.0 (unreleased)**
+
+Cropduster 5.0 replaces the admin frontend and adds versioned JSON and Python
+APIs, URL renderers, and programmatic image attachment. It does not add
+migrations or change the formset values written by the widget. To upgrade,
+update the package versions and run ``collectstatic``;
+to roll back, restore the previous versions and run ``collectstatic`` again.
+See ``docs/upgrading-5.0.rst`` for the complete procedure.
+
+Requires Python 3.10+ and Django 4.2+.
+
+*Frontend rewrite*
+
+* The admin JavaScript is a React 19 + TypeScript application (``frontend/``),
+  built by Vite into ``cropduster/static/cropduster/dist/cropduster.js`` and
+  ``cropduster.css``. The built files are committed, so installing the package
+  never requires Node. ``CropDusterWidget.media`` names those two files and
+  nothing else: neither ``admin/js/jquery.init.js`` nor jsrender is loaded any
+  more.
+* The widget mounts as a ``<cropduster-widget>`` custom element rendered by
+  ``custom_field.html``. The existing hidden inline formset remains
+  authoritative: the server renders it, React does not control it, and React
+  renders no ``<input name=...>`` elements of its own. The ``.cropduster-*``
+  class names, the ``{prefix}-N-field`` naming and ``inline.html`` are
+  unchanged.
+* The thumbnails are a read-only summary card rendered into an open shadow
+  root on ``.cropduster-images``. Admin stylesheets cannot restyle its
+  internals; pages style it through its ``part`` names (``card``, ``preview``,
+  ``preview-image``, ``crop-image``, ``delete-button``, ...), and scripts that
+  read the 4.x thumbnail markup from the light DOM no longer find it.
+* The change form and crop dialog load their previews from URLs built by the
+  renderer that ``CROPDUSTER_URL_RENDERER`` names. The server and dialog write
+  the renderer URL and ``srcset`` to new ``data-renderer-url`` and
+  ``data-renderer-srcset`` attributes on each thumb ``<option>``. Preview
+  metadata includes the corresponding renderer URL and ``srcset`` alongside
+  the stored URL. ``ThumborRenderer`` includes a 2x candidate when the crop
+  box or original preview has enough pixels. The serializers continue to
+  write stored-file URLs to ``data-url`` and ``data-preview-url``, using
+  values that are byte-for-byte identical to those written by 4.x, because
+  downstream scripts read filenames from those attributes.
+* The rewritten ``window.CropDuster`` keeps the same DOM effects. ``show``,
+  ``complete``, ``setThumbnails``, ``createThumbnails``, ``registerInput``,
+  ``removeSize``, ``restoreSize`` and ``mediaUrl`` behave as they did,
+  including in-place mutation of the shared ``.data('sizes')`` array.
+* ``cropduster:update`` fires on every jQuery instance found on the page with
+  its ``(event, prefix, data)`` signature. On a page without jQuery, it fires
+  once as a native ``CustomEvent`` with ``detail = {prefix, data}``. The new
+  ``cropduster:sizeschange`` ``CustomEvent`` will replace in-place updates of
+  the ``.data('sizes')`` array in 6.0.
+* The dialog renders into an open shadow root in both presentations, so admin
+  themes no longer style its internals. Every existing element ID
+  (``#cropbox``, ``#crop-button``, ``#upload-button``,
+  ``#id_size-width``, ...) keeps its name inside that root.
+* The crop geometry is a port of the 4.x dialog's calculations. Vitest
+  compares it with 2,114 vectors extracted from 4.15.0's ``upload.js`` and 13
+  explicit edge cases; ``frontend/tests/golden/default-crop-vectors.json``
+  records the SHA-256 digest of that ``upload.js``.
+* The dialog's navigation arrows are real ``<button>`` elements, so the crop
+  steps can be reached from the keyboard.
+* The in-repo CKEditor 4 plugin uses a new
+  ``CropDusterDialog.commit()`` / ``.canCommit()`` API instead of clicking
+  ``#crop-button`` through jQuery. Buttons have both the ``.disabled`` class
+  and the real ``disabled`` attribute.
+* Vite generates ``cropduster/static/cropduster/dist/LICENSES.txt`` from the
+  packages it bundles (React, ReactDOM, react-image-crop and Scheduler).
+* When ``DEBUG`` is true and ``CROPDUSTER_DEV_SERVER_URL`` is set,
+  ``CropDusterWidget.media`` lists the Vite development server's React refresh
+  preamble, module client, and ``src/entry.tsx`` instead of the built bundle.
+
+*Dialog modes*
+
+* The same dialog can render in an in-page modal, a full page, or the 4.x
+  ``window.open`` popup. The presentation comes from
+  ``CROPDUSTER_DIALOG_MODE``, which defaults to ``"auto"``: the modal when the
+  viewport is at least 900x600, and the popup otherwise. This allows a change form in a small
+  iframe to use the popup. The standalone (WYSIWYG) view is always full-page.
+* ``CropDusterField(dialog_mode="window")`` overrides the setting for one
+  field. This changes only its presentation and requires no migration or
+  schema change.
+* In modal mode the dialog retains the row from which it was opened. This fixes
+  the 4.x bug where reordering a nested inline while the popup was open wrote
+  the crop to the wrong row. In window mode, ``CropDuster.complete()`` still
+  resolves the row by its prefix, as it did in 4.x.
+
+*JSON API*
+
+* The new ``cropduster/api/v1/`` routes are ``state/`` (URL-encoded dialog
+  hydration), ``upload/`` (multipart) and ``crop/`` (JSON). All three are
+  CSRF-protected POST endpoints that report a failure with a non-200 status
+  and a ``{"error": {"code", "message", "field", "details"}}`` body.
+* All three endpoints and ``AttachResult.payload()`` return the same version 1
+  fields: ``image``, ``preview``, ``sizes``, ``thumbs``, ``metadata`` and
+  ``warnings``. Each thumb contains the ``url`` returned by the configured
+  renderer, the storage ``file_url``, ``srcset`` and ``source: null``. The
+  ``source`` field is reserved for per-size override sources. ``preview``
+  contains the same ``url``/``file_url`` pair.
+* ``upload/`` accepts ``for_size=<name>`` to limit minimum-size validation to
+  one size.
+* The endpoints accept a ``target`` (``content_type``, ``object_id``,
+  ``field_name``). When it is present, the server takes ``upload_to`` and the
+  size geometry, including the minimum dimensions an upload has to satisfy,
+  from the field; the client may narrow the sizes by name, and a name the
+  field does not declare is rejected.
+* ``CROPDUSTER_API_PERMISSION`` names the callable that authorizes API
+  requests. The default requires an active staff user, plus the model's
+  ``change`` or ``add`` permission when a target is present; a callable rejects
+  a request by raising ``PermissionDenied`` or returning ``False``.
+  ``cropduster.api.permissions.login_required_only`` is included for projects
+  that need the 4.x ``login_required`` behavior.
+* The server derives the owning target from saved image ids and stored names
+  when the request omits it. Image and crop ids are checked against that owner
+  and size before file access, and the API rejects invalid or out-of-bounds
+  crop boxes before any files or rows are written.
+* The 4.x endpoints (``cropduster/upload/``, ``cropduster/crop/``) are still
+  mounted and still CSRF-exempt. Their normalized responses match 4.15.0
+  except that ``crop.sizes`` now contains the posted list instead of ``null``.
+
+*Programmatic API*
+
+* ``cropduster.attach(instance, field_name, source, ...)`` accepts a path, URL,
+  ``File``, PIL image, ``Image`` or ``FieldFile``. It attaches the image,
+  renders the sizes and returns an ``AttachResult`` (``image``, ``thumbs``,
+  ``errors``, ``warnings``, ``payload(legacy=, sanitize=)``,
+  ``orphan_thumbs()``).
+* ``cropduster.copy_image()`` copies an existing Cropduster image onto another
+  field, reusing crops where they fit.
+* ``cropduster.choose_crop()``, ``cropduster.thumb_for_size()``,
+  ``Image.best_thumb_for_size()`` and ``crop_overlap()`` pick the best existing
+  crop for a requested size.
+* ``attach``, ``copy_image``, ``choose_crop``, ``thumb_for_size`` and
+  ``get_renderer`` are lazily re-exported from ``cropduster`` itself; importing
+  the package still does not require configured settings.
+* ``cropduster.services`` defines ``store_upload()``, ``apply_crops()``,
+  ``build_payload()`` and ``payload_to_legacy()``. The v1 endpoints, the
+  legacy views, and the programmatic API call these services; the legacy views
+  convert their results to the 4.x format.
+* ``attach(sources=...)`` accepts the per-size override-source argument but
+  raises ``NotImplementedError``. The argument is included so a future
+  implementation can use the same payload format; alternate sources are not
+  supported in 5.0.
+* The new ``ImageTooSmallError`` exception stores
+  ``min_size``/``actual_size``, and its ``str()`` is the message shown to the
+  editor. ``CropDusterFileMissing`` and ``CropDusterConfigurationError`` are
+  also new.
+
+*Renderers*
+
+* ``CROPDUSTER_URL_RENDERER`` names the renderer that builds crop URLs.
+  ``FileRenderer`` (the default) reproduces both 4.x cache busters for
+  query-free storage URLs, ``?mod=<timestamp>`` from ``Thumb`` and the bare
+  ``?<timestamp>`` from the template tags, unless its ``cache_buster`` option
+  selects one. It leaves an existing query unchanged because storage may have
+  signed it. ``ThumborRenderer`` signs Thumbor URLs and needs the ``thumbor``
+  extra.
+* ``Thumb.get_url()`` and ``Thumb.get_srcset()`` call the configured renderer.
+  ``{% get_crop %}`` now returns ``srcset``, retains its ``"original"``
+  fallback, and accepts the same keyword arguments as before. The new
+  ``{% get_thumbs %}`` tag returns crop entries keyed by size and puts the
+  image fields under ``metadata``.
+* ``Image.objects.with_thumbs()`` and ``ThumbQuerySet.with_reference_thumbs()``
+  prefetch the thumbs and reference thumbs that URL building needs, so
+  rendering a list of images does not query once per automatic crop.
+* With ``CROPDUSTER_CREATE_THUMBS = False`` (metadata-only mode), no
+  derivative files are written. ``Crop``, ``fit_to_crop`` and
+  ``Thumb.crop`` accept ``(width, height)`` tuples so geometry can be computed
+  without opening an image. ``Crop.create_image()`` raises
+  ``CropDusterFileMissing`` when a caller attempts to create a file without
+  pixel data.
+* New system checks: ``cropduster.E001`` (unloadable renderer),
+  ``cropduster.E002`` (unloadable API permission), ``cropduster.E003``
+  (unknown ``CROPDUSTER_DIALOG_MODE``), ``cropduster.E010``
+  (``CROPDUSTER_APP_LABEL`` is not ``"cropduster"``), ``cropduster.W001``
+  (storage URLs match no configured Thumbor prefix) and ``cropduster.W002``
+  (``CROPDUSTER_CREATE_THUMBS = False`` under a renderer that needs the files).
+
+*Settings*
+
+* New: ``CROPDUSTER_URL_RENDERER``, ``CROPDUSTER_THUMBOR``,
+  ``CROPDUSTER_DIALOG_MODE``, ``CROPDUSTER_DEV_SERVER_URL``,
+  ``CROPDUSTER_API_PERMISSION``, ``CROPDUSTER_LEGACY_CSRF_EXEMPT``,
+  ``CROPDUSTER_REMOTE_IMAGE_FETCH``.
+* ``cropduster.conf.settings`` reads each value from ``django.conf.settings``
+  when the attribute is accessed, and the ``cropduster.settings`` module
+  forwards attribute access to it. As a result, ``override_settings`` and
+  runtime reconfiguration are honored.
+  ``CROPDUSTER_APP_LABEL`` and ``CROPDUSTER_DB_PREFIX`` remain import-time
+  constants because model ``Meta`` reads them.
+* ``CROPDUSTER_APP_LABEL`` remains fixed at ``"cropduster"`` because the
+  existing migrations hardcode that label, so under another label their
+  self-references and every downstream dependency on
+  ``('cropduster', '0001_initial')`` would point at nothing.
+  ``cropduster.E010`` reports any other value. ``CROPDUSTER_DB_PREFIX`` still
+  allows two installations to coexist.
+* With ``CROPDUSTER_REMOTE_IMAGE_FETCH = False``, an image source named by
+  an ``http(s)`` URL is rejected instead of retrieved on the server.
+* ``CROPDUSTER_LEGACY_CSRF_EXEMPT`` defaults to ``True`` through 5.x. With
+  ``False``, the two legacy endpoints run Django's CSRF check on every
+  request, which will be the default in 6.0. The setting is read per request.
+
+*Deprecations*
+
+* ``Size(retina=True)`` warns and has no effect. The key remains in the
+  serialized format so saved size sets continue to round-trip. The option and
+  serialized key will both be removed in 6.0. Declare a double-resolution size
+  under ``auto`` instead.
+* ``ThumborRenderer`` emits a ``DeprecationWarning`` when it reads a bare
+  ``THUMBOR_SERVER``, ``THUMBOR_SECURITY_KEY`` or ``THUMBOR_MEDIA_URL``
+  setting; put them in the ``CROPDUSTER_THUMBOR`` dict.
+* ``Thumb.cache_safe_url`` delegates to ``Thumb.get_url()``.
+* ``cropduster.forms.get_cropduster_field_on_model()`` warns; use
+  ``cropduster.utils.fields.get_cropduster_field()``.
+* ``cropduster.utils.paths.get_upload_foldername()`` wraps
+  ``cropduster.services.paths.unique_upload_dir()``.
+* ``Image.path`` is kept but deprecated; callers should use the field file
+  directly.
+* ``cropduster/static/cropduster/js/cropduster.js`` is a ``console.warn`` shim,
+  and ``jsrender.js`` is empty. They remain only for asset pipelines that
+  reference those paths. Both files and the ``.data('sizes')`` array will be
+  removed in 6.0.
+
+*Removed*
+
+* The 2011-era dialog stack: Jcrop 0.9.12, jQuery Form, ``jquery.class.js``,
+  ``json2.js``, ``upload.js``, ``upload.css``, ``jquery.jcrop.css``,
+  ``jcrop.gif``, ``arrows.png``, ``LICENSE.Jcrop.txt`` and the three unused
+  widget images.
+* ``CropDusterThumbField``, the unused ``image_storage`` hook, the custom
+  ``views/base.py`` implementation, and every pre-4.2 Django branch.
+* generic-plus no longer provides ``generic_plus.compat``.
+  ``from generic_plus.compat import compat_rel, compat_rel_to`` raises
+  ``ModuleNotFoundError``. Code that used these helpers should read
+  ``field.remote_field`` and ``field.remote_field.model`` directly.
+* generic-plus no longer depends on ``python-monkey-business``. Admin patches
+  now use ``generic_plus.patching.patch``, which applies ``functools.wraps`` to
+  the original method. Patched versions of ``ModelAdmin.__init__``,
+  ``get_inline_instances`` and ``formfield_for_dbfield`` therefore report
+  ``__module__ == 'django.contrib.admin.options'`` instead of
+  ``'generic_plus.models'``. Code that previously checked the module name
+  should check for ``_generic_plus_patched_original`` instead.
+* ``python-xmp-toolkit`` is no longer a hard dependency. Standalone mode needs
+  ``pip install django-cropduster[standalone]``, and Thumbor URL signing needs
+  ``[thumbor]``. Both are optional. The standalone route remains registered
+  without its extra so that a missing dependency produces a configuration
+  error instead of a 404.
+* Python 3.9 and earlier, Django 4.1 and earlier.
+
+*Bug fixes*
+
+* ``GenericRelatedObjectManager.get_queryset()`` filters by
+  ``field_identifier``, so ``instance.<field>_generic_rel.all()`` no longer
+  returns rows belonging to a sibling field on the same model. The filter
+  applies to any ``GenericForeignFileField`` subclass that sets a
+  ``field_identifier``, including a project-defined video-upload field and
+  models with several such fields.
+* ``manager.clear()`` iterates the filtered ``all()``, so it deletes only the
+  field's own rows. Under 3.1.0 it deleted every generic row for the instance,
+  which could delete data belonging to the instance's other field identifiers.
+  Code that intentionally used ``clear()`` to drop all of an instance's
+  attachments must now clear each field explicitly.
+* generic-plus's ``manager.add()`` and ``manager.create()`` now write
+  ``FieldFile.name`` instead of requiring a ``path`` attribute on the related
+  model; previously they raised ``AttributeError`` for a related model
+  without ``path``. The value written by Cropduster is unchanged because
+  ``Image.path`` already returned ``self.name``.
+* Direct assignment to ``<field>_generic_rel`` raises ``TypeError``, as
+  assignment to Django's own related managers has since Django 2.0. In the
+  assignment branch this replaces, a multi-object assignment raised
+  ``AttributeError`` on any storage, a single-object assignment raised
+  ``NotImplementedError`` on storages without absolute paths (it read
+  ``FieldFile.path``), and on local storage it wrote an absolute filesystem
+  path into a column everything else treats as a storage-relative name; it
+  was removed rather than repaired. Assign to the file field or use the
+  manager's ``add()``, ``remove()`` and ``clear()`` methods.
+* generic-plus appends an inline for a ``GenericForeignFileField`` only when
+  the admin does not already have one. Version 3.1.0 used
+  ``set(generic_file_fields) ^ set(existing_inline_fields)``. If an admin
+  declared an inline for a ``GenericForeignFileField`` belonging to another
+  model, the symmetric difference included that field and generic-plus appended
+  a duplicate inline for it.
+* The legacy crop view's ``CropForm.clean_sizes()`` returned ``None``, so
+  ``crop.sizes`` was ``null``. It now returns the submitted sizes.
+* Building a ``srcset`` from a reference thumb with no crop box raised
+  ``AttributeError``.
+* With ``upload_to=None``, upload paths no longer contain a literal ``None/``
+  segment.
+* ``unique_upload_dir()`` finds an unused directory through the storage API
+  (``listdir()``, or ``exists()`` when a backend cannot list) rather than the
+  local filesystem, and clamps the name to the field's ``max_length``. On
+  filesystem storage it still creates the directory to reserve the name.
+  Non-local storage therefore works, and a long path no longer overflows the
+  field.
+* ``MetadataDict`` works on non-local storage, and gains ``from_string()``.
+* Originals, previews and crops consistently use the storage declared by
+  ``Image.image``; file-size lookup no longer assumes a local path.
+* Temporary crop result names now refer to existing files. Standalone crops are
+  not mislabeled as temporary, ``tmp=False`` does not copy an unchanged crop,
+  and attaching to an unsaved object associates every generated thumb.
+* ``ThumborRenderer`` keeps the crop operation for an offset box even when its
+  dimensions equal the original image.
+* The CKEditor plugin's OK handler keeps the React iframe open while the
+  dialog cannot commit, so an active upload or crop remains visible until its
+  callback runs.
+* A Python 2 ``.next()`` call was removed from
+  ``cropduster/views/utils.py``.
+* generic-plus fixed an ``isinstance``/``issubclass`` mix-up and a one-argument
+  ``issubclass`` call.
+* Previously unreachable widget-factory code now restores the factory's
+  attributes.
+
+*Behavior changes*
+
+* ``CropDuster.complete()`` no longer calls ``CropDuster.setThumbnails()``. The
+  formset writes are identical and occur in the same order. A project that
+  monkey-patched the public method to observe completion no longer receives
+  that call and should listen for ``cropduster:update`` instead.
+* The widget's own writes to the formset dispatch ``input`` and ``change``,
+  which 4.x did not do, so autosave, locking and change-detection scripts are
+  notified of an upload. To opt out, override
+  ``CropDusterWidget.get_widget_config()`` and set ``dispatchInputEvents`` to
+  ``False`` in the widget's ``data-config``.
+* Because ``crop.sizes`` is no longer ``null``, a client that copies every
+  ``crop.*`` response value back into its form, as 4.15.0's ``upload.js``
+  did, now also writes ``#id_crop-sizes``. The value is the same list it was
+  sent.
+* Admin themes that restyled the old dialog's internals (``#crop_nav``,
+  ``#current-thumb-info``, ``#error-container``) can no longer style those
+  elements through selectors outside the shadow root. Those rules can be
+  deleted.
+* The dialog page no longer renders one ``thumbs-N-*`` table per size. The step
+  count is available through ``#thumb-total-count``.
+* ``attach()`` collects per-size rendering failures in ``AttachResult.errors``
+  when ``permissive=True``, its default. ``copy_image()`` defaults to
+  ``permissive=False`` and raises. Callers replacing a local helper should set
+  ``permissive`` explicitly. With ``permissive=True``, the result may omit a
+  required crop and report it only in ``AttachResult.errors``.
+* ``GenericForeignFileField.formfield()`` now sets ``parent_admin``, ``request``
+  and ``file_field_name`` on the widget instance. Previously, it set them before
+  instantiating the widget. Passing a widget *class* to
+  ``formfield(widget=...)`` therefore stored all three attributes on that class,
+  and every field using the class read the values written by the last field.
+  With several fields on one model, a widget could report another field's
+  ``file_field_name``. The class also retained a live ``WSGIRequest`` for the
+  lifetime of the worker process.
+* The patched ``ModelAdmin.get_inline_instances()`` now calls
+  ``get_fieldsets()`` only after it finds an inline that may need to be dropped.
+  It previously made the call whenever it built inline instances for any admin.
+  The returned inlines are unchanged, but the number and order of calls differ:
+  across one project's admin registry, calls per pass dropped from 100 to 32.
+  Side effects in ``get_fieldsets()`` or ``get_form()`` therefore run fewer
+  times.
+* The generic-plus widget now strips ``MEDIA_ROOT`` from the rendered
+  ``file_value``. Version 3.1.0 built its pattern as
+  ``r'^%s/?' % re.compile(MEDIA_ROOT)``, which interpolated the repr of the
+  compiled pattern and never matched. As a result, the strip had not worked
+  since roughly 1.x. A column containing
+  ``/srv/example/media/podcasts/hero.mp4`` now renders as
+  ``podcasts/hero.mp4``. The template writes ``file_value`` to the field's
+  hidden input, so projects that store absolute paths will also post the
+  stripped value. Storage-relative names, including the names written by
+  Cropduster, are unchanged.
+* The generic-plus widget context now includes ``field_identifier``,
+  ``formset_prefix``, ``csrf_token``, ``config`` and ``config_json`` for the 5.0
+  frontend. When the widget has a request, it calls
+  ``django.middleware.csrf.get_token(request)`` while building that context.
+  Rendering the widget on an otherwise cacheable page therefore sets the
+  ``csrftoken`` cookie and varies the response on ``Cookie``. Admin change
+  forms already render ``{% csrf_token %}``, so their responses are unchanged.
+
 **4.11.13 (Aug 2, 2018)**
 
 * Fix Django 1.11 that prevented updating images in standalone mode
