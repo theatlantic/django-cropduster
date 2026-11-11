@@ -1,0 +1,6 @@
+{
+  "name": "cropduster-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Playwright specs, run from ../frontend (see ../frontend/playwright.config.ts). node_modules is a symlink to ../frontend/node_modules so that bare imports of @playwright/test resolve here; npm ci --prefix frontend is the only install."
+}
