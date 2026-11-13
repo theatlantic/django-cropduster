@@ -5,10 +5,12 @@ This is a development-only configuration: the secret key is a literal and
 ``DEBUG`` is always enabled.
 """
 
+import copy
 import os
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
+from django.utils.log import DEFAULT_LOGGING
 
 SRC_DIR = Path(__file__).resolve().parent.parent
 DEMO_DIR = SRC_DIR.parent
@@ -117,3 +119,11 @@ CROPDUSTER_CREATE_THUMBS = True
 # field API, and Django's admin.E013 check misclassifies it as a
 # through-model M2M.
 SILENCED_SYSTEM_CHECKS = ["admin.E013"]
+
+# DJANGO_LOG_LEVEL sets the level of Django's loggers, including the
+# django.server line runserver writes to stderr for every request (which the
+# beta log pipeline tags as an error). WARNING only logs 4xx and 5xx requests.
+if os.environ.get("DJANGO_LOG_LEVEL"):
+    LOGGING = copy.deepcopy(DEFAULT_LOGGING)
+    for logger_name in ("django", "django.server"):
+        LOGGING["loggers"][logger_name]["level"] = os.environ["DJANGO_LOG_LEVEL"].upper()
