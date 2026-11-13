@@ -120,7 +120,10 @@ CROPDUSTER_CREATE_THUMBS = True
 # through-model M2M.
 SILENCED_SYSTEM_CHECKS = ["admin.E013"]
 
-# runserver writes a django.server line to stderr for every request, which the
-# beta log pipeline tags as an error. Only log 4xx (WARNING) and 5xx (ERROR).
-LOGGING = copy.deepcopy(DEFAULT_LOGGING)
-LOGGING["loggers"]["django.server"]["level"] = "WARNING"
+# DJANGO_LOG_LEVEL sets the level of Django's loggers, including the
+# django.server line runserver writes to stderr for every request (which the
+# beta log pipeline tags as an error). WARNING only logs 4xx and 5xx requests.
+if os.environ.get("DJANGO_LOG_LEVEL"):
+    LOGGING = copy.deepcopy(DEFAULT_LOGGING)
+    for logger_name in ("django", "django.server"):
+        LOGGING["loggers"][logger_name]["level"] = os.environ["DJANGO_LOG_LEVEL"].upper()
